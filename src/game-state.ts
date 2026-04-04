@@ -1,4 +1,4 @@
-import { BOARD_SIZE, HEIGHT, WIDTH } from "./connect4/constants.js";
+import { BOARD_SIZE, HEIGHT, WIDTH } from "./connect4/constants";
 
 export type Disc = 0 | 1 | 2;
 export type Player = 1 | 2;

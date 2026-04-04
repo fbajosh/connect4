@@ -1,4 +1,4 @@
-import { DEFAULT_TABLE_SIZE } from "./constants.js";
+import { DEFAULT_TABLE_SIZE } from "./constants";
 
 export class TranspositionTable {
   private readonly sizeBigInt: bigint;

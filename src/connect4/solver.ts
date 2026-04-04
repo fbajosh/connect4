@@ -1,7 +1,7 @@
-import { BOARD_SIZE, COLUMN_ORDER, DEFAULT_TABLE_SIZE, INVALID_MOVE, MAX_SCORE, MIN_SCORE, WIDTH, columnMask } from "./constants.js";
-import { MoveSorter } from "./move-sorter.js";
-import { Position } from "./position.js";
-import { TranspositionTable } from "./transposition-table.js";
+import { BOARD_SIZE, COLUMN_ORDER, DEFAULT_TABLE_SIZE, INVALID_MOVE, MAX_SCORE, MIN_SCORE, WIDTH, columnMask } from "./constants";
+import { MoveSorter } from "./move-sorter";
+import { Position } from "./position";
+import { TranspositionTable } from "./transposition-table";
 
 export type SolveResult = {
   elapsedMs: number;
