@@ -1,6 +1,6 @@
-import { HEIGHT, INVALID_MOVE, WIDTH } from "./connect4/constants.js";
-import { parseSequence, type ParsedGame, type Player } from "./game-state.js";
-import type { AnalyzeRequest, ClearCacheRequest, WorkerResponse } from "./worker-protocol.js";
+import { HEIGHT, INVALID_MOVE, WIDTH } from "./connect4/constants";
+import { parseSequence, type ParsedGame, type Player } from "./game-state";
+import type { AnalyzeRequest, ClearCacheRequest, WorkerResponse } from "./worker-protocol";
 
 type AnalysisSnapshot = {
   bestColumns: number[];
@@ -93,7 +93,7 @@ const bestMoveButton = getElement<HTMLButtonElement>("play-best-move");
 const clearCacheButton = getElement<HTMLButtonElement>("clear-cache");
 const weakModeInput = getElement<HTMLInputElement>("weak-mode");
 
-const worker = new Worker(new URL("./solver-worker.js", import.meta.url), { type: "module" });
+const worker = new Worker(new URL("./solver-worker.ts", import.meta.url), { type: "module" });
 
 let sequence = "";
 let latestAnalysis: AnalysisSnapshot | null = null;

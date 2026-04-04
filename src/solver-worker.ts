@@ -1,6 +1,6 @@
-import { Position } from "./connect4/position.js";
-import { Solver } from "./connect4/solver.js";
-import type { WorkerRequest, WorkerResponse } from "./worker-protocol.js";
+import { Position } from "./connect4/position";
+import { Solver } from "./connect4/solver";
+import type { WorkerRequest, WorkerResponse } from "./worker-protocol";
 
 declare const self: DedicatedWorkerGlobalScope;
 

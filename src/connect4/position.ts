@@ -1,4 +1,4 @@
-import { BOARD_MASK, BOTTOM_MASK, HEIGHT, WIDTH, bottomMaskCol, columnMask, topMaskCol } from "./constants.js";
+import { BOARD_MASK, BOTTOM_MASK, HEIGHT, WIDTH, bottomMaskCol, columnMask, topMaskCol } from "./constants";
 
 export class Position {
   private currentPosition = 0n;

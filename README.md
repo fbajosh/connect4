@@ -8,6 +8,18 @@ It is a derivative of Pascal Pons' Connect 4 solver and remains under AGPL v3.
 
 The web version keeps the same bitboard representation and negamax search, adapts the cache size for browser memory limits, and runs the solver inside a Web Worker so the UI stays responsive.
 
+### Install
+
+```bash
+npm install
+```
+
+### Live Development
+
+```bash
+npm run dev
+```
+
 ### Build
 
 ```bash
@@ -19,10 +31,10 @@ This writes a static site to `dist/`.
 ### Preview Locally
 
 ```bash
-python3 -m http.server 4173 --directory dist
+npm run preview
 ```
 
-Then open `http://localhost:4173`.
+Vite prints the preview URL in the terminal.
 
 ### Deploy
 
