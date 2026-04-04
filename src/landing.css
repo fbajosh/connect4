@@ -1,9 +1,3 @@
-:root {
-  --board-blue: #5067b3;
-  --bezel-highlight: #6276bb;
-  --page-background: #ffffff;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -15,7 +9,7 @@ body {
 
 body {
   margin: 0;
-  background: var(--page-background);
+  background: #ffffff;
 }
 
 .landing {
@@ -31,12 +25,12 @@ body {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: repeat(6, minmax(0, 1fr));
-  background: var(--board-blue);
+  background: #5067b3;
 }
 
 .board-cell {
   position: relative;
-  background: var(--board-blue);
+  background: #5067b3;
 }
 
 .board-cell::before,
@@ -48,7 +42,7 @@ body {
 
 .board-cell::before {
   inset: 10%;
-  background: radial-gradient(circle, var(--board-blue) 0 89%, var(--bezel-highlight) 94%, var(--board-blue) 100%);
+  background: radial-gradient(circle, #5067b3 0 89%, #6a76ba 95%, #5067b3 100%);
 }
 
 .board-cell::after {

@@ -1,12 +1,12 @@
 # Connect 4 Game Solver
 
-This repository is now a browser-friendly TypeScript Connect 4 solver in [`src/`](./src).
+This repository is now a browser-friendly TypeScript Connect 4 project in [`src/`](./src).
 
 It is a derivative of Pascal Pons' Connect 4 solver and remains under AGPL v3.
 
 ## TypeScript Web App
 
-The web version keeps the same bitboard representation and negamax search, adapts the cache size for browser memory limits, and runs the solver inside a Web Worker so the UI stays responsive.
+The project uses Vite for local development and production builds.
 
 ### Install
 
@@ -44,10 +44,5 @@ Deploy the contents of `dist/` to any static host:
 - Netlify
 - Cloudflare Pages
 - Vercel static hosting
-
-### Current Differences From The Native Solver
-
-- No opening book is loaded in the web version.
-- The transposition table is smaller than the original native build, so some positions will solve more slowly in the browser.
 
 Read the associated [step by step tutorial to build a perfect Connect 4 AI](http://blog.gamesolver.org) for explanations.
