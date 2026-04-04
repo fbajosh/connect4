@@ -1,0 +1,9 @@
+{
+  "name": "connect4-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "python3 -m http.server 4173 --directory dist"
+  }
+}
