@@ -23,8 +23,12 @@ const scoreBarFill = document.getElementById("score-bar-fill");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const resetControl = document.getElementById("reset-control");
-const trainingToolsToggle = document.getElementById("training-tools-toggle");
+const modeMenuToggle = document.getElementById("mode-menu-toggle");
+const modeMenu = document.getElementById("mode-menu");
+const toolsMenuToggle = document.getElementById("tools-menu-toggle");
+const toolsMenu = document.getElementById("tools-menu");
 const featureControls = document.getElementById("feature-controls");
+const toolsEmptyState = document.getElementById("tools-empty-state");
 const bestMovePulse = document.getElementById("best-move-pulse");
 const bestMoveToggle = document.getElementById("best-move-toggle");
 const moveScoresPulse = document.getElementById("move-scores-pulse");
@@ -48,8 +52,12 @@ if (
   !columnScoreRow ||
   !previewPiece ||
   !resetControl ||
-  !trainingToolsToggle ||
+  !modeMenuToggle ||
+  !modeMenu ||
+  !toolsMenuToggle ||
+  !toolsMenu ||
   !featureControls ||
+  !toolsEmptyState ||
   !bestMovePulse ||
   !bestMoveToggle ||
   !moveScoresPulse ||
@@ -72,12 +80,20 @@ const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
 );
 
+type GameMode = "training" | "practice" | "freeplay";
 type FeatureKey = "bestMove" | "moveScores" | "gameScore" | "devMode";
 
 type PersistedUiState = {
+  modeMenuExpanded?: boolean;
+  toolsMenuExpanded?: boolean;
   menuExpanded?: boolean;
+  selectedMode?: GameMode;
   pinned?: Partial<Record<FeatureKey, boolean>>;
 };
+
+const modeOptionButtons = Array.from(
+  modeMenu.querySelectorAll<HTMLButtonElement>("[data-mode-option]"),
+);
 
 const featurePulseButtons: Record<FeatureKey, HTMLButtonElement> = {
   bestMove: bestMovePulse as HTMLButtonElement,
@@ -105,7 +121,9 @@ let optimizerWorker: Worker | null = null;
 let shakeResetTimeout = 0;
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
-let isTrainingToolsMenuExpanded = false;
+let currentMode: GameMode = "training";
+let isModeMenuExpanded = false;
+let isToolsMenuExpanded = false;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const featurePinned: Record<FeatureKey, boolean> = {
@@ -173,7 +191,9 @@ function readPersistedUiState(): PersistedUiState {
 function persistUiState(): void {
   try {
     const state: PersistedUiState = {
-      menuExpanded: isTrainingToolsMenuExpanded,
+      modeMenuExpanded: isModeMenuExpanded,
+      toolsMenuExpanded: isToolsMenuExpanded,
+      selectedMode: currentMode,
       pinned: {
         bestMove: featurePinned.bestMove,
         moveScores: featurePinned.moveScores,
@@ -192,24 +212,44 @@ function syncMoveSequence(): void {
   syncFeatureUI();
 }
 
+function isTrainingMode(): boolean {
+  return currentMode === "training";
+}
+
+function currentModeLabel(): string {
+  if (currentMode === "practice") {
+    return "Practice";
+  }
+
+  if (currentMode === "freeplay") {
+    return "Freeplay";
+  }
+
+  return "Training";
+}
+
+function updateDocumentTitle(): void {
+  document.title = `Connect 4 Trainer - ${currentModeLabel()}`;
+}
+
 function isFeatureVisible(feature: FeatureKey): boolean {
   return featurePinned[feature] || featureHeld[feature];
 }
 
 function effectiveBestMoveVisible(): boolean {
-  return isFeatureVisible("bestMove");
+  return isTrainingMode() && isFeatureVisible("bestMove");
 }
 
 function effectiveMoveScoresVisible(): boolean {
-  return isFeatureVisible("moveScores");
+  return isTrainingMode() && isFeatureVisible("moveScores");
 }
 
 function effectiveGameScoreVisible(): boolean {
-  return isFeatureVisible("gameScore");
+  return isTrainingMode() && isFeatureVisible("gameScore");
 }
 
 function effectiveDevModeVisible(): boolean {
-  return isFeatureVisible("devMode");
+  return isTrainingMode() && isFeatureVisible("devMode");
 }
 
 function setFeaturePinned(feature: FeatureKey, pinned: boolean): void {
@@ -244,11 +284,53 @@ function syncFeatureControls(): void {
   }
 }
 
-function setTrainingToolsMenuExpanded(expanded: boolean): void {
-  isTrainingToolsMenuExpanded = expanded;
-  trainingToolsToggle.setAttribute("aria-expanded", String(expanded));
-  featureControls.classList.toggle("hidden", !expanded);
+function syncModeMenu(): void {
+  for (const option of modeOptionButtons) {
+    const optionMode = option.dataset.modeOption as GameMode | undefined;
+    const isSelected = optionMode === currentMode;
+    option.classList.toggle("is-selected", isSelected);
+    option.setAttribute("aria-pressed", String(isSelected));
+  }
+
+  featureControls.classList.toggle("hidden", !isTrainingMode());
+  toolsEmptyState.classList.toggle("hidden", isTrainingMode());
+  if (!isTrainingMode()) {
+    toolsEmptyState.textContent = `${currentModeLabel()} tools coming soon.`;
+  }
+}
+
+function setModeMenuExpanded(expanded: boolean): void {
+  isModeMenuExpanded = expanded;
+  if (expanded) {
+    isToolsMenuExpanded = false;
+  }
+
+  modeMenuToggle.setAttribute("aria-expanded", String(isModeMenuExpanded));
+  modeMenu.classList.toggle("hidden", !isModeMenuExpanded);
+  toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
+  toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
   persistUiState();
+}
+
+function setToolsMenuExpanded(expanded: boolean): void {
+  isToolsMenuExpanded = expanded;
+  if (expanded) {
+    isModeMenuExpanded = false;
+  }
+
+  toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
+  toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
+  modeMenuToggle.setAttribute("aria-expanded", String(isModeMenuExpanded));
+  modeMenu.classList.toggle("hidden", !isModeMenuExpanded);
+  persistUiState();
+}
+
+function setCurrentMode(mode: GameMode): void {
+  currentMode = mode;
+  updateDocumentTitle();
+  syncModeMenu();
+  persistUiState();
+  syncFeatureUI();
 }
 
 function applyBoardFrameLayout(): void {
@@ -855,9 +937,25 @@ resetControl.addEventListener("click", () => {
   resetBoard();
 });
 
-trainingToolsToggle.addEventListener("click", () => {
-  setTrainingToolsMenuExpanded(!isTrainingToolsMenuExpanded);
+modeMenuToggle.addEventListener("click", () => {
+  setModeMenuExpanded(!isModeMenuExpanded);
 });
+
+toolsMenuToggle.addEventListener("click", () => {
+  setToolsMenuExpanded(!isToolsMenuExpanded);
+});
+
+for (const option of modeOptionButtons) {
+  option.addEventListener("click", () => {
+    const selectedMode = option.dataset.modeOption as GameMode | undefined;
+    if (!selectedMode) {
+      return;
+    }
+
+    setCurrentMode(selectedMode);
+    setModeMenuExpanded(false);
+  });
+}
 
 for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
   const trainerSlot = document.createElement("div");
@@ -893,7 +991,11 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   featureToggleInputs[feature].checked = featurePinned[feature];
 }
 
-setTrainingToolsMenuExpanded(persistedUiState.menuExpanded === true);
+currentMode = persistedUiState.selectedMode ?? "training";
+updateDocumentTitle();
+syncModeMenu();
+setModeMenuExpanded(persistedUiState.modeMenuExpanded === true);
+setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
 syncMoveSequence();
 requestOptimizerOutput();

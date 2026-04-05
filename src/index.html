@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Connect 4 Trainer</title>
+    <title>Connect 4 Trainer - Training</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
@@ -14,43 +14,68 @@
       <div class="effects-layer" id="effects-layer" aria-hidden="true"></div>
       <header class="hero">
         <h1 class="title">Connect 4 Trainer</h1>
-        <button
-          class="tools-menu-toggle"
-          id="training-tools-toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="feature-controls"
-        >
-          Training Tools
-        </button>
-        <div class="feature-controls hidden" id="feature-controls" aria-label="Display controls">
-          <div class="feature-row">
-            <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
-            <label class="feature-toggle" for="best-move-toggle">
-              <input class="feature-toggle-input" id="best-move-toggle" type="checkbox" />
-              <span class="feature-toggle-slider"></span>
-            </label>
+        <div class="menu-bar" aria-label="Menus">
+          <div class="menu-shell">
+            <button
+              class="menu-toggle"
+              id="mode-menu-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="mode-menu"
+            >
+              Mode
+            </button>
+            <div class="menu-panel hidden" id="mode-menu" aria-label="Game mode">
+              <button class="mode-option" data-mode-option="training" type="button">Training</button>
+              <button class="mode-option" data-mode-option="practice" type="button">Practice</button>
+              <button class="mode-option" data-mode-option="freeplay" type="button">Freeplay</button>
+            </div>
           </div>
-          <div class="feature-row">
-            <button class="feature-pulse" id="move-scores-pulse" type="button">Move Scores</button>
-            <label class="feature-toggle" for="move-scores-toggle">
-              <input class="feature-toggle-input" id="move-scores-toggle" type="checkbox" />
-              <span class="feature-toggle-slider"></span>
-            </label>
-          </div>
-          <div class="feature-row">
-            <button class="feature-pulse" id="game-score-pulse" type="button">Game Score</button>
-            <label class="feature-toggle" for="game-score-toggle">
-              <input class="feature-toggle-input" id="game-score-toggle" type="checkbox" />
-              <span class="feature-toggle-slider"></span>
-            </label>
-          </div>
-          <div class="feature-row">
-            <button class="feature-pulse" id="dev-mode-pulse" type="button">Dev Mode</button>
-            <label class="feature-toggle" for="dev-mode-toggle">
-              <input class="feature-toggle-input" id="dev-mode-toggle" type="checkbox" />
-              <span class="feature-toggle-slider"></span>
-            </label>
+          <div class="menu-shell">
+            <button
+              class="menu-toggle"
+              id="tools-menu-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="tools-menu"
+            >
+              Tools
+            </button>
+            <div class="menu-panel hidden" id="tools-menu" aria-label="Mode tools">
+              <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls">
+                <div class="feature-row">
+                  <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
+                  <label class="feature-toggle" for="best-move-toggle">
+                    <input class="feature-toggle-input" id="best-move-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="feature-row">
+                  <button class="feature-pulse" id="move-scores-pulse" type="button">Move Scores</button>
+                  <label class="feature-toggle" for="move-scores-toggle">
+                    <input class="feature-toggle-input" id="move-scores-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="feature-row">
+                  <button class="feature-pulse" id="game-score-pulse" type="button">Game Score</button>
+                  <label class="feature-toggle" for="game-score-toggle">
+                    <input class="feature-toggle-input" id="game-score-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="feature-row">
+                  <button class="feature-pulse" id="dev-mode-pulse" type="button">Dev Mode</button>
+                  <label class="feature-toggle" for="dev-mode-toggle">
+                    <input class="feature-toggle-input" id="dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="tools-empty-state hidden" id="tools-empty-state" aria-live="polite">
+                No tools yet.
+              </div>
+            </div>
           </div>
         </div>
       </header>

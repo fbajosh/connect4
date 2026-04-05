@@ -63,15 +63,28 @@ body {
   white-space: nowrap;
 }
 
-.tools-menu-toggle,
-.feature-controls {
+.menu-bar {
   width: min(26rem, 100%);
-}
-
-.tools-menu-toggle {
   position: relative;
   display: grid;
-  place-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.menu-shell {
+  width: 100%;
+}
+
+.menu-toggle,
+.feature-controls {
+  width: 100%;
+}
+
+.menu-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   border: 1px solid #4d4d4d;
   border-radius: 999px;
   background: #262626;
@@ -80,12 +93,12 @@ body {
   font-size: clamp(0.9rem, 1.2vw, 1rem);
   font-weight: 700;
   line-height: 1;
-  padding: 0.9em 1.15em;
-  text-align: center;
+  padding: 0.9em 2.9em 0.9em 1.15em;
+  text-align: left;
   white-space: nowrap;
 }
 
-.tools-menu-toggle::after {
+.menu-toggle::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -98,18 +111,64 @@ body {
   transition: transform 140ms ease;
 }
 
-.tools-menu-toggle[aria-expanded="true"] {
+.menu-toggle[aria-expanded="true"] {
   border-color: #788bd0;
   background: #31437c;
 }
 
-.tools-menu-toggle[aria-expanded="true"]::after {
+.menu-toggle[aria-expanded="true"]::after {
   transform: translateY(-28%) rotate(-135deg);
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  border: 1px solid #4d4d4d;
+  border-radius: 1rem;
+  background: rgba(19, 19, 19, 0.98);
+  z-index: 6;
 }
 
 .feature-controls {
   display: grid;
   gap: 0.55rem;
+}
+
+.mode-option {
+  border: 1px solid #4d4d4d;
+  border-radius: 999px;
+  background: #262626;
+  color: #ffffff;
+  font-family: "Roboto", sans-serif;
+  font-size: clamp(0.84rem, 1.15vw, 0.98rem);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.85em 1.15em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.mode-option.is-selected {
+  border-color: #788bd0;
+  background: #31437c;
+}
+
+.tools-empty-state {
+  border: 1px solid #4d4d4d;
+  border-radius: 1rem;
+  background: #161616;
+  color: #d0d0d0;
+  font-family: "Roboto", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 1rem 1.1rem;
+  text-align: center;
 }
 
 .feature-row {
@@ -519,6 +578,10 @@ body {
   .hero {
     grid-column: 1 / -1;
     justify-self: center;
+  }
+
+  .menu-bar {
+    width: min(30rem, 100%);
   }
 
   .board-stage {
