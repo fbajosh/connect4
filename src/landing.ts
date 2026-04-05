@@ -28,7 +28,11 @@ const modeMenu = document.getElementById("mode-menu");
 const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
 const featureControls = document.getElementById("feature-controls");
+const practiceControls = document.getElementById("practice-controls");
 const toolsEmptyState = document.getElementById("tools-empty-state");
+const practiceDifficultySlider = document.getElementById("practice-difficulty-slider");
+const practiceDifficultyValue = document.getElementById("practice-difficulty-value");
+const practiceDevModeToggle = document.getElementById("practice-dev-mode-toggle");
 const bestMovePulse = document.getElementById("best-move-pulse");
 const bestMoveToggle = document.getElementById("best-move-toggle");
 const moveScoresPulse = document.getElementById("move-scores-pulse");
@@ -57,7 +61,11 @@ if (
   !toolsMenuToggle ||
   !toolsMenu ||
   !featureControls ||
+  !practiceControls ||
   !toolsEmptyState ||
+  !practiceDifficultySlider ||
+  !practiceDifficultyValue ||
+  !practiceDevModeToggle ||
   !bestMovePulse ||
   !bestMoveToggle ||
   !moveScoresPulse ||
@@ -76,18 +84,24 @@ const board = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH },
 const trainerSlots: HTMLDivElement[] = [];
 const discSlots: HTMLDivElement[] = [];
 const columnScoreSlots: HTMLSpanElement[] = [];
+const practiceColorButtons = Array.from(
+  practiceControls.querySelectorAll<HTMLButtonElement>("[data-practice-color]"),
+);
 const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
 );
 
 type GameMode = "training" | "practice" | "freeplay";
 type FeatureKey = "bestMove" | "moveScores" | "gameScore" | "devMode";
+type PracticeColor = "red" | "yellow" | "alternate";
 
 type PersistedUiState = {
   modeMenuExpanded?: boolean;
   toolsMenuExpanded?: boolean;
   menuExpanded?: boolean;
   selectedMode?: GameMode;
+  practiceColor?: PracticeColor;
+  practiceDifficulty?: number;
   pinned?: Partial<Record<FeatureKey, boolean>>;
 };
 
@@ -124,6 +138,12 @@ let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
 let isModeMenuExpanded = false;
 let isToolsMenuExpanded = false;
+let practiceColor: PracticeColor = "red";
+let practiceDifficulty = 10;
+let practiceRoundIndex = 0;
+let aiMoveTimeout = 0;
+let aiScheduledSequence: string | null = null;
+let lastPracticeAiDebug: { rng: number } | null = null;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const featurePinned: Record<FeatureKey, boolean> = {
@@ -194,6 +214,8 @@ function persistUiState(): void {
       modeMenuExpanded: isModeMenuExpanded,
       toolsMenuExpanded: isToolsMenuExpanded,
       selectedMode: currentMode,
+      practiceColor,
+      practiceDifficulty,
       pinned: {
         bestMove: featurePinned.bestMove,
         moveScores: featurePinned.moveScores,
@@ -232,6 +254,47 @@ function updateDocumentTitle(): void {
   document.title = `Connect 4 Trainer - ${currentModeLabel()}`;
 }
 
+function isPracticeMode(): boolean {
+  return currentMode === "practice";
+}
+
+function effectivePracticeHumanColor(): number {
+  if (practiceColor === "yellow") {
+    return YELLOW;
+  }
+
+  if (practiceColor === "alternate") {
+    return practiceRoundIndex % 2 === 0 ? RED : YELLOW;
+  }
+
+  return RED;
+}
+
+function isHumanTurn(): boolean {
+  return !isPracticeMode() || currentPlayer === effectivePracticeHumanColor();
+}
+
+function updatePracticeControls(): void {
+  practiceControls.classList.toggle("hidden", !isPracticeMode());
+  featureControls.classList.toggle("hidden", !isTrainingMode());
+  toolsEmptyState.classList.toggle("hidden", isTrainingMode() || isPracticeMode());
+
+  if (!isTrainingMode() && !isPracticeMode()) {
+    toolsEmptyState.textContent = `${currentModeLabel()} tools coming soon.`;
+  }
+
+  for (const button of practiceColorButtons) {
+    const color = button.dataset.practiceColor as PracticeColor | undefined;
+    const isSelected = color === practiceColor;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  }
+
+  practiceDifficultySlider.value = String(practiceDifficulty);
+  practiceDifficultyValue.textContent = String(practiceDifficulty);
+  practiceDevModeToggle.checked = featurePinned.devMode;
+}
+
 function isFeatureVisible(feature: FeatureKey): boolean {
   return featurePinned[feature] || featureHeld[feature];
 }
@@ -249,7 +312,7 @@ function effectiveGameScoreVisible(): boolean {
 }
 
 function effectiveDevModeVisible(): boolean {
-  return isTrainingMode() && isFeatureVisible("devMode");
+  return (isTrainingMode() || isPracticeMode()) && isFeatureVisible("devMode");
 }
 
 function setFeaturePinned(feature: FeatureKey, pinned: boolean): void {
@@ -291,12 +354,7 @@ function syncModeMenu(): void {
     option.classList.toggle("is-selected", isSelected);
     option.setAttribute("aria-pressed", String(isSelected));
   }
-
-  featureControls.classList.toggle("hidden", !isTrainingMode());
-  toolsEmptyState.classList.toggle("hidden", isTrainingMode());
-  if (!isTrainingMode()) {
-    toolsEmptyState.textContent = `${currentModeLabel()} tools coming soon.`;
-  }
+  updatePracticeControls();
 }
 
 function setModeMenuExpanded(expanded: boolean): void {
@@ -326,11 +384,33 @@ function setToolsMenuExpanded(expanded: boolean): void {
 }
 
 function setCurrentMode(mode: GameMode): void {
+  if (mode === currentMode) {
+    return;
+  }
+
   currentMode = mode;
   updateDocumentTitle();
   syncModeMenu();
   persistUiState();
-  syncFeatureUI();
+  resetBoard({ advancePracticeRound: false });
+}
+
+function setPracticeColor(nextColor: PracticeColor): void {
+  if (nextColor === practiceColor) {
+    return;
+  }
+
+  practiceColor = nextColor;
+  updatePracticeControls();
+  persistUiState();
+  resetBoard({ advancePracticeRound: false });
+}
+
+function setPracticeDifficulty(nextDifficulty: number): void {
+  practiceDifficulty = Math.max(1, Math.min(10, Math.round(nextDifficulty)));
+  updatePracticeControls();
+  persistUiState();
+  maybeScheduleAiTurn();
 }
 
 function applyBoardFrameLayout(): void {
@@ -369,6 +449,9 @@ function renderDevOutput(): void {
     lines.push(`winner: ${playerClass(winningPlayer)}`);
   } else if (latestOptimizerOutput.length > 0) {
     lines.push(latestOptimizerOutput);
+  }
+  if (isPracticeMode() && lastPracticeAiDebug) {
+    lines.push(`RNG: ${lastPracticeAiDebug.rng.toFixed(6)}`);
   }
   lines.push(`total-red: ${formatAverageScore(previousRedScores)}`);
   lines.push(`total-yellow: ${formatAverageScore(previousYellowScores)}`);
@@ -545,9 +628,124 @@ function renderCurrentTrainingHints(): void {
   renderTrainingHints(bestColumns);
 }
 
+function cancelAiTurn(): void {
+  if (aiMoveTimeout !== 0) {
+    window.clearTimeout(aiMoveTimeout);
+    aiMoveTimeout = 0;
+  }
+
+  aiScheduledSequence = null;
+}
+
+function currentPracticeAiScores(): number[] | null {
+  if (!isPracticeMode() || isWinLocked) {
+    return null;
+  }
+
+  if (moveSequence === "") {
+    return EMPTY_BOARD_SCORES;
+  }
+
+  if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
+    return null;
+  }
+
+  return latestOptimizerPayload.scores;
+}
+
+function practiceTemperature(): number {
+  return 1 + ((10 - practiceDifficulty) / 9) * 7;
+}
+
+function choosePracticeAiColumn(scores: number[]): number | null {
+  const validEntries = scores
+    .map((score, column) => ({ score, column }))
+    .filter((entry) => entry.score !== -1000 && lowestOpenRow(entry.column) !== null);
+
+  if (validEntries.length === 0) {
+    lastPracticeAiDebug = null;
+    return null;
+  }
+
+  const temperature = practiceTemperature();
+  const logits = validEntries.map((entry) => entry.score / temperature);
+  const maxLogit = Math.max(...logits);
+  const weights = logits.map((logit) => Math.exp(logit - maxLogit));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const rng = Math.random();
+  let threshold = rng * totalWeight;
+  lastPracticeAiDebug = {
+    rng,
+  };
+  for (let index = 0; index < validEntries.length; index += 1) {
+    threshold -= weights[index];
+    if (threshold <= 0) {
+      return validEntries[index].column;
+    }
+  }
+
+  return validEntries[validEntries.length - 1].column;
+}
+
+function maybeScheduleAiTurn(): void {
+  cancelAiTurn();
+
+  if (!isPracticeMode() || isAnimating || isWinLocked || isHumanTurn()) {
+    return;
+  }
+
+  const scores = currentPracticeAiScores();
+  if (!scores) {
+    return;
+  }
+
+  const scheduledSequence = moveSequence;
+  aiScheduledSequence = scheduledSequence;
+  aiMoveTimeout = window.setTimeout(() => {
+    aiMoveTimeout = 0;
+    aiScheduledSequence = null;
+
+    if (
+      !isPracticeMode() ||
+      isAnimating ||
+      isWinLocked ||
+      isHumanTurn() ||
+      moveSequence !== scheduledSequence
+    ) {
+      return;
+    }
+
+    const liveScores = currentPracticeAiScores();
+    if (!liveScores) {
+      return;
+    }
+
+    const chosenColumn = choosePracticeAiColumn(liveScores);
+    if (chosenColumn === null) {
+      return;
+    }
+
+    updatePreview(chosenColumn);
+    requestAnimationFrame(() => {
+      if (
+        !isPracticeMode() ||
+        isAnimating ||
+        isWinLocked ||
+        isHumanTurn() ||
+        moveSequence !== scheduledSequence
+      ) {
+        return;
+      }
+
+      dropPreview(chosenColumn);
+    });
+  }, 500);
+}
+
 function requestOptimizerOutput(): void {
   if (isWinLocked && winningPlayer !== null) {
     stopOptimizerWorker();
+    cancelAiTurn();
     clearTrainingHints();
     latestOptimizerOutput = "";
     latestOptimizerPayload = null;
@@ -559,6 +757,7 @@ function requestOptimizerOutput(): void {
   latestOptimizerPayload = null;
   latestOptimizerOutput = "status: Computing...";
   syncFeatureUI();
+  maybeScheduleAiTurn();
 
   const worker = new Worker(new URL("./optimizer-worker.ts", import.meta.url), { type: "module" });
   optimizerWorker = worker;
@@ -576,6 +775,7 @@ function requestOptimizerOutput(): void {
 
     latestOptimizerOutput = event.data.output;
     syncFeatureUI();
+    maybeScheduleAiTurn();
     stopOptimizerWorker();
   });
 
@@ -587,6 +787,7 @@ function requestOptimizerOutput(): void {
     latestOptimizerOutput = "Optimizer worker failed.";
     latestOptimizerPayload = null;
     syncFeatureUI();
+    cancelAiTurn();
     stopOptimizerWorker();
   });
 
@@ -747,8 +948,10 @@ function animateResetPieces(): void {
   }
 }
 
-function resetBoard(): void {
+function resetBoard(options?: { advancePracticeRound?: boolean }): void {
+  const { advancePracticeRound = true } = options ?? {};
   animateResetPieces();
+  cancelAiTurn();
   dropToken += 1;
   isAnimating = false;
   window.clearTimeout(shakeResetTimeout);
@@ -759,10 +962,14 @@ function resetBoard(): void {
   }
 
   activePointerId = null;
+  if (advancePracticeRound && isPracticeMode() && practiceColor === "alternate") {
+    practiceRoundIndex += 1;
+  }
   currentPlayer = RED;
   isWinLocked = false;
   winningPlayer = null;
   moveSequence = "";
+  lastPracticeAiDebug = null;
   latestOptimizerOutput = "";
   latestOptimizerPayload = null;
   previousRedScores.length = 0;
@@ -823,10 +1030,28 @@ function dropPreview(column: number): void {
 
   const player = currentPlayer;
   const currentDropToken = ++dropToken;
+  let didFinish = false;
   isAnimating = true;
   clearTrainingHints();
-  previewPiece.classList.add("dropping");
-  previewPiece.style.top = targetTopForRow(row);
+
+  const finishDrop = (): void => {
+    if (didFinish) {
+      return;
+    }
+
+    didFinish = true;
+    previewPiece.removeEventListener("transitionend", onTransitionEnd);
+    window.clearTimeout(fallbackTimeout);
+
+    if (currentDropToken !== dropToken) {
+      return;
+    }
+
+    placeDisc(row, column, player);
+    currentPlayer = nextPlayer(player);
+    isAnimating = false;
+    hidePreview();
+  };
 
   const onTransitionEnd = (event: Event) => {
     const transitionEvent = event as TransitionEvent;
@@ -834,17 +1059,23 @@ function dropPreview(column: number): void {
       return;
     }
 
-    previewPiece.removeEventListener("transitionend", onTransitionEnd);
-    if (currentDropToken !== dropToken) {
-      return;
-    }
-    placeDisc(row, column, player);
-    currentPlayer = nextPlayer(player);
-    isAnimating = false;
-    hidePreview();
+    finishDrop();
   };
 
   previewPiece.addEventListener("transitionend", onTransitionEnd);
+  previewPiece.classList.add("dropping");
+  void previewPiece.offsetWidth;
+  requestAnimationFrame(() => {
+    if (currentDropToken !== dropToken) {
+      return;
+    }
+
+    previewPiece.style.top = targetTopForRow(row);
+  });
+
+  const fallbackTimeout = window.setTimeout(() => {
+    finishDrop();
+  }, 450);
 }
 
 function endInteraction(drop: boolean): void {
@@ -889,6 +1120,10 @@ function bindFeatureControl(feature: FeatureKey): void {
 
 boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
   if (isAnimating) {
+    return;
+  }
+
+  if (!isHumanTurn()) {
     return;
   }
 
@@ -984,6 +1219,25 @@ for (const feature of Object.keys(featurePulseButtons) as FeatureKey[]) {
   bindFeatureControl(feature);
 }
 
+for (const button of practiceColorButtons) {
+  button.addEventListener("click", () => {
+    const nextColor = button.dataset.practiceColor as PracticeColor | undefined;
+    if (!nextColor) {
+      return;
+    }
+
+    setPracticeColor(nextColor);
+  });
+}
+
+practiceDifficultySlider.addEventListener("input", () => {
+  setPracticeDifficulty(Number(practiceDifficultySlider.value));
+});
+
+practiceDevModeToggle.addEventListener("change", () => {
+  setFeaturePinned("devMode", practiceDevModeToggle.checked);
+});
+
 const persistedUiState = readPersistedUiState();
 for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   const pinned = persistedUiState.pinned?.[feature];
@@ -992,6 +1246,11 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
 }
 
 currentMode = persistedUiState.selectedMode ?? "training";
+practiceColor = persistedUiState.practiceColor ?? "red";
+const persistedDifficulty = persistedUiState.practiceDifficulty;
+if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficulty)) {
+  practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
+}
 updateDocumentTitle();
 syncModeMenu();
 setModeMenuExpanded(persistedUiState.modeMenuExpanded === true);
@@ -999,6 +1258,7 @@ setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menu
 syncFeatureControls();
 syncMoveSequence();
 requestOptimizerOutput();
+maybeScheduleAiTurn();
 window.connect4State = {
   getSequence: () => moveSequence,
   getOptimizerOutput: () => devOutputBox.value,

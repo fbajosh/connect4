@@ -72,6 +72,39 @@
                   </label>
                 </div>
               </div>
+              <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
+                <div class="practice-row">
+                  <span class="practice-label">Color</span>
+                  <div class="practice-pill-group" role="group" aria-label="Practice color">
+                    <button class="practice-pill" data-practice-color="red" type="button">Red</button>
+                    <button class="practice-pill" data-practice-color="yellow" type="button">Yellow</button>
+                    <button class="practice-pill" data-practice-color="alternate" type="button">Alt</button>
+                  </div>
+                </div>
+                <div class="practice-row">
+                  <div class="practice-label-row">
+                    <span class="practice-label">Difficulty</span>
+                    <span class="practice-value" id="practice-difficulty-value">10</span>
+                  </div>
+                  <input
+                    class="practice-slider"
+                    id="practice-difficulty-slider"
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value="10"
+                    aria-label="Practice difficulty"
+                  />
+                </div>
+                <div class="practice-row practice-toggle-row">
+                  <span class="practice-label">Dev Mode</span>
+                  <label class="feature-toggle" for="practice-dev-mode-toggle">
+                    <input class="feature-toggle-input" id="practice-dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
               <div class="tools-empty-state hidden" id="tools-empty-state" aria-live="polite">
                 No tools yet.
               </div>

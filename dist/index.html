@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-B8AnmYKI.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-enwnD4bN.css">
+    <script type="module" crossorigin src="/assets/index-BJn7VSVD.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Vlrx0HRV.css">
   </head>
   <body>
     <main class="landing">
@@ -69,6 +69,39 @@
                   <button class="feature-pulse" id="dev-mode-pulse" type="button">Dev Mode</button>
                   <label class="feature-toggle" for="dev-mode-toggle">
                     <input class="feature-toggle-input" id="dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
+                <div class="practice-row">
+                  <span class="practice-label">Color</span>
+                  <div class="practice-pill-group" role="group" aria-label="Practice color">
+                    <button class="practice-pill" data-practice-color="red" type="button">Red</button>
+                    <button class="practice-pill" data-practice-color="yellow" type="button">Yellow</button>
+                    <button class="practice-pill" data-practice-color="alternate" type="button">Alt</button>
+                  </div>
+                </div>
+                <div class="practice-row">
+                  <div class="practice-label-row">
+                    <span class="practice-label">Difficulty</span>
+                    <span class="practice-value" id="practice-difficulty-value">10</span>
+                  </div>
+                  <input
+                    class="practice-slider"
+                    id="practice-difficulty-slider"
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value="10"
+                    aria-label="Practice difficulty"
+                  />
+                </div>
+                <div class="practice-row practice-toggle-row">
+                  <span class="practice-label">Dev Mode</span>
+                  <label class="feature-toggle" for="practice-dev-mode-toggle">
+                    <input class="feature-toggle-input" id="practice-dev-mode-toggle" type="checkbox" />
                     <span class="feature-toggle-slider"></span>
                   </label>
                 </div>
