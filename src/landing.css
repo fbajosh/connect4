@@ -151,6 +151,7 @@ body {
   padding: 0.85rem 0.95rem;
 }
 
+.trainer-grid,
 .disc-grid,
 .board-grid {
   position: absolute;
@@ -161,17 +162,23 @@ body {
   user-select: none;
 }
 
-.disc-grid {
+.trainer-grid {
   z-index: 1;
+  pointer-events: none;
+}
+
+.disc-grid {
+  z-index: 2;
 }
 
 .board-grid {
-  z-index: 2;
+  z-index: 3;
   touch-action: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
+.trainer-slot,
 .disc-slot {
   display: grid;
   place-items: center;
@@ -234,6 +241,11 @@ body {
   background: radial-gradient(circle closest-side, #f0e08b 0 88.571429%, #ffffff 88.571429% 100%);
 }
 
+.piece.trainer {
+  --piece-fill: #9fb86a;
+  --piece-bezel: #8ca25f;
+}
+
 .reset-piece {
   position: fixed;
   z-index: 5;
@@ -250,6 +262,12 @@ body {
 .disc {
   width: 70%;
   aspect-ratio: 1;
+}
+
+.trainer-piece {
+  width: 70%;
+  aspect-ratio: 1;
+  opacity: 0.5;
 }
 
 .preview-piece {

@@ -6,6 +6,7 @@ const YELLOW = 2;
 
 const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
+const trainerGrid = document.getElementById("trainer-grid");
 const discGrid = document.getElementById("disc-grid");
 const effectsLayer = document.getElementById("effects-layer");
 const previewPiece = document.getElementById("preview-piece");
@@ -18,6 +19,7 @@ const optimizerOutputBox = document.getElementById("optimizer-output-box");
 if (
   !boardShell ||
   !boardGrid ||
+  !trainerGrid ||
   !discGrid ||
   !effectsLayer ||
   !previewPiece ||
@@ -31,6 +33,8 @@ if (
 }
 
 const board = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => EMPTY));
+const trainingModeEnabled = true;
+const trainerSlots: HTMLDivElement[] = [];
 const discSlots: HTMLDivElement[] = [];
 const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
@@ -52,6 +56,28 @@ type Connect4DebugState = {
   getOptimizerOutput: () => string;
 };
 
+type OptimizerSuccessPayload = {
+  bestColumns: number[];
+  bestMoves: string;
+  elapsedMs?: number;
+  nodeCount?: number;
+  positionScore: number;
+  scores: number[];
+  sequence: string;
+  source?: "local-cache" | "precomputed" | "wasm";
+};
+
+type OptimizerErrorPayload = {
+  error: string;
+  invalidAtMove?: number;
+  sequence: string;
+};
+
+type OptimizerWorkerResponse = {
+  output: string;
+  payload: OptimizerSuccessPayload | OptimizerErrorPayload;
+};
+
 declare global {
   interface Window {
     connect4State?: Connect4DebugState;
@@ -67,28 +93,82 @@ function setOptimizerOutput(output: string): void {
   optimizerOutputBox.value = output;
 }
 
+function isOptimizerSuccessPayload(
+  payload: OptimizerSuccessPayload | OptimizerErrorPayload,
+): payload is OptimizerSuccessPayload {
+  return !("error" in payload);
+}
+
 function stopOptimizerWorker(): void {
   optimizerWorker?.terminate();
   optimizerWorker = null;
 }
 
+function slotIndexFor(row: number, column: number): number {
+  return (HEIGHT - 1 - row) * WIDTH + column;
+}
+
+function clearTrainingHints(): void {
+  for (const slot of trainerSlots) {
+    slot.replaceChildren();
+  }
+}
+
+function renderTrainingHints(bestColumns: number[]): void {
+  clearTrainingHints();
+
+  if (!trainingModeEnabled || isAnimating || isWinLocked) {
+    return;
+  }
+
+  const uniqueColumns = new Set(bestColumns);
+  for (const oneBasedColumn of uniqueColumns) {
+    const column = oneBasedColumn - 1;
+    if (column < 0 || column >= WIDTH) {
+      continue;
+    }
+
+    const row = lowestOpenRow(column);
+    if (row === null) {
+      continue;
+    }
+
+    const trainerPiece = document.createElement("div");
+    trainerPiece.className = "trainer-piece piece trainer";
+    trainerSlots[slotIndexFor(row, column)].append(trainerPiece);
+  }
+}
+
 function requestOptimizerOutput(): void {
-  if (!devModeEnabled) {
+  if (!devModeEnabled && !trainingModeEnabled) {
     return;
   }
 
   stopOptimizerWorker();
-  setOptimizerOutput("Computing...");
+  if (devModeEnabled) {
+    setOptimizerOutput("Computing...");
+  }
 
   const worker = new Worker(new URL("./optimizer-worker.ts", import.meta.url), { type: "module" });
   optimizerWorker = worker;
 
-  worker.addEventListener("message", (event: MessageEvent<{ output: string }>) => {
+  worker.addEventListener("message", (event: MessageEvent<OptimizerWorkerResponse>) => {
     if (optimizerWorker !== worker) {
       return;
     }
 
-    setOptimizerOutput(event.data.output);
+    if (devModeEnabled) {
+      setOptimizerOutput(event.data.output);
+    }
+
+    if (trainingModeEnabled) {
+      if (isOptimizerSuccessPayload(event.data.payload)) {
+        renderTrainingHints(event.data.payload.bestColumns);
+      } else {
+        clearTrainingHints();
+      }
+    }
+
     stopOptimizerWorker();
   });
 
@@ -97,7 +177,11 @@ function requestOptimizerOutput(): void {
       return;
     }
 
-    setOptimizerOutput("Optimizer worker failed.");
+    if (devModeEnabled) {
+      setOptimizerOutput("Optimizer worker failed.");
+    }
+
+    clearTrainingHints();
     stopOptimizerWorker();
   });
 
@@ -110,8 +194,10 @@ function setDevMode(enabled: boolean): void {
   devModeToggle.setAttribute("aria-pressed", String(enabled));
 
   if (!enabled) {
-    stopOptimizerWorker();
     setOptimizerOutput("");
+    if (!trainingModeEnabled) {
+      stopOptimizerWorker();
+    }
     return;
   }
 
@@ -290,6 +376,7 @@ function resetBoard(): void {
   moveSequence = "";
   syncMoveSequence();
   hidePreview();
+  clearTrainingHints();
 
   for (let row = 0; row < HEIGHT; row += 1) {
     for (let column = 0; column < WIDTH; column += 1) {
@@ -310,7 +397,7 @@ function placeDisc(row: number, column: number, player: number): void {
   board[row][column] = player;
   moveSequence += String(column + 1);
   syncMoveSequence();
-  const slotIndex = (HEIGHT - 1 - row) * WIDTH + column;
+  const slotIndex = slotIndexFor(row, column);
   const disc = document.createElement("div");
   disc.className = `disc piece ${playerClass(player)}`;
   discSlots[slotIndex].append(disc);
@@ -337,6 +424,7 @@ function dropPreview(column: number): void {
   const player = currentPlayer;
   const currentDropToken = ++dropToken;
   isAnimating = true;
+  clearTrainingHints();
   previewPiece.classList.add("dropping");
   previewPiece.style.top = targetTopForRow(row);
 
@@ -428,6 +516,11 @@ devModeToggle.addEventListener("click", () => {
 });
 
 for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
+  const trainerSlot = document.createElement("div");
+  trainerSlot.className = "trainer-slot";
+  trainerSlots.push(trainerSlot);
+  trainerGrid.append(trainerSlot);
+
   const slot = document.createElement("div");
   slot.className = "disc-slot";
   discSlots.push(slot);
@@ -439,6 +532,7 @@ for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
 }
 
 syncMoveSequence();
+requestOptimizerOutput();
 window.connect4State = {
   getSequence: () => moveSequence,
   getOptimizerOutput: () => optimizerOutputBox.value,

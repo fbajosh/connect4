@@ -69,9 +69,9 @@ async function loadShard(sequence: string): Promise<Map<string, SolverRecord>> {
   }
 
   const shardPromise = (async () => {
-    const response = await fetch(`${PRECOMPUTED_ROOT}/${key}.json`, { cache: "force-cache" });
+    const response = await fetch(`${PRECOMPUTED_ROOT}/${key}.json`, { cache: "no-store" });
     if (!response.ok) {
-      return new Map<string, SolverRecord>();
+      throw new Error(`Missing precomputed shard: ${key}`);
     }
 
     const payload = (await response.json()) as Record<string, Omit<SolverRecord, "source">>;
@@ -84,7 +84,10 @@ async function loadShard(sequence: string): Promise<Map<string, SolverRecord>> {
         },
       ]),
     );
-  })().catch(() => new Map<string, SolverRecord>());
+  })().catch(() => {
+    shardPromiseCache.delete(key);
+    return new Map<string, SolverRecord>();
+  });
 
   shardPromiseCache.set(key, shardPromise);
   return shardPromise;

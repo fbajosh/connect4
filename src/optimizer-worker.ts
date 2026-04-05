@@ -8,6 +8,7 @@ type OptimizerRequest = {
 
 type OptimizerResponse = {
   output: string;
+  payload: SolverRecord | WasmErrorPayload;
 };
 
 type WasmSuccessPayload = {
@@ -79,19 +80,21 @@ async function solveWithWasm(sequence: string): Promise<SolverRecord | WasmError
   return record;
 }
 
-async function resolveOptimizerPayload(sequence: string): Promise<unknown> {
+async function resolveOptimizerPayload(sequence: string): Promise<SolverRecord | WasmErrorPayload> {
+  if (sequence.length === 0) {
+    return {
+      bestColumns: [4],
+      bestMoves: "4",
+      positionScore: 0,
+      scores: [],
+      sequence,
+      source: "precomputed",
+    };
+  }
+
   const cachedRecord = await getCachedSolverRecord(sequence);
   if (cachedRecord) {
     return cachedRecord;
-  }
-
-  if (sequence.length === 0) {
-    return {
-      bestColumns: [],
-      message: "No moves yet.",
-      sequence,
-      source: "none",
-    };
   }
 
   return solveWithWasm(sequence);
@@ -99,17 +102,20 @@ async function resolveOptimizerPayload(sequence: string): Promise<unknown> {
 
 async function handleRequest({ sequence }: OptimizerRequest): Promise<void> {
   try {
-    const output = await resolveOptimizerPayload(sequence);
+    const payload = await resolveOptimizerPayload(sequence);
     const response: OptimizerResponse = {
-      output: formatOutput(output),
+      output: formatOutput(payload),
+      payload,
     };
     self.postMessage(response);
   } catch (error) {
+    const payload = {
+      error: error instanceof Error ? error.message : "Unexpected optimizer error.",
+      sequence,
+    } satisfies WasmErrorPayload;
     const response: OptimizerResponse = {
-      output: formatOutput({
-        error: error instanceof Error ? error.message : "Unexpected optimizer error.",
-        sequence,
-      }),
+      output: formatOutput(payload),
+      payload,
     };
     self.postMessage(response);
   }

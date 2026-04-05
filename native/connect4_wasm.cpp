@@ -113,19 +113,6 @@ extern "C" {
 EMSCRIPTEN_KEEPALIVE const char* connect4_analyze_json(const char* rawSequence) {
   const std::string sequence = rawSequence == nullptr ? "" : rawSequence;
 
-  if (sequence.empty()) {
-    lastResult =
-        "{"
-        "\"sequence\":\"\","
-        "\"bestMoves\":\"\","
-        "\"bestColumns\":[],"
-        "\"message\":\"No moves yet.\","
-        "\"positionScore\":0,"
-        "\"scores\":[]"
-        "}";
-    return lastResult.c_str();
-  }
-
   Position position;
   const unsigned int processedMoves = position.play(sequence);
   if (processedMoves != sequence.size()) {
