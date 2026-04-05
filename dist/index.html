@@ -21,8 +21,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/connect4/assets/index-DaP9w6aE.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-DwYnpIGF.css">
+    <script type="module" crossorigin src="/connect4/assets/index-C8mKHT-7.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-BkG1TC4N.css">
   </head>
   <body>
     <main class="landing">
@@ -38,7 +38,7 @@
               aria-expanded="false"
               aria-controls="mode-menu"
             >
-              Mode
+              Training Mode
             </button>
             <div class="menu-panel hidden" id="mode-menu" aria-label="Game mode">
               <button class="mode-option" data-mode-option="training" type="button">Training</button>
@@ -54,9 +54,9 @@
               aria-expanded="false"
               aria-controls="tools-menu"
             >
-              Tools
+              Settings
             </button>
-            <div class="menu-panel hidden" id="tools-menu" aria-label="Mode tools">
+            <div class="menu-panel hidden" id="tools-menu" aria-label="Mode settings">
               <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls">
                 <div class="feature-row">
                   <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
@@ -130,8 +130,10 @@
                   </label>
                 </div>
               </div>
+              <button class="menu-action" id="more-settings-control" type="button">More Settings</button>
             </div>
           </div>
+          <button class="menu-link" id="stats-control" type="button">Stats</button>
         </div>
       </header>
       <div class="board-stage">
@@ -155,14 +157,6 @@
             <button class="history-button" id="undo-control" type="button">Undo</button>
             <button class="history-button" id="redo-control" type="button">Redo</button>
           </div>
-          <button aria-label="Open project information" class="about-link" id="about-control" type="button">
-            <svg class="about-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M10.4 2.7h3.2l.5 2.2c.6.2 1.2.4 1.7.7l2-1.1 2.3 2.3-1.1 2c.3.6.5 1.1.7 1.7l2.2.5v3.2l-2.2.5c-.2.6-.4 1.2-.7 1.7l1.1 2-2.3 2.3-2-1.1c-.6.3-1.1.5-1.7.7l-.5 2.2h-3.2l-.5-2.2c-.6-.2-1.2-.4-1.7-.7l-2 1.1-2.3-2.3 1.1-2c-.3-.6-.5-1.1-.7-1.7l-2.2-.5v-3.2l2.2-.5c.2-.6.4-1.2.7-1.7l-1.1-2 2.3-2.3 2 1.1c.6-.3 1.1-.5 1.7-.7z"
-              />
-              <circle cx="12" cy="12" r="3.1" />
-            </svg>
-          </button>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
@@ -186,39 +180,114 @@
               Close
             </button>
           </div>
-          <div class="about-tabs" role="tablist" aria-label="Project information">
-            <button class="about-tab" data-about-tab="about" type="button">About</button>
-            <button class="about-tab" data-about-tab="howto" type="button">How to Play</button>
-            <button class="about-tab" data-about-tab="stats" type="button">Stats</button>
-            <button class="about-tab" data-about-tab="settings" type="button">Settings</button>
-            <button class="about-tab" data-about-tab="credits" type="button">Credits</button>
+          <div class="about-view" data-modal-view="about">
+            <div class="about-tabs" role="tablist" aria-label="Project information">
+              <button class="about-tab" data-about-tab="about" type="button">About</button>
+              <button class="about-tab" data-about-tab="howto" type="button">How to Play</button>
+              <button class="about-tab" data-about-tab="credits" type="button">Credits</button>
+            </div>
+            <div class="about-content">
+              <section class="about-panel" data-about-panel="about">
+                <p>
+                  Welcome to the Connect 4 Trainer, brought to you by <a class="appmogged-link" href="https://appmogged.com" target="_blank" rel="noreferrer">Appmogged</a>.
+                </p>
+                <p>
+                  Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
+                  and practicing against a solver-driven opponent.
+                </p>
+                <p>
+                  Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
+                  browser with IndexedDB for reuse.
+                </p>
+              </section>
+              <section class="about-panel hidden" data-about-panel="howto">
+                <div class="about-section">
+                  <h3 class="about-section-title">How to Play</h3>
+                  <ul class="about-list">
+                    <li>Two players alternate dropping discs into the seven columns of the board.</li>
+                    <li>Discs fall to the lowest open space in that column.</li>
+                    <li>The first player to connect four discs horizontally, vertically, or diagonally wins.</li>
+                    <li>If the board fills without a connect four, the game ends in a draw.</li>
+                  </ul>
+                </div>
+              </section>
+              <section class="about-panel hidden" data-about-panel="credits">
+                <div class="about-section">
+                  <h3 class="about-section-title">Attribution</h3>
+                  <p>This project builds on two upstream solver efforts:</p>
+                  <ul class="about-list">
+                    <li>Pascal Pons' original Connect 4 solver work</li>
+                    <li>Benjamin Rall's Rust/WASM solver implementation</li>
+                  </ul>
+                </div>
+                <div class="about-section">
+                  <h3 class="about-section-title">Links</h3>
+                  <ul class="about-list">
+                    <li>
+                      <a href="https://github.com/fbajosh/connect4" target="_blank" rel="noreferrer">
+                        fbajosh / connect4
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://github.com/PascalPons/connect4" target="_blank" rel="noreferrer">
+                        Pascal Pons / connect4
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://github.com/benjaminrall/connect-four-ai" target="_blank" rel="noreferrer">
+                        Benjamin Rall / connect-four-ai
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://vite.dev/" target="_blank" rel="noreferrer">
+                        Vite
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <div class="about-section about-brand">
+                  <h3 class="about-section-title">Brought to you by:</h3>
+                  <a class="about-brand-link" href="https://appmogged.com" target="_blank" rel="noreferrer">
+                    <img class="about-brand-mark" src="/connect4/assets/appmogged-Dg89_86i.svg" alt="Appmogged" />
+                  </a>
+                </div>
+              </section>
+            </div>
           </div>
-          <div class="about-content">
-            <section class="about-panel" data-about-panel="about">
-              <p>
-                Welcome to the Connect 4 Trainer, brought to you by <a class="appmogged-link" href="https://appmogged.com" target="_blank" rel="noreferrer">Appmogged</a>.
-              </p>
-              <p>
-                Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
-                and practicing against a solver-driven opponent.
-              </p>
-              <p>
-                Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
-                browser with IndexedDB for reuse.
-              </p>
-            </section>
-            <section class="about-panel hidden" data-about-panel="howto">
+          <div class="about-view hidden" data-modal-view="settings">
+            <div class="about-content">
               <div class="about-section">
-                <h3 class="about-section-title">How to Play</h3>
-                <ul class="about-list">
-                  <li>Two players alternate dropping discs into the seven columns of the board.</li>
-                  <li>Discs fall to the lowest open space in that column.</li>
-                  <li>The first player to connect four discs horizontally, vertically, or diagonally wins.</li>
-                  <li>If the board fills without a connect four, the game ends in a draw.</li>
-                </ul>
+                <div class="settings-row settings-theme-row">
+                  <span class="practice-label">Theme</span>
+                  <div class="settings-theme-group" role="group" aria-label="Theme picker">
+                    <button class="settings-theme-button" data-theme-option="light" type="button">Light</button>
+                    <button class="settings-theme-button" data-theme-option="dark" type="button">Dark</button>
+                    <button class="settings-theme-button" data-theme-option="midnight" type="button">Astronomer</button>
+                  </div>
+                </div>
+                <div class="settings-row">
+                  <span class="practice-label">Colorblind Mode</span>
+                  <label class="feature-toggle" for="settings-colorblind-mode-toggle">
+                    <input class="feature-toggle-input" id="settings-colorblind-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="settings-row">
+                  <span class="practice-label">Dev Mode</span>
+                  <label class="feature-toggle" for="settings-dev-mode-toggle">
+                    <input class="feature-toggle-input" id="settings-dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="settings-spacer" aria-hidden="true"></div>
+                <button class="menu-action settings-modal-action" id="settings-about-control" type="button">
+                  About
+                </button>
               </div>
-            </section>
-            <section class="about-panel hidden" data-about-panel="stats">
+            </div>
+          </div>
+          <div class="about-view hidden" data-modal-view="stats">
+            <div class="about-content">
               <div class="about-section">
                 <div class="settings-row">
                   <span class="about-section-title">Scope</span>
@@ -243,74 +312,7 @@
                   </table>
                 </div>
               </div>
-            </section>
-            <section class="about-panel hidden" data-about-panel="settings">
-              <div class="about-section">
-                <div class="settings-row">
-                  <span class="practice-label">Dev Mode</span>
-                  <label class="feature-toggle" for="settings-dev-mode-toggle">
-                    <input class="feature-toggle-input" id="settings-dev-mode-toggle" type="checkbox" />
-                    <span class="feature-toggle-slider"></span>
-                  </label>
-                </div>
-                <div class="about-section">
-                  <h3 class="about-section-title">Theme</h3>
-                  <div class="settings-theme-group" role="group" aria-label="Theme picker">
-                    <button class="settings-theme-button" data-theme-option="light" type="button">Light Theme</button>
-                    <button class="settings-theme-button" data-theme-option="dark" type="button">Dark Theme</button>
-                    <button class="settings-theme-button" data-theme-option="midnight" type="button">Midnight Theme</button>
-                  </div>
-                  <div class="settings-row">
-                    <span class="practice-label">Colorblind Mode</span>
-                    <label class="feature-toggle" for="settings-colorblind-mode-toggle">
-                      <input class="feature-toggle-input" id="settings-colorblind-mode-toggle" type="checkbox" />
-                      <span class="feature-toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </section>
-            <section class="about-panel hidden" data-about-panel="credits">
-              <div class="about-section">
-                <h3 class="about-section-title">Attribution</h3>
-                <p>This project builds on two upstream solver efforts:</p>
-                <ul class="about-list">
-                  <li>Pascal Pons' original Connect 4 solver work</li>
-                  <li>Benjamin Rall's Rust/WASM solver implementation</li>
-                </ul>
-              </div>
-              <div class="about-section">
-                <h3 class="about-section-title">Links</h3>
-                <ul class="about-list">
-                  <li>
-                    <a href="https://github.com/fbajosh/connect4" target="_blank" rel="noreferrer">
-                      fbajosh / connect4
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://github.com/PascalPons/connect4" target="_blank" rel="noreferrer">
-                      Pascal Pons / connect4
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://github.com/benjaminrall/connect-four-ai" target="_blank" rel="noreferrer">
-                      Benjamin Rall / connect-four-ai
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-                      Vite
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div class="about-section about-brand">
-                <h3 class="about-section-title">Brought to you by:</h3>
-                <a class="about-brand-link" href="https://appmogged.com" target="_blank" rel="noreferrer">
-                  <img class="about-brand-mark" src="/connect4/assets/appmogged-Dg89_86i.svg" alt="Appmogged" />
-                </a>
-              </div>
-            </section>
+            </div>
           </div>
         </section>
       </div>

@@ -33,6 +33,7 @@ import {
 } from "./practice-ai";
 import { shiftSolverScoresToDisplay } from "./score-display";
 import {
+  modeLabel,
   isThemeName,
   modeForPathname,
   pathForMode,
@@ -63,10 +64,13 @@ const scoreBarFill = document.getElementById("score-bar-fill");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
-const aboutControl = document.getElementById("about-control");
+const moreSettingsControl = document.getElementById("more-settings-control");
+const settingsAboutControl = document.getElementById("settings-about-control");
+const statsControl = document.getElementById("stats-control");
 const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
 const aboutDialog = document.getElementById("about-dialog");
+const aboutTitle = document.getElementById("about-title");
 const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
@@ -109,10 +113,13 @@ if (
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
-  !aboutControl ||
+  !moreSettingsControl ||
+  !settingsAboutControl ||
+  !statsControl ||
   !aboutModal ||
   !aboutBackdrop ||
   !aboutDialog ||
+  !aboutTitle ||
   !aboutClose ||
   !undoControl ||
   !redoControl ||
@@ -151,6 +158,7 @@ const practiceColorButtons = Array.from(
 );
 const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
 const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
+const modalViews = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-modal-view]"));
 const statsRangeButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-stats-range]"));
 const themeOptionButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-theme-option]"));
 const discElements = Array.from({ length: HEIGHT }, () =>
@@ -186,6 +194,7 @@ let boardFrameLayoutRaf = 0;
 let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
 let activeAboutTab: AboutTab = "about";
+let activeModalView: ModalView = "about";
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
@@ -208,6 +217,7 @@ const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
 let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
+let modalReturnFocusTarget: HTMLElement | null = null;
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
@@ -219,7 +229,8 @@ const featureHeld: Record<FeatureKey, boolean> = {
   gameScore: false,
 };
 
-type AboutTab = "about" | "howto" | "stats" | "settings" | "credits";
+type AboutTab = "about" | "howto" | "credits";
+type ModalView = "about" | "settings" | "stats";
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -272,6 +283,7 @@ function setAboutModalOpen(open: boolean): void {
   aboutModal.setAttribute("aria-hidden", String(!open));
 
   if (open) {
+    syncModalView();
     syncAboutDialogPosition();
   }
 }
@@ -299,6 +311,44 @@ function syncAboutTabs(): void {
     const tab = panel.dataset.aboutPanel as AboutTab | undefined;
     panel.classList.toggle("hidden", tab !== activeAboutTab);
   }
+}
+
+function syncModalView(): void {
+  for (const view of modalViews) {
+    const viewName = view.dataset.modalView as ModalView | undefined;
+    view.classList.toggle("hidden", viewName !== activeModalView);
+  }
+
+  if (activeModalView === "settings") {
+    aboutTitle.textContent = "Settings";
+    return;
+  }
+
+  if (activeModalView === "stats") {
+    aboutTitle.textContent = "Stats";
+    return;
+  }
+
+  aboutTitle.textContent = "About Connect 4 Trainer";
+}
+
+function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutTab?: AboutTab }): void {
+  activeModalView = view;
+  modalReturnFocusTarget = trigger;
+  if (view === "about" && options?.aboutTab) {
+    setAboutTab(options.aboutTab);
+  } else {
+    syncModalView();
+  }
+  setAboutModalOpen(true);
+  aboutClose.focus();
+}
+
+function closeActiveModal(): void {
+  setAboutModalOpen(false);
+  const focusTarget = modalReturnFocusTarget;
+  modalReturnFocusTarget = null;
+  (focusTarget ?? toolsMenuToggle).focus();
 }
 
 function formatStatsNumber(value: number | null): string {
@@ -363,6 +413,7 @@ function syncDiscPatternMode(): void {
 function setAboutTab(tab: AboutTab): void {
   activeAboutTab = tab;
   syncAboutTabs();
+  syncModalView();
 }
 
 function setStatsRange(range: StatsRange): void {
@@ -540,6 +591,7 @@ function syncFeatureControls(): void {
 }
 
 function syncModeMenu(): void {
+  modeMenuToggle.textContent = `${modeLabel(currentMode)} Mode`;
   for (const option of modeOptionButtons) {
     const optionMode = option.dataset.modeOption as GameMode | undefined;
     const isSelected = optionMode === currentMode;
@@ -1471,19 +1523,28 @@ resetControl.addEventListener("click", () => {
   resetBoard();
 });
 
-aboutControl.addEventListener("click", () => {
-  setAboutModalOpen(true);
-  aboutClose.focus();
+moreSettingsControl.addEventListener("click", () => {
+  setToolsMenuExpanded(false);
+  openModalView("settings", toolsMenuToggle);
+});
+
+settingsAboutControl.addEventListener("click", () => {
+  activeModalView = "about";
+  setAboutTab("about");
+});
+
+statsControl.addEventListener("click", () => {
+  setModeMenuExpanded(false);
+  setToolsMenuExpanded(false);
+  openModalView("stats", statsControl);
 });
 
 aboutClose.addEventListener("click", () => {
-  setAboutModalOpen(false);
-  aboutControl.focus();
+  closeActiveModal();
 });
 
 aboutBackdrop.addEventListener("click", () => {
-  setAboutModalOpen(false);
-  aboutControl.focus();
+  closeActiveModal();
 });
 
 undoControl.addEventListener("click", () => {
@@ -1607,8 +1668,7 @@ for (const button of themeOptionButtons) {
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
-    setAboutModalOpen(false);
-    aboutControl.focus();
+    closeActiveModal();
     return;
   }
 

@@ -84,14 +84,14 @@ export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight"];
 
 export function themeLabel(theme: ThemeName): string {
   if (theme === "dark") {
-    return "Dark Theme";
+    return "Dark";
   }
 
   if (theme === "midnight") {
-    return "Midnight Theme";
+    return "Astronomer";
   }
 
-  return "Light Theme";
+  return "Light";
 }
 
 export function applyTheme(theme: ThemeName): void {
