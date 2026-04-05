@@ -90,6 +90,7 @@ const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
+const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const statsTableBody = document.getElementById("stats-table-body");
 
 if (
@@ -135,6 +136,7 @@ if (
   !devPanel ||
   !devOutputBox ||
   !settingsDevModeToggle ||
+  !settingsColorblindModeToggle ||
   !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
@@ -190,6 +192,7 @@ let currentMode: GameMode = "training";
 let isModeMenuExpanded = false;
 let isToolsMenuExpanded = false;
 let isDevModeEnabled = false;
+let isColorblindModeEnabled = false;
 let practiceColor: PracticeColor = "red";
 let practiceDifficulty = 10;
 let currentTheme: ThemeName = "light";
@@ -240,6 +243,7 @@ declare global {
 
 function persistUiState(): void {
   const state: PersistedUiState = {
+    colorblindMode: isColorblindModeEnabled,
     devMode: isDevModeEnabled,
     modeMenuExpanded: isModeMenuExpanded,
     toolsMenuExpanded: isToolsMenuExpanded,
@@ -347,6 +351,13 @@ function syncThemeControls(): void {
     button.classList.toggle("is-selected", isSelected);
     button.setAttribute("aria-pressed", String(isSelected));
   }
+
+  settingsColorblindModeToggle.checked = isColorblindModeEnabled;
+}
+
+function syncDiscPatternMode(): void {
+  const shouldShowPatterns = currentTheme === "midnight" || isColorblindModeEnabled;
+  document.documentElement.dataset.discPatterns = shouldShowPatterns ? "true" : "false";
 }
 
 function setAboutTab(tab: AboutTab): void {
@@ -368,9 +379,17 @@ function setDevModeEnabled(enabled: boolean): void {
   syncFeatureUI();
 }
 
+function setColorblindModeEnabled(enabled: boolean): void {
+  isColorblindModeEnabled = enabled;
+  settingsColorblindModeToggle.checked = enabled;
+  syncDiscPatternMode();
+  persistUiState();
+}
+
 function setTheme(theme: ThemeName): void {
   currentTheme = theme;
   applyTheme(theme);
+  syncDiscPatternMode();
   syncThemeControls();
   persistUiState();
 }
@@ -1549,6 +1568,10 @@ settingsDevModeToggle.addEventListener("change", () => {
   setDevModeEnabled(settingsDevModeToggle.checked);
 });
 
+settingsColorblindModeToggle.addEventListener("change", () => {
+  setColorblindModeEnabled(settingsColorblindModeToggle.checked);
+});
+
 for (const button of aboutTabButtons) {
   button.addEventListener("click", () => {
     const tab = button.dataset.aboutTab as AboutTab | undefined;
@@ -1658,6 +1681,7 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
 }
 
 isDevModeEnabled = persistedUiState.devMode === true;
+isColorblindModeEnabled = persistedUiState.colorblindMode === true;
 practiceColor = persistedUiState.practiceColor ?? "red";
 statsRange = persistedUiState.statsRange === "today" ? "today" : "all-time";
 currentTheme = isThemeName(persistedUiState.theme ?? "") ? persistedUiState.theme : "light";
@@ -1666,6 +1690,7 @@ if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficul
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
 applyTheme(currentTheme);
+syncDiscPatternMode();
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
 syncModeMenu();
