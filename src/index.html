@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Browser-first Connect 4 training app with solver-backed hints, practice, and stats." />
+    <meta property="og:site_name" content="Connect 4 Trainer" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Connect 4 Trainer" />
+    <meta property="og:description" content="Browser-first Connect 4 training app with solver-backed hints, practice, and stats." />
+    <meta property="og:image" content="https://appmogged.com/connect4/og-wide.png" />
+    <meta property="og:url" content="https://appmogged.com/connect4/training" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Connect 4 Trainer" />
+    <meta name="twitter:description" content="Browser-first Connect 4 training app with solver-backed hints, practice, and stats." />
+    <meta name="twitter:image" content="https://appmogged.com/connect4/og-wide.png" />
     <title>Connect 4 Trainer - Training</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="icon" type="image/png" href="./assets/favicon.png" />
+    <link rel="apple-touch-icon" href="./assets/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
@@ -58,7 +72,7 @@
                   </label>
                 </div>
                 <div class="feature-row">
-                  <button class="feature-pulse" id="game-score-pulse" type="button">Game Score</button>
+                  <button class="feature-pulse" id="game-score-pulse" type="button">Performance Comparison</button>
                   <label class="feature-toggle" for="game-score-toggle">
                     <input class="feature-toggle-input" id="game-score-toggle" type="checkbox" />
                     <span class="feature-toggle-slider"></span>
@@ -108,7 +122,7 @@
               </div>
               <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
                 <div class="practice-row practice-toggle-row">
-                  <span class="practice-label">Game Score</span>
+                  <span class="practice-label">Performance Comparison</span>
                   <label class="feature-toggle" for="freeplay-game-score-toggle">
                     <input class="feature-toggle-input" id="freeplay-game-score-toggle" type="checkbox" />
                     <span class="feature-toggle-slider"></span>

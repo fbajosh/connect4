@@ -276,6 +276,25 @@ body::after {
     inset 0 0 0 0.18rem var(--control-bg);
 }
 
+:root[data-disc-patterns="true"] .practice-color-button.practice-color-red {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0) 0 0.18rem,
+      rgba(0, 0, 0, 0.22) 0.18rem 0.34rem,
+      rgba(0, 0, 0, 0) 0.34rem 0.46rem
+    ),
+    var(--piece-red);
+}
+
+:root[data-disc-patterns="true"] .practice-color-button.practice-color-yellow {
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.18) 0 36%, rgba(0, 0, 0, 0) 48%),
+    var(--piece-yellow);
+  background-size: 0.38rem 0.38rem, auto;
+  background-position: center, 0 0;
+}
+
 .practice-slider {
   width: 100%;
   accent-color: var(--accent-color);
