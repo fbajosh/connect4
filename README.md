@@ -6,7 +6,7 @@ It is a derivative of Pascal Pons' Connect 4 solver and remains under AGPL v3.
 
 ## TypeScript Web App
 
-The project uses Vite for local development and production builds.
+The project uses Vite for local development and production builds. Before each `dev` or `build`, it also compiles the browser solver from C++ to WASM.
 
 ### Install
 
@@ -44,6 +44,40 @@ Deploy the contents of `dist/` to any static host:
 - Netlify
 - Cloudflare Pages
 - Vercel static hosting
+
+## Browser Solver
+
+The web app now resolves solver results in this order:
+
+1. browser-local IndexedDB cache
+2. exported snapshot shards from the native SQLite precompute database
+3. exact C++ solver compiled to WASM and run on the visitor's device
+
+When the browser has to solve a missing position itself, that result is written back into IndexedDB so the same user does not recompute it again.
+
+Important limitation:
+
+- a static browser app cannot write directly back into your server-side SQLite file
+- the browser "write-back" target is therefore the user's local IndexedDB cache
+- if you later want shared write-back into the central SQLite database, you will need a small API endpoint
+
+### Export SQLite Results For Browser Lookup
+
+The browser cannot read the live SQLite file directly. Instead, export the solved rows into static JSON shards:
+
+```bash
+npm run export:precomputed -- --database data/connect4_cache.sqlite3
+```
+
+That writes shard files under `src/public/precomputed/`, grouped by the first two sequence characters.
+
+### Rebuild The Browser WASM Solver
+
+If you change the C++ browser wrapper or vendored solver, rebuild the WASM artifacts:
+
+```bash
+npm run build:wasm
+```
 
 ## Native Precompute
 
