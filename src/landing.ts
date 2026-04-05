@@ -52,7 +52,6 @@ const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
 const discGrid = document.getElementById("disc-grid");
-const effectsLayer = document.getElementById("effects-layer");
 const landingRoot = document.querySelector<HTMLElement>(".landing");
 const hero = document.querySelector<HTMLElement>(".hero");
 const menuBar = document.querySelector<HTMLElement>(".menu-bar");
@@ -103,7 +102,6 @@ if (
   !boardGrid ||
   !trainerGrid ||
   !discGrid ||
-  !effectsLayer ||
   !menuBar ||
   !scoreBar ||
   !scoreBarFill ||
@@ -1204,6 +1202,7 @@ function queueHumanMove(column: number): void {
 
 function animateResetPiece(source: HTMLElement): void {
   const rect = source.getBoundingClientRect();
+  const boardShellRect = boardShell.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
     return;
   }
@@ -1211,12 +1210,12 @@ function animateResetPiece(source: HTMLElement): void {
   const clone = source.cloneNode(false) as HTMLDivElement;
   clone.classList.remove("disc", "preview-piece", "hidden", "dropping");
   clone.classList.add("reset-piece");
-  clone.style.left = `${rect.left}px`;
-  clone.style.top = `${rect.top}px`;
+  clone.style.left = `${rect.left - boardShellRect.left}px`;
+  clone.style.top = `${rect.top - boardShellRect.top}px`;
   clone.style.width = `${rect.width}px`;
   clone.style.height = `${rect.height}px`;
   clone.style.setProperty("--reset-drop", `${window.innerHeight - rect.top + rect.height}px`);
-  effectsLayer.append(clone);
+  boardShell.append(clone);
 
   requestAnimationFrame(() => {
     clone.classList.add("falling");
@@ -1649,13 +1648,15 @@ window.addEventListener("popstate", () => {
 });
 
 const persistedUiState = readPersistedUiState();
+currentMode = modeForPathname(window.location.pathname) ?? persistedUiState.selectedMode ?? "training";
+const persistedPinned = persistedUiState.pinned ?? {};
 for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
-  const pinned = persistedUiState.pinned?.[feature];
-  featurePinned[feature] = pinned === true;
-  featureToggleInputs[feature].checked = featurePinned[feature];
+  const hasPersistedPinned = Object.prototype.hasOwnProperty.call(persistedPinned, feature);
+  const pinned = hasPersistedPinned ? persistedPinned[feature] === true : currentMode === "training";
+  featurePinned[feature] = pinned;
+  featureToggleInputs[feature].checked = pinned;
 }
 
-currentMode = modeForPathname(window.location.pathname) ?? persistedUiState.selectedMode ?? "training";
 isDevModeEnabled = persistedUiState.devMode === true;
 practiceColor = persistedUiState.practiceColor ?? "red";
 statsRange = persistedUiState.statsRange === "today" ? "today" : "all-time";
