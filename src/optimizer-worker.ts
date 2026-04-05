@@ -5,6 +5,7 @@ import type {
   OptimizerWorkerResponse,
 } from "./app-types";
 import { getCachedSolverRecord, putCachedSolverRecord, type SolverRecord } from "./optimizer-cache";
+import { formatShiftedScoreList } from "./score-display";
 
 type OptimizerRequest = {
   sequence: string;
@@ -25,7 +26,7 @@ function formatOutput(payload: SolverRecord | OptimizerErrorPayload): string {
     return `error: ${payload.error}`;
   }
 
-  return `best: ${payload.bestColumns.join(", ")}\nmoves: ${payload.scores.join(", ")}`;
+  return `best: ${payload.bestColumns.join(", ")}\nmoves: ${formatShiftedScoreList(payload.scores)}`;
 }
 
 async function solveWithWasm(sequence: string): Promise<SolverRecord | OptimizerErrorPayload> {

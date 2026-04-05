@@ -29,7 +29,14 @@ import {
   effectivePracticeHumanPlayer,
   type PracticeAiDebug,
 } from "./practice-ai";
-import { readPersistedUiState, titleForMode, writePersistedUiState } from "./ui-persistence";
+import { shiftSolverScoresToDisplay } from "./score-display";
+import {
+  modeForPathname,
+  pathForMode,
+  readPersistedUiState,
+  titleForMode,
+  writePersistedUiState,
+} from "./ui-persistence";
 const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
@@ -286,6 +293,23 @@ function updateDocumentTitle(): void {
   document.title = titleForMode(currentMode);
 }
 
+function syncModeUrl(mode: GameMode, strategy: "push" | "replace"): void {
+  const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  const targetPath = pathForMode(mode);
+
+  if (currentPath === targetPath) {
+    return;
+  }
+
+  const nextUrl = `${targetPath}${window.location.search}${window.location.hash}`;
+  if (strategy === "push") {
+    window.history.pushState({ mode }, "", nextUrl);
+    return;
+  }
+
+  window.history.replaceState({ mode }, "", nextUrl);
+}
+
 function isPracticeMode(): boolean {
   return currentMode === "practice";
 }
@@ -407,16 +431,26 @@ function setToolsMenuExpanded(expanded: boolean): void {
   persistUiState();
 }
 
-function setCurrentMode(mode: GameMode): void {
-  if (mode === currentMode) {
-    return;
-  }
+function setCurrentMode(
+  mode: GameMode,
+  options: { history?: "push" | "replace" | "none"; resetBoard?: boolean } = {},
+): void {
+  const historyStrategy = options.history ?? "push";
+  const shouldResetBoard = options.resetBoard ?? true;
+  const modeChanged = mode !== currentMode;
 
   currentMode = mode;
   updateDocumentTitle();
   syncModeMenu();
   persistUiState();
-  resetBoard({ advancePracticeRound: false });
+
+  if (historyStrategy !== "none") {
+    syncModeUrl(mode, historyStrategy);
+  }
+
+  if (modeChanged && shouldResetBoard) {
+    resetBoard({ advancePracticeRound: false });
+  }
 }
 
 function setPracticeColor(nextColor: PracticeColor): void {
@@ -472,7 +506,8 @@ function renderDevOutput(): void {
 
   devOutputBox.value = buildDevOutput({
     optimizerOutput: latestOptimizerOutput,
-    practiceRng: isPracticeMode() ? lastPracticeAiDebug?.rng ?? null : null,
+    practiceAiDebug: isPracticeMode() ? lastPracticeAiDebug : null,
+    practiceDifficulty: isPracticeMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
     state: moveSequence,
@@ -521,11 +556,20 @@ function canRedo(): boolean {
   return isTrainingMode() && historyIndex < moveHistory.length;
 }
 
+function canReset(): boolean {
+  return historyIndex > 0;
+}
+
+function canStartHumanMove(): boolean {
+  return !isAnimating && isHumanTurn() && !isWinLocked;
+}
+
 function syncHistoryControls(): void {
   redoControl.classList.toggle("hidden", !isTrainingMode());
   redoControl.disabled = isAnimating || !canRedo();
   redoControl.setAttribute("aria-hidden", String(!isTrainingMode()));
   undoControl.disabled = isAnimating || !canUndo();
+  resetControl.disabled = isAnimating || !canReset();
 }
 
 function isOptimizerSuccessPayload(
@@ -589,10 +633,11 @@ function renderColumnScores(): void {
   }
 
   const scores = activeColumnScores();
+  const displayScores = scores ? shiftSolverScoresToDisplay(scores) : null;
   for (let column = 0; column < WIDTH; column += 1) {
     const slot = columnScoreSlots[column];
-    const score = scores?.[column];
-    slot.textContent = score === undefined || score === -1000 ? "" : String(score);
+    const score = displayScores?.[column];
+    slot.textContent = score === undefined || score === null ? "" : String(score);
   }
 }
 
@@ -958,6 +1003,44 @@ function hidePreview(): void {
   previewPiece.style.removeProperty("top");
 }
 
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+  return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+}
+
+function queueHumanMove(column: number): void {
+  if (!canStartHumanMove()) {
+    if (isWinLocked) {
+      triggerWinLockShake();
+    }
+    return;
+  }
+
+  if (lowestOpenRow(board, column) === null) {
+    hidePreview();
+    return;
+  }
+
+  if (activePointerId !== null && boardGrid.hasPointerCapture(activePointerId)) {
+    boardGrid.releasePointerCapture(activePointerId);
+  }
+  activePointerId = null;
+
+  updatePreview(column);
+  requestAnimationFrame(() => {
+    if (!canStartHumanMove() || lowestOpenRow(board, column) === null) {
+      hidePreview();
+      return;
+    }
+
+    dropPreview(column);
+  });
+}
+
 function animateResetPiece(source: HTMLElement): void {
   const rect = source.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
@@ -1200,6 +1283,10 @@ boardGrid.addEventListener("lostpointercapture", () => {
 });
 
 resetControl.addEventListener("click", () => {
+  if (!canReset()) {
+    return;
+  }
+
   resetBoard();
 });
 
@@ -1300,7 +1387,48 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
     setAboutModalOpen(false);
     aboutControl.focus();
+    return;
   }
+
+  if (event.repeat || isEditableShortcutTarget(event.target)) {
+    return;
+  }
+
+  if (event.key === "Enter") {
+    if (!canReset()) {
+      return;
+    }
+
+    event.preventDefault();
+    resetBoard();
+    return;
+  }
+
+  if (event.key === "Backspace") {
+    if (!canUndo()) {
+      return;
+    }
+
+    event.preventDefault();
+    performUndo();
+    return;
+  }
+
+  const keyNumber = Number.parseInt(event.key, 10);
+  if (Number.isNaN(keyNumber) || keyNumber < 1 || keyNumber > WIDTH) {
+    return;
+  }
+
+  if (!canStartHumanMove()) {
+    if (isWinLocked) {
+      event.preventDefault();
+      triggerWinLockShake();
+    }
+    return;
+  }
+
+  event.preventDefault();
+  queueHumanMove(keyNumber - 1);
 });
 
 window.addEventListener("resize", () => {
@@ -1311,6 +1439,15 @@ window.visualViewport?.addEventListener("resize", () => {
   scheduleBoardFrameLayout();
 });
 
+window.addEventListener("popstate", () => {
+  const pathMode = modeForPathname(window.location.pathname);
+  if (!pathMode) {
+    return;
+  }
+
+  setCurrentMode(pathMode, { history: "none" });
+});
+
 const persistedUiState = readPersistedUiState();
 for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   const pinned = persistedUiState.pinned?.[feature];
@@ -1318,13 +1455,14 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   featureToggleInputs[feature].checked = featurePinned[feature];
 }
 
-currentMode = persistedUiState.selectedMode ?? "training";
+currentMode = modeForPathname(window.location.pathname) ?? persistedUiState.selectedMode ?? "training";
 practiceColor = persistedUiState.practiceColor ?? "red";
 const persistedDifficulty = persistedUiState.practiceDifficulty;
 if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficulty)) {
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
 updateDocumentTitle();
+syncModeUrl(currentMode, "replace");
 syncModeMenu();
 setModeMenuExpanded(persistedUiState.modeMenuExpanded === true);
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
