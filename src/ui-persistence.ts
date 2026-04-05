@@ -1,11 +1,16 @@
 import type { GameMode, PersistedUiState, ThemeName } from "./app-types";
 
 const UI_STATE_STORAGE_KEY = "connect4-trainer-ui-state";
-const MODE_PATHS: Record<GameMode, string> = {
-  training: "/training",
-  practice: "/practice",
-  freeplay: "/freeplay",
+const MODE_SEGMENTS: Record<GameMode, string> = {
+  training: "training",
+  practice: "practice",
+  freeplay: "freeplay",
 };
+
+function normalizedBasePath(): string {
+  const baseUrl = import.meta.env.BASE_URL ?? "/";
+  return baseUrl.replace(/\/+$/, "");
+}
 
 export function readPersistedUiState(): PersistedUiState {
   try {
@@ -50,21 +55,29 @@ export function isThemeName(value: string): value is ThemeName {
 }
 
 export function pathForMode(mode: GameMode): string {
-  return MODE_PATHS[mode];
+  const basePath = normalizedBasePath();
+  return `${basePath}/${MODE_SEGMENTS[mode]}`;
 }
 
 export function modeForPathname(pathname: string): GameMode | null {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+  const basePath = normalizedBasePath();
+  const relativePath =
+    basePath && normalizedPath.startsWith(`${basePath}/`)
+      ? normalizedPath.slice(basePath.length + 1)
+      : normalizedPath === basePath
+        ? ""
+        : normalizedPath.replace(/^\/+/, "");
 
-  if (normalizedPath === MODE_PATHS.training) {
+  if (relativePath === MODE_SEGMENTS.training) {
     return "training";
   }
 
-  if (normalizedPath === MODE_PATHS.practice) {
+  if (relativePath === MODE_SEGMENTS.practice) {
     return "practice";
   }
 
-  if (normalizedPath === MODE_PATHS.freeplay) {
+  if (relativePath === MODE_SEGMENTS.freeplay) {
     return "freeplay";
   }
 
