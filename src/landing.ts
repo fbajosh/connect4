@@ -45,10 +45,11 @@ const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
 const featureControls = document.getElementById("feature-controls");
 const practiceControls = document.getElementById("practice-controls");
-const toolsEmptyState = document.getElementById("tools-empty-state");
+const freeplayControls = document.getElementById("freeplay-controls");
 const practiceDifficultySlider = document.getElementById("practice-difficulty-slider");
 const practiceDifficultyValue = document.getElementById("practice-difficulty-value");
 const practiceDevModeToggle = document.getElementById("practice-dev-mode-toggle");
+const freeplayDevModeToggle = document.getElementById("freeplay-dev-mode-toggle");
 const bestMovePulse = document.getElementById("best-move-pulse");
 const bestMoveToggle = document.getElementById("best-move-toggle");
 const moveScoresPulse = document.getElementById("move-scores-pulse");
@@ -78,10 +79,11 @@ if (
   !toolsMenu ||
   !featureControls ||
   !practiceControls ||
-  !toolsEmptyState ||
+  !freeplayControls ||
   !practiceDifficultySlider ||
   !practiceDifficultyValue ||
   !practiceDevModeToggle ||
+  !freeplayDevModeToggle ||
   !bestMovePulse ||
   !bestMoveToggle ||
   !moveScoresPulse ||
@@ -251,12 +253,8 @@ function isHumanTurn(): boolean {
 
 function updatePracticeControls(): void {
   practiceControls.classList.toggle("hidden", !isPracticeMode());
+  freeplayControls.classList.toggle("hidden", currentMode !== "freeplay");
   featureControls.classList.toggle("hidden", !isTrainingMode());
-  toolsEmptyState.classList.toggle("hidden", isTrainingMode() || isPracticeMode());
-
-  if (!isTrainingMode() && !isPracticeMode()) {
-    toolsEmptyState.textContent = `${currentModeLabel()} tools coming soon.`;
-  }
 
   for (const button of practiceColorButtons) {
     const color = button.dataset.practiceColor as PracticeColor | undefined;
@@ -268,6 +266,7 @@ function updatePracticeControls(): void {
   practiceDifficultySlider.value = String(practiceDifficulty);
   practiceDifficultyValue.textContent = String(practiceDifficulty);
   practiceDevModeToggle.checked = featurePinned.devMode;
+  freeplayDevModeToggle.checked = featurePinned.devMode;
 }
 
 function isFeatureVisible(feature: FeatureKey): boolean {
@@ -287,7 +286,7 @@ function effectiveGameScoreVisible(): boolean {
 }
 
 function effectiveDevModeVisible(): boolean {
-  return (isTrainingMode() || isPracticeMode()) && isFeatureVisible("devMode");
+  return isFeatureVisible("devMode");
 }
 
 function setFeaturePinned(feature: FeatureKey, pinned: boolean): void {
@@ -1143,6 +1142,10 @@ practiceDifficultySlider.addEventListener("input", () => {
 
 practiceDevModeToggle.addEventListener("change", () => {
   setFeaturePinned("devMode", practiceDevModeToggle.checked);
+});
+
+freeplayDevModeToggle.addEventListener("change", () => {
+  setFeaturePinned("devMode", freeplayDevModeToggle.checked);
 });
 
 const persistedUiState = readPersistedUiState();
