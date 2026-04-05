@@ -64,13 +64,6 @@
                     <span class="feature-toggle-slider"></span>
                   </label>
                 </div>
-                <div class="feature-row">
-                  <button class="feature-pulse" id="dev-mode-pulse" type="button">Dev Mode</button>
-                  <label class="feature-toggle" for="dev-mode-toggle">
-                    <input class="feature-toggle-input" id="dev-mode-toggle" type="checkbox" />
-                    <span class="feature-toggle-slider"></span>
-                  </label>
-                </div>
               </div>
               <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
                 <div class="practice-row practice-color-row">
@@ -112,26 +105,12 @@
                     aria-label="Practice difficulty"
                   />
                 </div>
-                <div class="practice-row practice-toggle-row">
-                  <span class="practice-label">Dev Mode</span>
-                  <label class="feature-toggle" for="practice-dev-mode-toggle">
-                    <input class="feature-toggle-input" id="practice-dev-mode-toggle" type="checkbox" />
-                    <span class="feature-toggle-slider"></span>
-                  </label>
-                </div>
               </div>
               <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
                 <div class="practice-row practice-toggle-row">
                   <span class="practice-label">Game Score</span>
                   <label class="feature-toggle" for="freeplay-game-score-toggle">
                     <input class="feature-toggle-input" id="freeplay-game-score-toggle" type="checkbox" />
-                    <span class="feature-toggle-slider"></span>
-                  </label>
-                </div>
-                <div class="practice-row practice-toggle-row">
-                  <span class="practice-label">Dev Mode</span>
-                  <label class="feature-toggle" for="freeplay-dev-mode-toggle">
-                    <input class="feature-toggle-input" id="freeplay-dev-mode-toggle" type="checkbox" />
                     <span class="feature-toggle-slider"></span>
                   </label>
                 </div>
@@ -161,7 +140,14 @@
             <button class="history-button" id="undo-control" type="button">Undo</button>
             <button class="history-button" id="redo-control" type="button">Redo</button>
           </div>
-          <button class="about-link" id="about-control" type="button">About</button>
+          <button aria-label="Open project information" class="about-link" id="about-control" type="button">
+            <svg class="about-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M10.4 2.7h3.2l.5 2.2c.6.2 1.2.4 1.7.7l2-1.1 2.3 2.3-1.1 2c.3.6.5 1.1.7 1.7l2.2.5v3.2l-2.2.5c-.2.6-.4 1.2-.7 1.7l1.1 2-2.3 2.3-2-1.1c-.6.3-1.1.5-1.7.7l-.5 2.2h-3.2l-.5-2.2c-.6-.2-1.2-.4-1.7-.7l-2 1.1-2.3-2.3 1.1-2c-.3-.6-.5-1.1-.7-1.7l-2.2-.5v-3.2l2.2-.5c.2-.6.4-1.2.7-1.7l-1.1-2 2.3-2.3 2 1.1c.6-.3 1.1-.5 1.7-.7z"
+              />
+              <circle cx="12" cy="12" r="3.1" />
+            </svg>
+          </button>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
@@ -185,43 +171,110 @@
               Close
             </button>
           </div>
+          <div class="about-tabs" role="tablist" aria-label="Project information">
+            <button class="about-tab" data-about-tab="about" type="button">About</button>
+            <button class="about-tab" data-about-tab="howto" type="button">How-to</button>
+            <button class="about-tab" data-about-tab="stats" type="button">Stats</button>
+            <button class="about-tab" data-about-tab="settings" type="button">Settings</button>
+            <button class="about-tab" data-about-tab="credits" type="button">Credits</button>
+          </div>
           <div class="about-content">
-            <p>
-              Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
-              and practicing against a solver-driven opponent.
-            </p>
-            <p>
-              Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
-              browser with IndexedDB for reuse.
-            </p>
-            <div class="about-section">
-              <h3 class="about-section-title">Attribution</h3>
-              <p>This project builds on two upstream solver efforts:</p>
-              <ul class="about-list">
-                <li>Pascal Pons' original Connect 4 solver work</li>
-                <li>Benjamin Rall's Rust/WASM solver implementation</li>
-              </ul>
-            </div>
-            <div class="about-section">
-              <h3 class="about-section-title">Links</h3>
-              <ul class="about-list">
-                <li>
-                  <a href="https://github.com/PascalPons/connect4" target="_blank" rel="noreferrer">
-                    Pascal Pons / connect4
-                  </a>
-                </li>
-                <li>
-                  <a href="https://github.com/benjaminrall/connect-four-ai" target="_blank" rel="noreferrer">
-                    Benjamin Rall / connect-four-ai
-                  </a>
-                </li>
-                <li>
-                  <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-                    Vite
-                  </a>
-                </li>
-              </ul>
-            </div>
+            <section class="about-panel" data-about-panel="about">
+              <p>
+                Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
+                and practicing against a solver-driven opponent.
+              </p>
+              <p>
+                Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
+                browser with IndexedDB for reuse.
+              </p>
+            </section>
+            <section class="about-panel hidden" data-about-panel="howto">
+              <div class="about-section">
+                <h3 class="about-section-title">How to Play</h3>
+                <ul class="about-list">
+                  <li>Two players alternate dropping discs into the seven columns of the board.</li>
+                  <li>Discs fall to the lowest open space in that column.</li>
+                  <li>The first player to connect four discs horizontally, vertically, or diagonally wins.</li>
+                  <li>If the board fills without a connect four, the game ends in a draw.</li>
+                </ul>
+              </div>
+            </section>
+            <section class="about-panel hidden" data-about-panel="stats">
+              <div class="about-section">
+                <div class="settings-row">
+                  <span class="about-section-title">Scope</span>
+                  <div class="settings-toggle-group" role="group" aria-label="Stats scope">
+                    <button class="settings-toggle-button" data-stats-range="today" type="button">Today</button>
+                    <button class="settings-toggle-button" data-stats-range="all-time" type="button">All-time</button>
+                  </div>
+                </div>
+                <div class="stats-table-wrap">
+                  <table class="stats-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Difficulty</th>
+                        <th scope="col">Wins</th>
+                        <th scope="col">Losses</th>
+                        <th scope="col">Win%</th>
+                        <th scope="col">Avg Win Len</th>
+                        <th scope="col">Avg Loss Len</th>
+                      </tr>
+                    </thead>
+                    <tbody id="stats-table-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+            <section class="about-panel hidden" data-about-panel="settings">
+              <div class="about-section">
+                <div class="settings-row">
+                  <span class="practice-label">Dev Mode</span>
+                  <label class="feature-toggle" for="settings-dev-mode-toggle">
+                    <input class="feature-toggle-input" id="settings-dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="about-section">
+                  <h3 class="about-section-title">Theme</h3>
+                  <div class="settings-theme-group" role="group" aria-label="Theme picker">
+                    <button class="settings-theme-button" data-theme-option="light" type="button">Light Theme</button>
+                    <button class="settings-theme-button" data-theme-option="dark" type="button">Dark Theme</button>
+                    <button class="settings-theme-button" data-theme-option="midnight" type="button">Midnight Theme</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="about-panel hidden" data-about-panel="credits">
+              <div class="about-section">
+                <h3 class="about-section-title">Attribution</h3>
+                <p>This project builds on two upstream solver efforts:</p>
+                <ul class="about-list">
+                  <li>Pascal Pons' original Connect 4 solver work</li>
+                  <li>Benjamin Rall's Rust/WASM solver implementation</li>
+                </ul>
+              </div>
+              <div class="about-section">
+                <h3 class="about-section-title">Links</h3>
+                <ul class="about-list">
+                  <li>
+                    <a href="https://github.com/PascalPons/connect4" target="_blank" rel="noreferrer">
+                      Pascal Pons / connect4
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://github.com/benjaminrall/connect-four-ai" target="_blank" rel="noreferrer">
+                      Benjamin Rall / connect-four-ai
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://vite.dev/" target="_blank" rel="noreferrer">
+                      Vite
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </section>
           </div>
         </section>
       </div>

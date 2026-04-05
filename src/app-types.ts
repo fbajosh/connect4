@@ -1,14 +1,19 @@
 export type GameMode = "training" | "practice" | "freeplay";
-export type FeatureKey = "bestMove" | "moveScores" | "gameScore" | "devMode";
+export type FeatureKey = "bestMove" | "moveScores" | "gameScore";
 export type PracticeColor = "red" | "yellow" | "alternate";
+export type ThemeName = "light" | "dark" | "midnight";
+export type StatsRange = "today" | "all-time";
 
 export type PersistedUiState = {
+  devMode?: boolean;
   modeMenuExpanded?: boolean;
   toolsMenuExpanded?: boolean;
   menuExpanded?: boolean;
   selectedMode?: GameMode;
   practiceColor?: PracticeColor;
   practiceDifficulty?: number;
+  statsRange?: StatsRange;
+  theme?: ThemeName;
   pinned?: Partial<Record<FeatureKey, boolean>>;
 };
 

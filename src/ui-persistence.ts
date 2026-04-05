@@ -1,4 +1,4 @@
-import type { GameMode, PersistedUiState } from "./app-types";
+import type { GameMode, PersistedUiState, ThemeName } from "./app-types";
 
 const UI_STATE_STORAGE_KEY = "connect4-trainer-ui-state";
 const MODE_PATHS: Record<GameMode, string> = {
@@ -43,6 +43,10 @@ export function modeLabel(mode: GameMode): string {
 
 export function titleForMode(mode: GameMode): string {
   return `Connect 4 Trainer - ${modeLabel(mode)}`;
+}
+
+export function isThemeName(value: string): value is ThemeName {
+  return value === "light" || value === "dark" || value === "midnight";
 }
 
 export function pathForMode(mode: GameMode): string {
