@@ -1,3 +1,19 @@
+import { buildDevOutput, scoreBarRedShare } from "./dev-output";
+import {
+  type FeatureKey,
+  type GameMode,
+  type OptimizerErrorPayload,
+  type OptimizerSuccessPayload,
+  type OptimizerWorkerResponse,
+  type PersistedUiState,
+  type PracticeColor,
+} from "./app-types";
+import {
+  choosePracticeAiColumn,
+  effectivePracticeHumanPlayer,
+  type PracticeAiDebug,
+} from "./practice-ai";
+
 const WIDTH = 7;
 const HEIGHT = 6;
 const EMPTY = 0;
@@ -91,20 +107,6 @@ const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
 );
 
-type GameMode = "training" | "practice" | "freeplay";
-type FeatureKey = "bestMove" | "moveScores" | "gameScore" | "devMode";
-type PracticeColor = "red" | "yellow" | "alternate";
-
-type PersistedUiState = {
-  modeMenuExpanded?: boolean;
-  toolsMenuExpanded?: boolean;
-  menuExpanded?: boolean;
-  selectedMode?: GameMode;
-  practiceColor?: PracticeColor;
-  practiceDifficulty?: number;
-  pinned?: Partial<Record<FeatureKey, boolean>>;
-};
-
 const modeOptionButtons = Array.from(
   modeMenu.querySelectorAll<HTMLButtonElement>("[data-mode-option]"),
 );
@@ -143,7 +145,7 @@ let practiceDifficulty = 10;
 let practiceRoundIndex = 0;
 let aiMoveTimeout = 0;
 let aiScheduledSequence: string | null = null;
-let lastPracticeAiDebug: { rng: number } | null = null;
+let lastPracticeAiDebug: PracticeAiDebug | null = null;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const featurePinned: Record<FeatureKey, boolean> = {
@@ -164,28 +166,6 @@ type Connect4DebugState = {
   getOptimizerOutput: () => string;
   getPreviousRedScores: () => Array<number | null>;
   getPreviousYellowScores: () => Array<number | null>;
-};
-
-type OptimizerSuccessPayload = {
-  bestColumns: number[];
-  bestMoves: string;
-  elapsedMs?: number;
-  nodeCount?: number;
-  positionScore: number;
-  scores: number[];
-  sequence: string;
-  source?: "local-cache" | "wasm";
-};
-
-type OptimizerErrorPayload = {
-  error: string;
-  invalidAtMove?: number;
-  sequence: string;
-};
-
-type OptimizerWorkerResponse = {
-  output: string;
-  payload: OptimizerSuccessPayload | OptimizerErrorPayload;
 };
 
 declare global {
@@ -258,20 +238,15 @@ function isPracticeMode(): boolean {
   return currentMode === "practice";
 }
 
-function effectivePracticeHumanColor(): number {
-  if (practiceColor === "yellow") {
-    return YELLOW;
-  }
-
-  if (practiceColor === "alternate") {
-    return practiceRoundIndex % 2 === 0 ? RED : YELLOW;
-  }
-
-  return RED;
-}
-
 function isHumanTurn(): boolean {
-  return !isPracticeMode() || currentPlayer === effectivePracticeHumanColor();
+  return (
+    !isPracticeMode() ||
+    currentPlayer ===
+      effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+        red: RED,
+        yellow: YELLOW,
+      })
+  );
 }
 
 function updatePracticeControls(): void {
@@ -444,21 +419,14 @@ function renderDevOutput(): void {
     return;
   }
 
-  const lines = [`state: ${moveSequence}`];
-  if (winningPlayer !== null) {
-    lines.push(`winner: ${playerClass(winningPlayer)}`);
-  } else if (latestOptimizerOutput.length > 0) {
-    lines.push(latestOptimizerOutput);
-  }
-  if (isPracticeMode() && lastPracticeAiDebug) {
-    lines.push(`RNG: ${lastPracticeAiDebug.rng.toFixed(6)}`);
-  }
-  lines.push(`total-red: ${formatAverageScore(previousRedScores)}`);
-  lines.push(`total-yellow: ${formatAverageScore(previousYellowScores)}`);
-  lines.push(`previous-red: ${formatScoreHistory(previousRedScores)}`);
-  lines.push(`previous-yellow: ${formatScoreHistory(previousYellowScores)}`);
-
-  devOutputBox.value = lines.join("\n");
+  devOutputBox.value = buildDevOutput({
+    optimizerOutput: latestOptimizerOutput,
+    practiceRng: isPracticeMode() ? lastPracticeAiDebug?.rng ?? null : null,
+    previousRedScores,
+    previousYellowScores,
+    state: moveSequence,
+    winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
+  });
 }
 
 function syncFeatureUI(): void {
@@ -480,46 +448,13 @@ function stopOptimizerWorker(): void {
   optimizerWorker = null;
 }
 
-function formatScoreHistory(scores: Array<number | null>): string {
-  return scores.map((score) => (score === null ? "?" : String(score))).join(", ");
-}
-
-function averageScore(scores: Array<number | null>): number {
-  const validScores = scores.filter((score): score is number => typeof score === "number");
-  if (validScores.length === 0) {
-    return 0;
-  }
-
-  return validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
-}
-
-function formatAverageScore(scores: Array<number | null>): string {
-  const average = averageScore(scores);
-  return Number.isInteger(average) ? String(average) : average.toFixed(2);
-}
-
-function scoreBarRedShare(): number {
-  const totalRed = averageScore(previousRedScores);
-  const totalYellow = averageScore(previousYellowScores);
-  const denominator = 2 * (Math.abs(totalRed) + Math.abs(totalYellow));
-
-  if (denominator === 0) {
-    return 0.5;
-  }
-
-  const numerator =
-    Math.abs(totalRed) + totalRed + Math.abs(totalYellow) - totalYellow;
-
-  return Math.max(0, Math.min(1, numerator / denominator));
-}
-
 function updateScoreBar(): void {
   scoreBar.classList.toggle("hidden", !effectiveGameScoreVisible());
   if (!effectiveGameScoreVisible()) {
     return;
   }
 
-  const redShare = scoreBarRedShare();
+  const redShare = scoreBarRedShare(previousRedScores, previousYellowScores);
   scoreBar.style.setProperty("--score-red-share", String(redShare));
   scoreBarFill.style.width = `${redShare * 100}%`;
 }
@@ -653,40 +588,6 @@ function currentPracticeAiScores(): number[] | null {
   return latestOptimizerPayload.scores;
 }
 
-function practiceTemperature(): number {
-  return 1 + ((10 - practiceDifficulty) / 9) * 7;
-}
-
-function choosePracticeAiColumn(scores: number[]): number | null {
-  const validEntries = scores
-    .map((score, column) => ({ score, column }))
-    .filter((entry) => entry.score !== -1000 && lowestOpenRow(entry.column) !== null);
-
-  if (validEntries.length === 0) {
-    lastPracticeAiDebug = null;
-    return null;
-  }
-
-  const temperature = practiceTemperature();
-  const logits = validEntries.map((entry) => entry.score / temperature);
-  const maxLogit = Math.max(...logits);
-  const weights = logits.map((logit) => Math.exp(logit - maxLogit));
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  const rng = Math.random();
-  let threshold = rng * totalWeight;
-  lastPracticeAiDebug = {
-    rng,
-  };
-  for (let index = 0; index < validEntries.length; index += 1) {
-    threshold -= weights[index];
-    if (threshold <= 0) {
-      return validEntries[index].column;
-    }
-  }
-
-  return validEntries[validEntries.length - 1].column;
-}
-
 function maybeScheduleAiTurn(): void {
   cancelAiTurn();
 
@@ -720,7 +621,13 @@ function maybeScheduleAiTurn(): void {
       return;
     }
 
-    const chosenColumn = choosePracticeAiColumn(liveScores);
+    const aiChoice = choosePracticeAiColumn({
+      difficulty: practiceDifficulty,
+      isColumnPlayable: (column) => lowestOpenRow(column) !== null,
+      scores: liveScores,
+    });
+    lastPracticeAiDebug = aiChoice.debug;
+    const chosenColumn = aiChoice.column;
     if (chosenColumn === null) {
       return;
     }
