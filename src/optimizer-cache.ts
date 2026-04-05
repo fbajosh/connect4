@@ -1,13 +1,6 @@
-export type SolverRecord = {
-  bestColumns: number[];
-  bestMoves: string;
-  elapsedMs?: number;
-  nodeCount?: number;
-  positionScore: number;
-  scores: number[];
-  sequence: string;
-  source?: "local-cache" | "wasm";
-};
+import type { OptimizerSuccessPayload } from "./app-types";
+
+export type SolverRecord = OptimizerSuccessPayload;
 
 const CACHE_DB_NAME = "connect4-solver-cache";
 const CACHE_DB_VERSION = 1;

@@ -1,18 +1,12 @@
 import initRustSolver, { Position, Solver } from "connect-four-ai-wasm";
+import type {
+  OptimizerErrorPayload,
+  OptimizerSuccessPayload,
+  OptimizerWorkerResponse,
+} from "./app-types";
 import { getCachedSolverRecord, putCachedSolverRecord, type SolverRecord } from "./optimizer-cache";
 
 type OptimizerRequest = {
-  sequence: string;
-};
-
-type OptimizerResponse = {
-  output: string;
-  payload: SolverRecord | WasmErrorPayload;
-};
-
-type WasmErrorPayload = {
-  error: string;
-  invalidAtMove?: number;
   sequence: string;
 };
 
@@ -26,7 +20,7 @@ function getSolverModule(): Promise<void> {
   return solverModulePromise;
 }
 
-function formatOutput(payload: SolverRecord | WasmErrorPayload): string {
+function formatOutput(payload: SolverRecord | OptimizerErrorPayload): string {
   if ("error" in payload) {
     return `error: ${payload.error}`;
   }
@@ -34,7 +28,7 @@ function formatOutput(payload: SolverRecord | WasmErrorPayload): string {
   return `best: ${payload.bestColumns.join(", ")}\nmoves: ${payload.scores.join(", ")}`;
 }
 
-async function solveWithWasm(sequence: string): Promise<SolverRecord | WasmErrorPayload> {
+async function solveWithWasm(sequence: string): Promise<SolverRecord | OptimizerErrorPayload> {
   let position: Position | null = null;
   let solver: Solver | null = null;
 
@@ -58,7 +52,7 @@ async function solveWithWasm(sequence: string): Promise<SolverRecord | WasmError
             .filter((entry) => entry.score === positionScore)
             .map((entry) => entry.index + 1);
 
-    const record: SolverRecord = {
+    const record: OptimizerSuccessPayload = {
       bestColumns,
       bestMoves: bestColumns.join(""),
       elapsedMs,
@@ -85,7 +79,7 @@ async function handleRequest({ sequence }: OptimizerRequest): Promise<void> {
   try {
     const cachedRecord = await getCachedSolverRecord(sequence);
     const payload = cachedRecord ?? (await solveWithWasm(sequence));
-    const response: OptimizerResponse = {
+    const response: OptimizerWorkerResponse = {
       output: formatOutput(payload),
       payload,
     };
@@ -94,8 +88,8 @@ async function handleRequest({ sequence }: OptimizerRequest): Promise<void> {
     const payload = {
       error: error instanceof Error ? error.message : "Unexpected optimizer error.",
       sequence,
-    } satisfies WasmErrorPayload;
-    const response: OptimizerResponse = {
+    } satisfies OptimizerErrorPayload;
+    const response: OptimizerWorkerResponse = {
       output: formatOutput(payload),
       payload,
     };

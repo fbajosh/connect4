@@ -12,6 +12,8 @@ export type PersistedUiState = {
   pinned?: Partial<Record<FeatureKey, boolean>>;
 };
 
+export type SolverSource = "local-cache" | "wasm";
+
 export type OptimizerSuccessPayload = {
   bestColumns: number[];
   bestMoves: string;
@@ -20,7 +22,7 @@ export type OptimizerSuccessPayload = {
   positionScore: number;
   scores: number[];
   sequence: string;
-  source?: "local-cache" | "wasm";
+  source?: SolverSource;
 };
 
 export type OptimizerErrorPayload = {

@@ -9,25 +9,33 @@ import {
   type PracticeColor,
 } from "./app-types";
 import {
+  createBoard,
+  detectWinningMask,
+  EMPTY,
+  EMPTY_BOARD_SCORES,
+  HEIGHT,
+  lowestOpenRow,
+  nextPlayer,
+  playerClass,
+  RED,
+  slotIndexFor,
+  type BoardState,
+  type PlayerValue,
+  WIDTH,
+  YELLOW,
+} from "./game-rules";
+import {
   choosePracticeAiColumn,
   effectivePracticeHumanPlayer,
   type PracticeAiDebug,
 } from "./practice-ai";
-
-const WIDTH = 7;
-const HEIGHT = 6;
-const EMPTY = 0;
-const RED = 1;
-const YELLOW = 2;
-const EMPTY_BOARD_SCORES = [-2, -1, 0, 1, 0, -1, -2];
+import { readPersistedUiState, titleForMode, writePersistedUiState } from "./ui-persistence";
 const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
 const FIXED_SCORE_BAR_HEIGHT_ROWS = 0.1;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
-const UI_STATE_STORAGE_KEY = "connect4-trainer-ui-state";
-
 const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
@@ -98,7 +106,7 @@ if (
   throw new Error("Missing required board elements.");
 }
 
-const board = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => EMPTY));
+const board: BoardState = createBoard();
 const trainerSlots: HTMLDivElement[] = [];
 const discSlots: HTMLDivElement[] = [];
 const columnScoreSlots: HTMLSpanElement[] = [];
@@ -129,10 +137,10 @@ const featureToggleInputs: Record<FeatureKey, HTMLInputElement> = {
 
 let activeColumn: number | null = null;
 let activePointerId: number | null = null;
-let currentPlayer = RED;
+let currentPlayer: PlayerValue = RED;
 let isAnimating = false;
 let isWinLocked = false;
-let winningPlayer: number | null = null;
+let winningPlayer: PlayerValue | null = null;
 let dropToken = 0;
 let moveSequence = "";
 let optimizerWorker: Worker | null = null;
@@ -176,39 +184,21 @@ declare global {
   }
 }
 
-function readPersistedUiState(): PersistedUiState {
-  try {
-    const raw = window.localStorage.getItem(UI_STATE_STORAGE_KEY);
-    if (!raw) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw) as PersistedUiState;
-    return typeof parsed === "object" && parsed ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 function persistUiState(): void {
-  try {
-    const state: PersistedUiState = {
-      modeMenuExpanded: isModeMenuExpanded,
-      toolsMenuExpanded: isToolsMenuExpanded,
-      selectedMode: currentMode,
-      practiceColor,
-      practiceDifficulty,
-      pinned: {
-        bestMove: featurePinned.bestMove,
-        moveScores: featurePinned.moveScores,
-        gameScore: featurePinned.gameScore,
-        devMode: featurePinned.devMode,
-      },
-    };
-    window.localStorage.setItem(UI_STATE_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Ignore storage failures; the UI still works without persistence.
-  }
+  const state: PersistedUiState = {
+    modeMenuExpanded: isModeMenuExpanded,
+    toolsMenuExpanded: isToolsMenuExpanded,
+    selectedMode: currentMode,
+    practiceColor,
+    practiceDifficulty,
+    pinned: {
+      bestMove: featurePinned.bestMove,
+      moveScores: featurePinned.moveScores,
+      gameScore: featurePinned.gameScore,
+      devMode: featurePinned.devMode,
+    },
+  };
+  writePersistedUiState(state);
 }
 
 function syncMoveSequence(): void {
@@ -220,20 +210,8 @@ function isTrainingMode(): boolean {
   return currentMode === "training";
 }
 
-function currentModeLabel(): string {
-  if (currentMode === "practice") {
-    return "Practice";
-  }
-
-  if (currentMode === "freeplay") {
-    return "Freeplay";
-  }
-
-  return "Training";
-}
-
 function updateDocumentTitle(): void {
-  document.title = `Connect 4 Trainer - ${currentModeLabel()}`;
+  document.title = titleForMode(currentMode);
 }
 
 function isPracticeMode(): boolean {
@@ -517,10 +495,6 @@ function scoreForSelectedColumn(column: number): number | null {
   return typeof score === "number" ? score : null;
 }
 
-function slotIndexFor(row: number, column: number): number {
-  return (HEIGHT - 1 - row) * WIDTH + column;
-}
-
 function clearTrainingHints(): void {
   for (const slot of trainerSlots) {
     slot.replaceChildren();
@@ -541,7 +515,7 @@ function renderTrainingHints(bestColumns: number[]): void {
       continue;
     }
 
-    const row = lowestOpenRow(column);
+    const row = lowestOpenRow(board, column);
     if (row === null) {
       continue;
     }
@@ -622,7 +596,7 @@ function maybeScheduleAiTurn(): void {
 
     const aiChoice = choosePracticeAiColumn({
       difficulty: practiceDifficulty,
-      isColumnPlayable: (column) => lowestOpenRow(column) !== null,
+      isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
       scores: liveScores,
     });
     lastPracticeAiDebug = aiChoice.debug;
@@ -700,10 +674,6 @@ function requestOptimizerOutput(): void {
   worker.postMessage({ sequence: moveSequence });
 }
 
-function playerClass(player: number): string {
-  return player === RED ? "red" : "yellow";
-}
-
 function clampColumn(column: number): number {
   return Math.max(0, Math.min(WIDTH - 1, column));
 }
@@ -714,69 +684,12 @@ function columnFromPointer(clientX: number): number {
   return clampColumn(Math.floor((clientX - rect.left) / cellSize));
 }
 
-function lowestOpenRow(column: number): number | null {
-  for (let row = 0; row < HEIGHT; row += 1) {
-    if (board[row][column] === EMPTY) {
-      return row;
-    }
-  }
-
-  return null;
-}
-
-function isInBounds(row: number, column: number): boolean {
-  return row >= 0 && row < HEIGHT && column >= 0 && column < WIDTH;
-}
-
 function updateWinningHighlights(): boolean {
-  const highlighted = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => false));
-  const directions: Array<[columnStep: number, rowStep: number]> = [
-    [1, 0],
-    [0, 1],
-    [1, 1],
-    [1, -1],
-  ];
-  let hasWinningRun = false;
+  const { hasWinningRun, winningMask } = detectWinningMask(board);
 
   for (let row = 0; row < HEIGHT; row += 1) {
     for (let column = 0; column < WIDTH; column += 1) {
-      const player = board[row][column];
-      if (player === EMPTY) {
-        continue;
-      }
-
-      for (const [columnStep, rowStep] of directions) {
-        const previousRow = row - rowStep;
-        const previousColumn = column - columnStep;
-        if (isInBounds(previousRow, previousColumn) && board[previousRow][previousColumn] === player) {
-          continue;
-        }
-
-        const run: Array<[row: number, column: number]> = [];
-        let scanRow = row;
-        let scanColumn = column;
-
-        while (isInBounds(scanRow, scanColumn) && board[scanRow][scanColumn] === player) {
-          run.push([scanRow, scanColumn]);
-          scanRow += rowStep;
-          scanColumn += columnStep;
-        }
-
-        if (run.length < 4) {
-          continue;
-        }
-
-        hasWinningRun = true;
-        for (const [runRow, runColumn] of run) {
-          highlighted[runRow][runColumn] = true;
-        }
-      }
-    }
-  }
-
-  for (let row = 0; row < HEIGHT; row += 1) {
-    for (let column = 0; column < WIDTH; column += 1) {
-      discElements[row][column]?.classList.toggle("is-winning", highlighted[row][column]);
+      discElements[row][column]?.classList.toggle("is-winning", winningMask[row][column]);
     }
   }
 
@@ -803,7 +716,7 @@ function updatePreview(column: number): void {
   previewPiece.style.setProperty("--column", String(column));
   previewPiece.classList.remove("hidden", "red", "yellow");
 
-  if (lowestOpenRow(column) === null) {
+  if (lowestOpenRow(board, column) === null) {
     previewPiece.classList.add("hidden");
     return;
   }
@@ -899,7 +812,7 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   requestOptimizerOutput();
 }
 
-function placeDisc(row: number, column: number, player: number): void {
+function placeDisc(row: number, column: number, player: PlayerValue): void {
   board[row][column] = player;
   const previousScore = scoreForSelectedColumn(column);
   if (player === RED) {
@@ -919,16 +832,12 @@ function placeDisc(row: number, column: number, player: number): void {
   requestOptimizerOutput();
 }
 
-function nextPlayer(player: number): number {
-  return player === RED ? YELLOW : RED;
-}
-
 function targetTopForRow(row: number): string {
   return `calc(${HEIGHT - 1 - row} * var(--cell-size) + (var(--cell-size) - var(--piece-size)) / 2)`;
 }
 
 function dropPreview(column: number): void {
-  const row = lowestOpenRow(column);
+  const row = lowestOpenRow(board, column);
   if (row === null) {
     hidePreview();
     return;

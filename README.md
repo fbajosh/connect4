@@ -1,6 +1,6 @@
 # Connect 4 Trainer
 
-This repository is now a browser-friendly TypeScript Connect 4 project in [`src/`](./src).
+This is a browser-first Connect 4 training app built with TypeScript and Vite.
 
 This project builds on two upstream solver efforts:
 
@@ -9,9 +9,33 @@ This project builds on two upstream solver efforts:
 
 Please keep both projects credited when reusing or modifying this codebase.
 
-## TypeScript Web App
+## What It Does
+
+- `Training` mode shows solver-backed hints, move scores, game score, and developer output.
+- `Practice` mode lets a player face a solver-driven AI with configurable side and difficulty.
+- `Freeplay` mode removes AI and training overlays so two humans can use the board directly.
+- UI tool state and menu state persist across reloads with `localStorage`.
+
+## Architecture
 
 The project uses Vite for local development and production builds. The browser UI is written in TypeScript, while exact client-side solving uses the Rust/WebAssembly package `connect-four-ai-wasm` from Benjamin Rall's [`connect-four-ai`](https://github.com/benjaminrall/connect-four-ai).
+
+Runtime flow:
+
+1. the UI posts the current move sequence to [`src/optimizer-worker.ts`](./src/optimizer-worker.ts)
+2. the worker checks browser-local IndexedDB via [`src/optimizer-cache.ts`](./src/optimizer-cache.ts)
+3. on a cache miss, the worker runs the Rust/WASM solver on the visitor's device
+4. solved positions are written back to IndexedDB for future reuse
+
+Main source files:
+
+- [`src/landing.ts`](./src/landing.ts): DOM wiring, board interaction, mode switching, animations
+- [`src/game-rules.ts`](./src/game-rules.ts): shared board constants, turn helpers, win detection
+- [`src/practice-ai.ts`](./src/practice-ai.ts): Practice-mode AI move selection and temperature logic
+- [`src/dev-output.ts`](./src/dev-output.ts): Dev panel formatting and score-bar math
+- [`src/ui-persistence.ts`](./src/ui-persistence.ts): persisted UI/tool/menu state
+- [`src/optimizer-worker.ts`](./src/optimizer-worker.ts): background solver bridge
+- [`src/optimizer-cache.ts`](./src/optimizer-cache.ts): IndexedDB cache layer
 
 ### Install
 
@@ -50,14 +74,11 @@ Deploy the contents of `dist/` to any static host:
 - Cloudflare Pages
 - Vercel static hosting
 
-## Browser Solver
+## Notes
 
-The web app now resolves solver results in this order:
-
-1. browser-local IndexedDB cache
-2. exact Rust solver with its embedded opening book, compiled to WASM and run on the visitor's device
-
-When the browser has to solve a missing position itself, that result is written back into IndexedDB so the same user does not recompute it again.
+- All exact solve work in the shipped web app runs on the end user's device, not on your server.
+- There is no active legacy C++ or TypeScript solver path left in this repo.
+- A production build writes a static site to `dist/`.
 
 ## Credits
 
