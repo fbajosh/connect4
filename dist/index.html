@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/connect4/assets/index-BZnwcDYp.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-IhUbYnxC.css">
+    <script type="module" crossorigin src="/connect4/assets/index-2YsmEmJQ.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-Bm8lMDx_.css">
   </head>
   <body>
     <main class="landing">
@@ -74,12 +74,27 @@
                 </div>
               </div>
               <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
-                <div class="practice-row">
+                <div class="practice-row practice-color-row">
                   <span class="practice-label">Color</span>
-                  <div class="practice-pill-group" role="group" aria-label="Practice color">
-                    <button class="practice-pill" data-practice-color="red" type="button">Red</button>
-                    <button class="practice-pill" data-practice-color="yellow" type="button">Yellow</button>
-                    <button class="practice-pill" data-practice-color="alternate" type="button">Alt</button>
+                  <div class="practice-color-group" role="group" aria-label="Practice color">
+                    <button
+                      aria-label="Red"
+                      class="practice-color-button practice-color-red"
+                      data-practice-color="red"
+                      type="button"
+                    ></button>
+                    <button
+                      aria-label="Yellow"
+                      class="practice-color-button practice-color-yellow"
+                      data-practice-color="yellow"
+                      type="button"
+                    ></button>
+                    <button
+                      aria-label="Alternate"
+                      class="practice-color-button practice-color-alternate"
+                      data-practice-color="alternate"
+                      type="button"
+                    ></button>
                   </div>
                 </div>
                 <div class="practice-row">
@@ -107,6 +122,13 @@
                 </div>
               </div>
               <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
+                <div class="practice-row practice-toggle-row">
+                  <span class="practice-label">Game Score</span>
+                  <label class="feature-toggle" for="freeplay-game-score-toggle">
+                    <input class="feature-toggle-input" id="freeplay-game-score-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
                 <div class="practice-row practice-toggle-row">
                   <span class="practice-label">Dev Mode</span>
                   <label class="feature-toggle" for="freeplay-dev-mode-toggle">
@@ -140,7 +162,14 @@
             <button class="history-button" id="undo-control" type="button">Undo</button>
             <button class="history-button" id="redo-control" type="button">Redo</button>
           </div>
-          <button class="about-link" id="about-control" type="button">About</button>
+          <button aria-label="About" class="about-link" id="about-control" type="button">
+            <svg class="about-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M10.4 2.7h3.2l.5 2.2c.6.2 1.2.4 1.7.7l2-1.1 2.3 2.3-1.1 2c.3.6.5 1.1.7 1.7l2.2.5v3.2l-2.2.5c-.2.6-.4 1.2-.7 1.7l1.1 2-2.3 2.3-2-1.1c-.6.3-1.1.5-1.7.7l-.5 2.2h-3.2l-.5-2.2c-.6-.2-1.2-.4-1.7-.7l-2 1.1-2.3-2.3 1.1-2c-.3-.6-.5-1.1-.7-1.7l-2.2-.5v-3.2l2.2-.5c.2-.6.4-1.2.7-1.7l-1.1-2 2.3-2.3 2 1.1c.6-.3 1.1-.5 1.7-.7z"
+              />
+              <circle cx="12" cy="12" r="3.1" />
+            </svg>
+          </button>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">

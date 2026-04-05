@@ -75,6 +75,7 @@ const freeplayControls = document.getElementById("freeplay-controls");
 const practiceDifficultySlider = document.getElementById("practice-difficulty-slider");
 const practiceDifficultyValue = document.getElementById("practice-difficulty-value");
 const practiceDevModeToggle = document.getElementById("practice-dev-mode-toggle");
+const freeplayGameScoreToggle = document.getElementById("freeplay-game-score-toggle");
 const freeplayDevModeToggle = document.getElementById("freeplay-dev-mode-toggle");
 const bestMovePulse = document.getElementById("best-move-pulse");
 const bestMoveToggle = document.getElementById("best-move-toggle");
@@ -120,6 +121,7 @@ if (
   !practiceDifficultySlider ||
   !practiceDifficultyValue ||
   !practiceDevModeToggle ||
+  !freeplayGameScoreToggle ||
   !freeplayDevModeToggle ||
   !bestMovePulse ||
   !bestMoveToggle ||
@@ -340,6 +342,7 @@ function updatePracticeControls(): void {
   practiceDifficultySlider.value = String(practiceDifficulty);
   practiceDifficultyValue.textContent = String(practiceDifficulty);
   practiceDevModeToggle.checked = featurePinned.devMode;
+  freeplayGameScoreToggle.checked = featurePinned.gameScore;
   freeplayDevModeToggle.checked = featurePinned.devMode;
 }
 
@@ -356,7 +359,7 @@ function effectiveMoveScoresVisible(): boolean {
 }
 
 function effectiveGameScoreVisible(): boolean {
-  return isTrainingMode() && isFeatureVisible("gameScore");
+  return (isTrainingMode() || currentMode === "freeplay") && isFeatureVisible("gameScore");
 }
 
 function effectiveDevModeVisible(): boolean {
@@ -1377,6 +1380,10 @@ practiceDifficultySlider.addEventListener("input", () => {
 
 practiceDevModeToggle.addEventListener("change", () => {
   setFeaturePinned("devMode", practiceDevModeToggle.checked);
+});
+
+freeplayGameScoreToggle.addEventListener("change", () => {
+  setFeaturePinned("gameScore", freeplayGameScoreToggle.checked);
 });
 
 freeplayDevModeToggle.addEventListener("change", () => {

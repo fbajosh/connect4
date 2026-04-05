@@ -73,12 +73,27 @@
                 </div>
               </div>
               <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
-                <div class="practice-row">
+                <div class="practice-row practice-color-row">
                   <span class="practice-label">Color</span>
-                  <div class="practice-pill-group" role="group" aria-label="Practice color">
-                    <button class="practice-pill" data-practice-color="red" type="button">Red</button>
-                    <button class="practice-pill" data-practice-color="yellow" type="button">Yellow</button>
-                    <button class="practice-pill" data-practice-color="alternate" type="button">Alt</button>
+                  <div class="practice-color-group" role="group" aria-label="Practice color">
+                    <button
+                      aria-label="Red"
+                      class="practice-color-button practice-color-red"
+                      data-practice-color="red"
+                      type="button"
+                    ></button>
+                    <button
+                      aria-label="Yellow"
+                      class="practice-color-button practice-color-yellow"
+                      data-practice-color="yellow"
+                      type="button"
+                    ></button>
+                    <button
+                      aria-label="Alternate"
+                      class="practice-color-button practice-color-alternate"
+                      data-practice-color="alternate"
+                      type="button"
+                    ></button>
                   </div>
                 </div>
                 <div class="practice-row">
@@ -106,6 +121,13 @@
                 </div>
               </div>
               <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
+                <div class="practice-row practice-toggle-row">
+                  <span class="practice-label">Game Score</span>
+                  <label class="feature-toggle" for="freeplay-game-score-toggle">
+                    <input class="feature-toggle-input" id="freeplay-game-score-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
                 <div class="practice-row practice-toggle-row">
                   <span class="practice-label">Dev Mode</span>
                   <label class="feature-toggle" for="freeplay-dev-mode-toggle">
