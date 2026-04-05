@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-5dXJPwj3.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BZmSf9l9.css">
+    <script type="module" crossorigin src="/assets/index-B6Sxzhby.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Cn6r3ceZ.css">
   </head>
   <body>
     <main class="landing">
@@ -22,12 +22,18 @@
         </div>
         <button class="dev-mode-button" id="dev-mode-toggle" type="button" aria-pressed="false">Dev Mode</button>
       </header>
-      <div class="board-shell" id="board-shell">
-        <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
-        <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
-        <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+      <div class="board-stage">
+        <div class="board-area">
+          <div class="board-frame">
+            <div class="board-shell" id="board-shell">
+              <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
+              <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
+              <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+            </div>
+          </div>
+        </div>
+        <button class="reset-control" id="reset-control" type="button">Reset</button>
       </div>
-      <button class="reset-control" id="reset-control" type="button">Reset</button>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
         <label class="dev-field">
           <span class="dev-label">Game State</span>

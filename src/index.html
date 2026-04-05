@@ -21,12 +21,18 @@
         </div>
         <button class="dev-mode-button" id="dev-mode-toggle" type="button" aria-pressed="false">Dev Mode</button>
       </header>
-      <div class="board-shell" id="board-shell">
-        <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
-        <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
-        <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+      <div class="board-stage">
+        <div class="board-area">
+          <div class="board-frame">
+            <div class="board-shell" id="board-shell">
+              <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
+              <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
+              <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+            </div>
+          </div>
+        </div>
+        <button class="reset-control" id="reset-control" type="button">Reset</button>
       </div>
-      <button class="reset-control" id="reset-control" type="button">Reset</button>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
         <label class="dev-field">
           <span class="dev-label">Game State</span>

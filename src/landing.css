@@ -6,6 +6,8 @@
   --board-blue: #5067b3;
   --board-blue-bezel: #6276bb;
   --edge-buffer: 4vw;
+  --layout-gap: clamp(0.75rem, 1.1vw, 1.2rem);
+  --preview-height-ratio: calc(0.74 / 7);
 }
 
 html,
@@ -24,7 +26,11 @@ body {
 .landing {
   width: 100vw;
   height: 100dvh;
-  position: relative;
+  padding: var(--edge-buffer);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: var(--layout-gap);
 }
 
 .effects-layer {
@@ -35,10 +41,6 @@ body {
 }
 
 .hero {
-  position: absolute;
-  top: var(--edge-buffer);
-  left: 50%;
-  transform: translateX(-50%);
   display: grid;
   justify-items: center;
   gap: 1vw;
@@ -82,10 +84,9 @@ body {
 
 .board-shell {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(calc(100vw - 2 * var(--edge-buffer)), calc((100dvh - 2 * var(--edge-buffer)) * 7 / 6));
+  inset-inline: 0;
+  bottom: 0;
+  width: 100%;
   aspect-ratio: 7 / 6;
   --cell-size: calc(100% / 7);
   --piece-size: calc(var(--cell-size) * 0.7);
@@ -93,10 +94,6 @@ body {
 }
 
 .reset-control {
-  position: absolute;
-  top: calc(50% + min(calc(100vw - 2 * var(--edge-buffer)), calc((100dvh - 2 * var(--edge-buffer)) * 7 / 6)) * 3 / 7 + 0.8rem);
-  left: 50%;
-  transform: translateX(-50%);
   margin: 0;
   padding: 0;
   border: 0;
@@ -112,11 +109,7 @@ body {
 }
 
 .dev-panel {
-  position: absolute;
-  bottom: var(--edge-buffer);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(calc(100vw - 2 * var(--edge-buffer)), 60rem);
+  width: min(100%, 60rem);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
@@ -244,4 +237,29 @@ body {
   transition:
     left 110ms linear,
     top 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.board-stage {
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: var(--layout-gap);
+}
+
+.board-area {
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.board-frame {
+  position: relative;
+  width: min(100cqw, calc(100cqh * 7 / 6.74));
+  aspect-ratio: 7 / 6.74;
+  max-width: 100%;
+  max-height: 100%;
 }
