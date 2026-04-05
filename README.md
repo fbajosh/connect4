@@ -18,7 +18,7 @@ Please keep both projects credited when reusing or modifying this codebase.
 
 ## Architecture
 
-The project uses Vite for local development and production builds. The browser UI is written in TypeScript, while exact client-side solving uses the Rust/WebAssembly package `connect-four-ai-wasm` from Benjamin Rall's [`connect-four-ai`](https://github.com/benjaminrall/connect-four-ai).
+The project uses Vite for local development and production builds. The browser UI is written in TypeScript, while exact client-side solving uses the Rust/WebAssembly package `connect-four-ai-wasm` from Benjamin Rall's [`connect-four-ai`](https://github.com/benjaminrall/connect-four-ai). The exact package version used by this repo is vendored locally under [`vendor/connect-four-ai-wasm`](./vendor/connect-four-ai-wasm) so future builds do not depend on npm availability.
 
 Runtime flow:
 
@@ -36,6 +36,7 @@ Main source files:
 - [`src/ui-persistence.ts`](./src/ui-persistence.ts): persisted UI/tool/menu state
 - [`src/optimizer-worker.ts`](./src/optimizer-worker.ts): background solver bridge
 - [`src/optimizer-cache.ts`](./src/optimizer-cache.ts): IndexedDB cache layer
+- [`vendor/connect-four-ai-wasm`](./vendor/connect-four-ai-wasm): vendored Rust/WASM solver package consumed by the app
 
 ### Install
 
@@ -78,6 +79,7 @@ Deploy the contents of `dist/` to any static host:
 
 - All exact solve work in the shipped web app runs on the end user's device, not on your server.
 - There is no active legacy C++ or TypeScript solver path left in this repo.
+- The Rust/WASM solver package is vendored locally, so installs do not depend on the upstream npm package staying online.
 - A production build writes a static site to `dist/`.
 
 ## Credits
