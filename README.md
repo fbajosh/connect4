@@ -75,6 +75,33 @@ Deploy the contents of `dist/` to any static host:
 - Cloudflare Pages
 - Vercel static hosting
 
+This repo also includes a GitHub Actions workflow at [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) that can build the site on GitHub and sync `dist/` to a VM over SSH.
+
+#### GitHub Actions VM Deploy
+
+The workflow runs on pushes to `main` and on manual dispatch. It keeps the VM address and SSH key out of the public YAML by loading them from GitHub Actions secrets.
+
+The production build is configured for deployment at `/connect4/`. If the public URL path changes, update [`vite.config.mjs`](./vite.config.mjs).
+
+Create a `production` environment in GitHub and add these secrets there:
+
+- `DEPLOY_SSH_HOST`: VM hostname or IP address
+- `DEPLOY_SSH_USER`: SSH user for deployment
+- `DEPLOY_SSH_PORT`: optional SSH port, for example `22`
+- `DEPLOY_SSH_KEY`: private key for the deploy user
+- `DEPLOY_SSH_KNOWN_HOSTS`: the VM's `known_hosts` line
+- `DEPLOY_TARGET_DIR`: absolute directory on the VM that should receive `dist/`
+
+Recommended setup:
+
+1. Generate a dedicated deploy keypair on your machine with `ssh-keygen -t ed25519 -f ~/.ssh/connect4_deploy`.
+2. Add the public key to the deploy user's `~/.ssh/authorized_keys` on the VM.
+3. Capture the server host key locally with `ssh-keyscan -H your-vm-host`.
+4. Save the private key and `ssh-keyscan` output in the GitHub environment secrets above.
+5. Point `DEPLOY_TARGET_DIR` at the directory served by your web server, for example `/var/www/connect4`.
+
+The workflow uses `rsync --delete`, so the target directory should be reserved for this site's built files.
+
 ## Notes
 
 - All exact solve work in the shipped web app runs on the end user's device, not on your server.
