@@ -134,11 +134,12 @@
           </div>
         </div>
         <div class="board-actions">
+          <button class="reset-control" id="reset-control" type="button">Reset</button>
           <div class="history-controls" id="history-controls" aria-label="History controls">
             <button class="history-button" id="undo-control" type="button">Undo</button>
             <button class="history-button" id="redo-control" type="button">Redo</button>
-            <button class="reset-control" id="reset-control" type="button">Reset</button>
           </div>
+          <button class="about-link" id="about-control" type="button">About</button>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
@@ -147,6 +148,61 @@
           <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
         </label>
       </section>
+      <div class="about-modal hidden" id="about-modal" aria-hidden="true">
+        <div class="about-backdrop" id="about-backdrop"></div>
+        <section
+          class="about-dialog"
+          id="about-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="about-title"
+        >
+          <div class="about-header">
+            <h2 class="about-title" id="about-title">About Connect 4 Trainer</h2>
+            <button class="about-close" id="about-close" type="button" aria-label="Close about dialog">
+              Close
+            </button>
+          </div>
+          <div class="about-content">
+            <p>
+              Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
+              and practicing against a solver-driven opponent.
+            </p>
+            <p>
+              Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
+              browser with IndexedDB for reuse.
+            </p>
+            <div class="about-section">
+              <h3 class="about-section-title">Attribution</h3>
+              <p>This project builds on two upstream solver efforts:</p>
+              <ul class="about-list">
+                <li>Pascal Pons' original Connect 4 solver work</li>
+                <li>Benjamin Rall's Rust/WASM solver implementation</li>
+              </ul>
+            </div>
+            <div class="about-section">
+              <h3 class="about-section-title">Links</h3>
+              <ul class="about-list">
+                <li>
+                  <a href="https://github.com/PascalPons/connect4" target="_blank" rel="noreferrer">
+                    Pascal Pons / connect4
+                  </a>
+                </li>
+                <li>
+                  <a href="https://github.com/benjaminrall/connect-four-ai" target="_blank" rel="noreferrer">
+                    Benjamin Rall / connect-four-ai
+                  </a>
+                </li>
+                <li>
+                  <a href="https://vite.dev/" target="_blank" rel="noreferrer">
+                    Vite
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
     <script type="module" src="./landing.ts"></script>
   </body>

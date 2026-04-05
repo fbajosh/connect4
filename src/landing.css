@@ -314,6 +314,7 @@ body {
 }
 
 .history-button,
+.about-link,
 .reset-control {
   margin: 0;
   padding: 0;
@@ -333,6 +334,21 @@ body {
 .reset-control:disabled {
   color: rgba(255, 255, 255, 0.38);
   cursor: default;
+}
+
+.about-link {
+  position: absolute;
+  top: 50%;
+  right: max(0.35rem, env(safe-area-inset-right));
+  text-decoration: none;
+  transform: translateY(-50%);
+}
+
+.reset-control {
+  position: absolute;
+  top: 50%;
+  left: max(0.35rem, env(safe-area-inset-left));
+  transform: translateY(-50%);
 }
 
 .dev-panel {
@@ -546,6 +562,8 @@ body {
 }
 
 .board-actions {
+  width: 100%;
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 0;
@@ -556,6 +574,99 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.7rem;
+}
+
+.about-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+}
+
+.about-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.about-dialog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(34rem, calc(100vw - 2 * var(--edge-buffer)));
+  max-height: min(80dvh, 42rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 1.15rem 1.15rem 1.05rem;
+  border: 1px solid #4d4d4d;
+  border-radius: 1rem;
+  background: rgba(15, 15, 15, 0.98);
+  color: #ffffff;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.about-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.about-title,
+.about-section-title {
+  margin: 0;
+  font-family: "Roboto", sans-serif;
+  font-weight: 700;
+}
+
+.about-title {
+  font-size: 1.15rem;
+}
+
+.about-section-title {
+  font-size: 0.9rem;
+}
+
+.about-close {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  font-family: "Roboto", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.about-content {
+  display: grid;
+  gap: 0.9rem;
+  overflow: auto;
+}
+
+.about-content p,
+.about-list {
+  margin: 0;
+  color: #e7e7e7;
+  font-family: "Roboto", sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.about-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.about-list {
+  padding-left: 1.15rem;
+}
+
+.about-list a {
+  color: #ffffff;
 }
 
 .score-bar {

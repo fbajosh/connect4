@@ -44,12 +44,17 @@ const effectsLayer = document.getElementById("effects-layer");
 const landingRoot = document.querySelector<HTMLElement>(".landing");
 const hero = document.querySelector<HTMLElement>(".hero");
 const boardStage = document.querySelector<HTMLElement>(".board-stage");
+const boardActions = document.querySelector<HTMLElement>(".board-actions");
 const boardFrame = boardShell?.parentElement;
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
+const aboutControl = document.getElementById("about-control");
+const aboutModal = document.getElementById("about-modal");
+const aboutBackdrop = document.getElementById("about-backdrop");
+const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
@@ -79,6 +84,7 @@ if (
   !landingRoot ||
   !hero ||
   !boardStage ||
+  !boardActions ||
   !boardFrame ||
   !boardShell ||
   !boardGrid ||
@@ -90,6 +96,10 @@ if (
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
+  !aboutControl ||
+  !aboutModal ||
+  !aboutBackdrop ||
+  !aboutClose ||
   !undoControl ||
   !redoControl ||
   !resetControl ||
@@ -158,6 +168,7 @@ let moveSequence = "";
 let optimizerWorker: Worker | null = null;
 let boardFrameLayoutRaf = 0;
 let shakeResetTimeout = 0;
+let isAboutModalOpen = false;
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
@@ -229,6 +240,12 @@ function syncMoveSequence(): void {
   syncFeatureUI();
 }
 
+function setAboutModalOpen(open: boolean): void {
+  isAboutModalOpen = open;
+  aboutModal.classList.toggle("hidden", !open);
+  aboutModal.setAttribute("aria-hidden", String(!open));
+}
+
 function scheduleBoardFrameLayout(): void {
   if (boardFrameLayoutRaf !== 0) {
     return;
@@ -242,6 +259,7 @@ function scheduleBoardFrameLayout(): void {
 
 function layoutBoardFrame(): void {
   boardFrame.style.transform = "";
+  boardActions.style.width = "";
 
   const frameRect = boardFrame.getBoundingClientRect();
   const heroRect = hero.getBoundingClientRect();
@@ -257,6 +275,7 @@ function layoutBoardFrame(): void {
   const offsetY = clampedTop - frameRect.top;
 
   boardFrame.style.transform = `translateY(${offsetY}px)`;
+  boardActions.style.width = `${frameRect.width}px`;
 }
 
 function isTrainingMode(): boolean {
@@ -1184,6 +1203,21 @@ resetControl.addEventListener("click", () => {
   resetBoard();
 });
 
+aboutControl.addEventListener("click", () => {
+  setAboutModalOpen(true);
+  aboutClose.focus();
+});
+
+aboutClose.addEventListener("click", () => {
+  setAboutModalOpen(false);
+  aboutControl.focus();
+});
+
+aboutBackdrop.addEventListener("click", () => {
+  setAboutModalOpen(false);
+  aboutControl.focus();
+});
+
 undoControl.addEventListener("click", () => {
   performUndo();
 });
@@ -1260,6 +1294,13 @@ practiceDevModeToggle.addEventListener("change", () => {
 
 freeplayDevModeToggle.addEventListener("change", () => {
   setFeaturePinned("devMode", freeplayDevModeToggle.checked);
+});
+
+window.addEventListener("keydown", (event: KeyboardEvent) => {
+  if (event.key === "Escape" && isAboutModalOpen) {
+    setAboutModalOpen(false);
+    aboutControl.focus();
+  }
 });
 
 window.addEventListener("resize", () => {
