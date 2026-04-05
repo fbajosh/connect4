@@ -41,6 +41,7 @@ const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
 const discGrid = document.getElementById("disc-grid");
 const effectsLayer = document.getElementById("effects-layer");
+const landingRoot = document.querySelector<HTMLElement>(".landing");
 const boardFrame = boardShell?.parentElement;
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
@@ -70,6 +71,7 @@ const devPanel = document.getElementById("dev-panel");
 const devOutputBox = document.getElementById("dev-output-box");
 
 if (
+  !landingRoot ||
   !boardFrame ||
   !boardShell ||
   !boardGrid ||
@@ -390,8 +392,10 @@ function applyBoardFrameLayout(): void {
 }
 
 function renderDevOutput(): void {
-  devPanel.classList.toggle("hidden", !effectiveDevModeVisible());
-  if (!effectiveDevModeVisible()) {
+  const isVisible = effectiveDevModeVisible();
+  landingRoot.classList.toggle("has-dev-panel", isVisible);
+  devPanel.classList.toggle("hidden", !isVisible);
+  if (!isVisible) {
     devOutputBox.value = "";
     return;
   }
