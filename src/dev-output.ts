@@ -1,8 +1,11 @@
+import type { PracticeAiDebug } from "./practice-ai";
+
 type ScoreHistory = Array<number | null>;
 
 type DevOutputOptions = {
   optimizerOutput: string;
-  practiceRng: number | null;
+  practiceDifficulty: number | null;
+  practiceAiDebug: PracticeAiDebug | null;
   previousRedScores: ScoreHistory;
   previousYellowScores: ScoreHistory;
   state: string;
@@ -11,6 +14,18 @@ type DevOutputOptions = {
 
 function formatScoreHistory(scores: ScoreHistory): string {
   return scores.map((score) => (score === null ? "?" : String(score))).join(", ");
+}
+
+function formatDisplayNumber(value: number): string {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function formatDisplayScoreList(scores: Array<number | null>): string {
+  return scores.map((score) => (score === null ? "-" : formatDisplayNumber(score))).join(", ");
 }
 
 function averageScore(scores: ScoreHistory): number {
@@ -52,8 +67,30 @@ export function buildDevOutput(options: DevOutputOptions): string {
     lines.push(options.optimizerOutput);
   }
 
-  if (options.practiceRng !== null) {
-    lines.push(`RNG: ${options.practiceRng.toFixed(6)}`);
+  if (options.practiceAiDebug !== null) {
+    lines.push(`previous: ${formatDisplayScoreList(options.practiceAiDebug.previousMoves)}`);
+    if (options.practiceAiDebug.selectionMode === "flat") {
+      if (options.practiceDifficulty !== null) {
+        lines.push(`temperature: flat (difficulty ${options.practiceDifficulty})`);
+      } else {
+        lines.push("temperature: flat");
+      }
+    } else if (options.practiceAiDebug.selectionMode === "deterministic") {
+      if (options.practiceDifficulty !== null) {
+        lines.push(`temperature: deterministic (difficulty ${options.practiceDifficulty})`);
+      } else {
+        lines.push("temperature: deterministic");
+      }
+    } else if (options.practiceDifficulty !== null && options.practiceAiDebug.temperature !== null) {
+      lines.push(
+        `temperature: ${options.practiceAiDebug.temperature.toFixed(3)} (difficulty ${options.practiceDifficulty})`,
+      );
+    } else if (options.practiceAiDebug.temperature !== null) {
+      lines.push(`temperature: ${options.practiceAiDebug.temperature.toFixed(3)}`);
+    } else {
+      lines.push("temperature: -");
+    }
+    lines.push(`RNG: ${options.practiceAiDebug.rng === null ? "-" : options.practiceAiDebug.rng.toFixed(6)}`);
   }
 
   lines.push(`total-red: ${formatAverageScore(options.previousRedScores)}`);

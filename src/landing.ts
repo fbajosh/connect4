@@ -7,6 +7,8 @@ import {
   type OptimizerWorkerResponse,
   type PersistedUiState,
   type PracticeColor,
+  type StatsRange,
+  type ThemeName,
 } from "./app-types";
 import {
   createBoard,
@@ -29,7 +31,17 @@ import {
   effectivePracticeHumanPlayer,
   type PracticeAiDebug,
 } from "./practice-ai";
-import { readPersistedUiState, titleForMode, writePersistedUiState } from "./ui-persistence";
+import { shiftSolverScoresToDisplay } from "./score-display";
+import {
+  isThemeName,
+  modeForPathname,
+  pathForMode,
+  readPersistedUiState,
+  titleForMode,
+  writePersistedUiState,
+} from "./ui-persistence";
+import { appendPracticeStat, buildPracticeStatsRows, createPracticeStatId, readStoredPracticeStats, removePracticeStatById, type PracticeGameResult, type PracticeGameStat } from "./stats";
+import { applyTheme } from "./theme";
 const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
@@ -43,6 +55,7 @@ const discGrid = document.getElementById("disc-grid");
 const effectsLayer = document.getElementById("effects-layer");
 const landingRoot = document.querySelector<HTMLElement>(".landing");
 const hero = document.querySelector<HTMLElement>(".hero");
+const menuBar = document.querySelector<HTMLElement>(".menu-bar");
 const boardStage = document.querySelector<HTMLElement>(".board-stage");
 const boardActions = document.querySelector<HTMLElement>(".board-actions");
 const boardFrame = boardShell?.parentElement;
@@ -54,6 +67,7 @@ const historyControls = document.getElementById("history-controls");
 const aboutControl = document.getElementById("about-control");
 const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
+const aboutDialog = document.getElementById("about-dialog");
 const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
@@ -67,18 +81,17 @@ const practiceControls = document.getElementById("practice-controls");
 const freeplayControls = document.getElementById("freeplay-controls");
 const practiceDifficultySlider = document.getElementById("practice-difficulty-slider");
 const practiceDifficultyValue = document.getElementById("practice-difficulty-value");
-const practiceDevModeToggle = document.getElementById("practice-dev-mode-toggle");
-const freeplayDevModeToggle = document.getElementById("freeplay-dev-mode-toggle");
+const freeplayGameScoreToggle = document.getElementById("freeplay-game-score-toggle");
 const bestMovePulse = document.getElementById("best-move-pulse");
 const bestMoveToggle = document.getElementById("best-move-toggle");
 const moveScoresPulse = document.getElementById("move-scores-pulse");
 const moveScoresToggle = document.getElementById("move-scores-toggle");
 const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
-const devModePulse = document.getElementById("dev-mode-pulse");
-const devModeToggle = document.getElementById("dev-mode-toggle");
 const devPanel = document.getElementById("dev-panel");
 const devOutputBox = document.getElementById("dev-output-box");
+const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
+const statsTableBody = document.getElementById("stats-table-body");
 
 if (
   !landingRoot ||
@@ -91,6 +104,7 @@ if (
   !trainerGrid ||
   !discGrid ||
   !effectsLayer ||
+  !menuBar ||
   !scoreBar ||
   !scoreBarFill ||
   !columnScoreRow ||
@@ -99,6 +113,7 @@ if (
   !aboutControl ||
   !aboutModal ||
   !aboutBackdrop ||
+  !aboutDialog ||
   !aboutClose ||
   !undoControl ||
   !redoControl ||
@@ -112,18 +127,17 @@ if (
   !freeplayControls ||
   !practiceDifficultySlider ||
   !practiceDifficultyValue ||
-  !practiceDevModeToggle ||
-  !freeplayDevModeToggle ||
+  !freeplayGameScoreToggle ||
   !bestMovePulse ||
   !bestMoveToggle ||
   !moveScoresPulse ||
   !moveScoresToggle ||
   !gameScorePulse ||
   !gameScoreToggle ||
-  !devModePulse ||
-  !devModeToggle ||
   !devPanel ||
-  !devOutputBox
+  !devOutputBox ||
+  !settingsDevModeToggle ||
+  !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
 }
@@ -135,6 +149,10 @@ const columnScoreSlots: HTMLSpanElement[] = [];
 const practiceColorButtons = Array.from(
   practiceControls.querySelectorAll<HTMLButtonElement>("[data-practice-color]"),
 );
+const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
+const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
+const statsRangeButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-stats-range]"));
+const themeOptionButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-theme-option]"));
 const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
 );
@@ -147,14 +165,12 @@ const featurePulseButtons: Record<FeatureKey, HTMLButtonElement> = {
   bestMove: bestMovePulse as HTMLButtonElement,
   moveScores: moveScoresPulse as HTMLButtonElement,
   gameScore: gameScorePulse as HTMLButtonElement,
-  devMode: devModePulse as HTMLButtonElement,
 };
 
 const featureToggleInputs: Record<FeatureKey, HTMLInputElement> = {
   bestMove: bestMoveToggle as HTMLInputElement,
   moveScores: moveScoresToggle as HTMLInputElement,
   gameScore: gameScoreToggle as HTMLInputElement,
-  devMode: devModeToggle as HTMLInputElement,
 };
 
 let activeColumn: number | null = null;
@@ -169,34 +185,40 @@ let optimizerWorker: Worker | null = null;
 let boardFrameLayoutRaf = 0;
 let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
+let activeAboutTab: AboutTab = "about";
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
 let isModeMenuExpanded = false;
 let isToolsMenuExpanded = false;
+let isDevModeEnabled = false;
 let practiceColor: PracticeColor = "red";
 let practiceDifficulty = 10;
+let currentTheme: ThemeName = "light";
+let statsRange: StatsRange = "all-time";
 let practiceRoundIndex = 0;
 let aiMoveTimeout = 0;
 let aiScheduledSequence: string | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
+let currentPracticeRecordedStatId: string | null = null;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
+let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
   gameScore: false,
-  devMode: false,
 };
 const featureHeld: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
   gameScore: false,
-  devMode: false,
 };
+
+type AboutTab = "about" | "howto" | "stats" | "settings" | "credits";
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -220,16 +242,18 @@ declare global {
 
 function persistUiState(): void {
   const state: PersistedUiState = {
+    devMode: isDevModeEnabled,
     modeMenuExpanded: isModeMenuExpanded,
     toolsMenuExpanded: isToolsMenuExpanded,
     selectedMode: currentMode,
     practiceColor,
     practiceDifficulty,
+    statsRange,
+    theme: currentTheme,
     pinned: {
       bestMove: featurePinned.bestMove,
       moveScores: featurePinned.moveScores,
       gameScore: featurePinned.gameScore,
-      devMode: featurePinned.devMode,
     },
   };
   writePersistedUiState(state);
@@ -244,6 +268,113 @@ function setAboutModalOpen(open: boolean): void {
   isAboutModalOpen = open;
   aboutModal.classList.toggle("hidden", !open);
   aboutModal.setAttribute("aria-hidden", String(!open));
+
+  if (open) {
+    syncAboutDialogPosition();
+  }
+}
+
+function syncAboutDialogPosition(): void {
+  const menuBarRect = menuBar.getBoundingClientRect();
+  const landingStyle = window.getComputedStyle(landingRoot);
+  const edgeBuffer = Number.parseFloat(landingStyle.paddingTop || "0") || 0;
+  const top = Math.max(edgeBuffer, menuBarRect.top);
+  const maxHeight = Math.max(240, window.innerHeight - top - edgeBuffer);
+
+  aboutDialog.style.setProperty("--about-dialog-top", `${top}px`);
+  aboutDialog.style.setProperty("--about-dialog-max-height", `${maxHeight}px`);
+}
+
+function syncAboutTabs(): void {
+  for (const button of aboutTabButtons) {
+    const tab = button.dataset.aboutTab as AboutTab | undefined;
+    const isSelected = tab === activeAboutTab;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-selected", String(isSelected));
+  }
+
+  for (const panel of aboutPanels) {
+    const tab = panel.dataset.aboutPanel as AboutTab | undefined;
+    panel.classList.toggle("hidden", tab !== activeAboutTab);
+  }
+}
+
+function formatStatsNumber(value: number | null): string {
+  if (value === null) {
+    return "-";
+  }
+
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatWinRate(value: number | null): string {
+  if (value === null) {
+    return "-";
+  }
+
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function renderStatsTable(): void {
+  const rows = buildPracticeStatsRows(practiceStats, statsRange);
+  statsTableBody.replaceChildren();
+
+  for (const row of rows) {
+    const tableRow = document.createElement("tr");
+    tableRow.innerHTML = `
+      <th scope="row">${row.difficulty}</th>
+      <td>${row.wins}</td>
+      <td>${row.losses}</td>
+      <td>${formatWinRate(row.winRate)}</td>
+      <td>${formatStatsNumber(row.averageWinLength)}</td>
+      <td>${formatStatsNumber(row.averageLossLength)}</td>
+    `;
+    statsTableBody.append(tableRow);
+  }
+}
+
+function syncStatsRangeControls(): void {
+  for (const button of statsRangeButtons) {
+    const range = button.dataset.statsRange as StatsRange | undefined;
+    const isSelected = range === statsRange;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  }
+}
+
+function syncThemeControls(): void {
+  for (const button of themeOptionButtons) {
+    const theme = button.dataset.themeOption as ThemeName | undefined;
+    const isSelected = theme === currentTheme;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  }
+}
+
+function setAboutTab(tab: AboutTab): void {
+  activeAboutTab = tab;
+  syncAboutTabs();
+}
+
+function setStatsRange(range: StatsRange): void {
+  statsRange = range;
+  persistUiState();
+  syncStatsRangeControls();
+  renderStatsTable();
+}
+
+function setDevModeEnabled(enabled: boolean): void {
+  isDevModeEnabled = enabled;
+  settingsDevModeToggle.checked = enabled;
+  persistUiState();
+  syncFeatureUI();
+}
+
+function setTheme(theme: ThemeName): void {
+  currentTheme = theme;
+  applyTheme(theme);
+  syncThemeControls();
+  persistUiState();
 }
 
 function scheduleBoardFrameLayout(): void {
@@ -260,6 +391,7 @@ function scheduleBoardFrameLayout(): void {
 function layoutBoardFrame(): void {
   boardFrame.style.transform = "";
   boardActions.style.width = "";
+  syncAboutDialogPosition();
 
   const frameRect = boardFrame.getBoundingClientRect();
   const heroRect = hero.getBoundingClientRect();
@@ -284,6 +416,23 @@ function isTrainingMode(): boolean {
 
 function updateDocumentTitle(): void {
   document.title = titleForMode(currentMode);
+}
+
+function syncModeUrl(mode: GameMode, strategy: "push" | "replace"): void {
+  const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  const targetPath = pathForMode(mode);
+
+  if (currentPath === targetPath) {
+    return;
+  }
+
+  const nextUrl = `${targetPath}${window.location.search}${window.location.hash}`;
+  if (strategy === "push") {
+    window.history.pushState({ mode }, "", nextUrl);
+    return;
+  }
+
+  window.history.replaceState({ mode }, "", nextUrl);
 }
 
 function isPracticeMode(): boolean {
@@ -315,8 +464,10 @@ function updatePracticeControls(): void {
 
   practiceDifficultySlider.value = String(practiceDifficulty);
   practiceDifficultyValue.textContent = String(practiceDifficulty);
-  practiceDevModeToggle.checked = featurePinned.devMode;
-  freeplayDevModeToggle.checked = featurePinned.devMode;
+  freeplayGameScoreToggle.checked = featurePinned.gameScore;
+  settingsDevModeToggle.checked = isDevModeEnabled;
+  syncThemeControls();
+  syncStatsRangeControls();
 }
 
 function isFeatureVisible(feature: FeatureKey): boolean {
@@ -332,11 +483,11 @@ function effectiveMoveScoresVisible(): boolean {
 }
 
 function effectiveGameScoreVisible(): boolean {
-  return isTrainingMode() && isFeatureVisible("gameScore");
+  return (isTrainingMode() || currentMode === "freeplay") && isFeatureVisible("gameScore");
 }
 
 function effectiveDevModeVisible(): boolean {
-  return isFeatureVisible("devMode");
+  return isDevModeEnabled;
 }
 
 function setFeaturePinned(feature: FeatureKey, pinned: boolean): void {
@@ -407,16 +558,26 @@ function setToolsMenuExpanded(expanded: boolean): void {
   persistUiState();
 }
 
-function setCurrentMode(mode: GameMode): void {
-  if (mode === currentMode) {
-    return;
-  }
+function setCurrentMode(
+  mode: GameMode,
+  options: { history?: "push" | "replace" | "none"; resetBoard?: boolean } = {},
+): void {
+  const historyStrategy = options.history ?? "push";
+  const shouldResetBoard = options.resetBoard ?? true;
+  const modeChanged = mode !== currentMode;
 
   currentMode = mode;
   updateDocumentTitle();
   syncModeMenu();
   persistUiState();
-  resetBoard({ advancePracticeRound: false });
+
+  if (historyStrategy !== "none") {
+    syncModeUrl(mode, historyStrategy);
+  }
+
+  if (modeChanged && shouldResetBoard) {
+    resetBoard({ advancePracticeRound: false });
+  }
 }
 
 function setPracticeColor(nextColor: PracticeColor): void {
@@ -472,7 +633,8 @@ function renderDevOutput(): void {
 
   devOutputBox.value = buildDevOutput({
     optimizerOutput: latestOptimizerOutput,
-    practiceRng: isPracticeMode() ? lastPracticeAiDebug?.rng ?? null : null,
+    practiceAiDebug: isPracticeMode() ? lastPracticeAiDebug : null,
+    practiceDifficulty: isPracticeMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
     state: moveSequence,
@@ -488,6 +650,39 @@ function syncFeatureUI(): void {
   renderDevOutput();
   syncHistoryControls();
   scheduleBoardFrameLayout();
+}
+
+function removeCurrentPracticeRecordedStat(): void {
+  if (currentPracticeRecordedStatId === null) {
+    return;
+  }
+
+  practiceStats = removePracticeStatById(currentPracticeRecordedStatId);
+  currentPracticeRecordedStatId = null;
+  renderStatsTable();
+}
+
+function maybeRecordCompletedPracticeGame(): void {
+  if (!isPracticeMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
+    return;
+  }
+
+  const humanPlayer = effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+    red: RED,
+    yellow: YELLOW,
+  });
+  const result: PracticeGameResult = winningPlayer === humanPlayer ? "win" : "loss";
+  const stat: PracticeGameStat = {
+    completedAt: Date.now(),
+    difficulty: practiceDifficulty,
+    id: createPracticeStatId(),
+    moveCount: historyIndex,
+    result,
+  };
+
+  practiceStats = appendPracticeStat(stat);
+  currentPracticeRecordedStatId = stat.id;
+  renderStatsTable();
 }
 
 function lastAppliedPracticeHumanMoveIndex(): number {
@@ -521,11 +716,20 @@ function canRedo(): boolean {
   return isTrainingMode() && historyIndex < moveHistory.length;
 }
 
+function canReset(): boolean {
+  return historyIndex > 0;
+}
+
+function canStartHumanMove(): boolean {
+  return !isAnimating && isHumanTurn() && !isWinLocked;
+}
+
 function syncHistoryControls(): void {
   redoControl.classList.toggle("hidden", !isTrainingMode());
   redoControl.disabled = isAnimating || !canRedo();
   redoControl.setAttribute("aria-hidden", String(!isTrainingMode()));
   undoControl.disabled = isAnimating || !canUndo();
+  resetControl.disabled = isAnimating || !canReset();
 }
 
 function isOptimizerSuccessPayload(
@@ -589,10 +793,11 @@ function renderColumnScores(): void {
   }
 
   const scores = activeColumnScores();
+  const displayScores = scores ? shiftSolverScoresToDisplay(scores) : null;
   for (let column = 0; column < WIDTH; column += 1) {
     const slot = columnScoreSlots[column];
-    const score = scores?.[column];
-    slot.textContent = score === undefined || score === -1000 ? "" : String(score);
+    const score = displayScores?.[column];
+    slot.textContent = score === undefined || score === null ? "" : String(score);
   }
 }
 
@@ -676,6 +881,7 @@ function rebuildBoardFromHistory(): void {
 
   isWinLocked = updateWinningHighlights();
   winningPlayer = isWinLocked && historyIndex > 0 ? moveHistory[historyIndex - 1].player : null;
+  maybeRecordCompletedPracticeGame();
   syncMoveSequence();
   requestOptimizerOutput();
 }
@@ -958,6 +1164,44 @@ function hidePreview(): void {
   previewPiece.style.removeProperty("top");
 }
 
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+  return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+}
+
+function queueHumanMove(column: number): void {
+  if (!canStartHumanMove()) {
+    if (isWinLocked) {
+      triggerWinLockShake();
+    }
+    return;
+  }
+
+  if (lowestOpenRow(board, column) === null) {
+    hidePreview();
+    return;
+  }
+
+  if (activePointerId !== null && boardGrid.hasPointerCapture(activePointerId)) {
+    boardGrid.releasePointerCapture(activePointerId);
+  }
+  activePointerId = null;
+
+  updatePreview(column);
+  requestAnimationFrame(() => {
+    if (!canStartHumanMove() || lowestOpenRow(board, column) === null) {
+      hidePreview();
+      return;
+    }
+
+    dropPreview(column);
+  });
+}
+
 function animateResetPiece(source: HTMLElement): void {
   const rect = source.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
@@ -1000,6 +1244,7 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   if (advancePracticeRound && isPracticeMode() && practiceColor === "alternate") {
     practiceRoundIndex += 1;
   }
+  currentPracticeRecordedStatId = null;
   moveHistory.length = 0;
   historyIndex = 0;
   freeplayUndoAvailable = false;
@@ -1100,6 +1345,7 @@ function performUndo(): void {
       return;
     }
 
+    removeCurrentPracticeRecordedStat();
     historyIndex = lastHumanMoveIndex;
     rebuildBoardFromHistory();
     return;
@@ -1200,6 +1446,10 @@ boardGrid.addEventListener("lostpointercapture", () => {
 });
 
 resetControl.addEventListener("click", () => {
+  if (!canReset()) {
+    return;
+  }
+
   resetBoard();
 });
 
@@ -1247,6 +1497,8 @@ for (const option of modeOptionButtons) {
 }
 
 for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
+  const row = Math.floor(index / WIDTH);
+  const column = index % WIDTH;
   const trainerSlot = document.createElement("div");
   trainerSlot.className = "trainer-slot";
   trainerSlots.push(trainerSlot);
@@ -1259,6 +1511,8 @@ for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
 
   const cell = document.createElement("div");
   cell.className = "board-cell";
+  cell.style.setProperty("--board-col", String(column));
+  cell.style.setProperty("--board-row", String(row));
   boardGrid.append(cell);
 }
 
@@ -1288,19 +1542,93 @@ practiceDifficultySlider.addEventListener("input", () => {
   setPracticeDifficulty(Number(practiceDifficultySlider.value));
 });
 
-practiceDevModeToggle.addEventListener("change", () => {
-  setFeaturePinned("devMode", practiceDevModeToggle.checked);
+freeplayGameScoreToggle.addEventListener("change", () => {
+  setFeaturePinned("gameScore", freeplayGameScoreToggle.checked);
 });
 
-freeplayDevModeToggle.addEventListener("change", () => {
-  setFeaturePinned("devMode", freeplayDevModeToggle.checked);
+settingsDevModeToggle.addEventListener("change", () => {
+  setDevModeEnabled(settingsDevModeToggle.checked);
 });
+
+for (const button of aboutTabButtons) {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.aboutTab as AboutTab | undefined;
+    if (!tab) {
+      return;
+    }
+
+    setAboutTab(tab);
+  });
+}
+
+for (const button of statsRangeButtons) {
+  button.addEventListener("click", () => {
+    const range = button.dataset.statsRange as StatsRange | undefined;
+    if (!range) {
+      return;
+    }
+
+    setStatsRange(range);
+  });
+}
+
+for (const button of themeOptionButtons) {
+  button.addEventListener("click", () => {
+    const theme = button.dataset.themeOption as ThemeName | undefined;
+    if (!theme) {
+      return;
+    }
+
+    setTheme(theme);
+  });
+}
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
     setAboutModalOpen(false);
     aboutControl.focus();
+    return;
   }
+
+  if (event.repeat || isEditableShortcutTarget(event.target)) {
+    return;
+  }
+
+  if (event.key === "Enter") {
+    if (!canReset()) {
+      return;
+    }
+
+    event.preventDefault();
+    resetBoard();
+    return;
+  }
+
+  if (event.key === "Backspace") {
+    if (!canUndo()) {
+      return;
+    }
+
+    event.preventDefault();
+    performUndo();
+    return;
+  }
+
+  const keyNumber = Number.parseInt(event.key, 10);
+  if (Number.isNaN(keyNumber) || keyNumber < 1 || keyNumber > WIDTH) {
+    return;
+  }
+
+  if (!canStartHumanMove()) {
+    if (isWinLocked) {
+      event.preventDefault();
+      triggerWinLockShake();
+    }
+    return;
+  }
+
+  event.preventDefault();
+  queueHumanMove(keyNumber - 1);
 });
 
 window.addEventListener("resize", () => {
@@ -1311,6 +1639,15 @@ window.visualViewport?.addEventListener("resize", () => {
   scheduleBoardFrameLayout();
 });
 
+window.addEventListener("popstate", () => {
+  const pathMode = modeForPathname(window.location.pathname);
+  if (!pathMode) {
+    return;
+  }
+
+  setCurrentMode(pathMode, { history: "none" });
+});
+
 const persistedUiState = readPersistedUiState();
 for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   const pinned = persistedUiState.pinned?.[feature];
@@ -1318,14 +1655,21 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   featureToggleInputs[feature].checked = featurePinned[feature];
 }
 
-currentMode = persistedUiState.selectedMode ?? "training";
+currentMode = modeForPathname(window.location.pathname) ?? persistedUiState.selectedMode ?? "training";
+isDevModeEnabled = persistedUiState.devMode === true;
 practiceColor = persistedUiState.practiceColor ?? "red";
+statsRange = persistedUiState.statsRange === "today" ? "today" : "all-time";
+currentTheme = isThemeName(persistedUiState.theme ?? "") ? persistedUiState.theme : "light";
 const persistedDifficulty = persistedUiState.practiceDifficulty;
 if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficulty)) {
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
+applyTheme(currentTheme);
 updateDocumentTitle();
+syncModeUrl(currentMode, "replace");
 syncModeMenu();
+setAboutTab(activeAboutTab);
+renderStatsTable();
 setModeMenuExpanded(persistedUiState.modeMenuExpanded === true);
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
