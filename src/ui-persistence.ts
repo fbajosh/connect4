@@ -51,7 +51,7 @@ export function titleForMode(mode: GameMode): string {
 }
 
 export function isThemeName(value: string): value is ThemeName {
-  return value === "light" || value === "dark" || value === "midnight";
+  return value === "light" || value === "dark" || value === "midnight" || value === "mogged";
 }
 
 export function pathForMode(mode: GameMode): string {

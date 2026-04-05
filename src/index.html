@@ -20,7 +20,10 @@
     <link rel="apple-touch-icon" href="./assets/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./landing.css" />
   </head>
   <body>
@@ -31,7 +34,7 @@
         <div class="menu-bar" aria-label="Menus">
           <div class="menu-shell">
             <button
-              class="menu-toggle"
+              class="menu-control"
               id="mode-menu-toggle"
               type="button"
               aria-expanded="false"
@@ -47,7 +50,7 @@
           </div>
           <div class="menu-shell">
             <button
-              class="menu-toggle"
+              class="menu-control"
               id="tools-menu-toggle"
               type="button"
               aria-expanded="false"
@@ -132,7 +135,9 @@
               <button class="menu-action" id="more-settings-control" type="button">More Settings</button>
             </div>
           </div>
-          <button class="menu-link" id="stats-control" type="button">Stats</button>
+          <div class="menu-shell">
+            <button class="menu-control" id="stats-control" type="button">Stats</button>
+          </div>
         </div>
       </header>
       <div class="board-stage">
@@ -262,6 +267,7 @@
                     <button class="settings-theme-button" data-theme-option="light" type="button">Light</button>
                     <button class="settings-theme-button" data-theme-option="dark" type="button">Dark</button>
                     <button class="settings-theme-button" data-theme-option="midnight" type="button">Astronomer</button>
+                    <button class="settings-theme-button" data-theme-option="mogged" type="button">Mogged</button>
                   </div>
                 </div>
                 <div class="settings-row">

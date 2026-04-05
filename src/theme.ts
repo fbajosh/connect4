@@ -9,6 +9,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--backdrop": "rgba(0, 0, 0, 0.62)",
     "--board-blue": "#5067b3",
     "--board-blue-bezel": "#6276bb",
+    "--board-surface": "#5067b3",
     "--control-active-bg": "#31437c",
     "--control-bg": "#262626",
     "--control-border": "#4d4d4d",
@@ -34,6 +35,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--backdrop": "rgba(0, 0, 0, 0.74)",
     "--board-blue": "#28345a",
     "--board-blue-bezel": "#313f68",
+    "--board-surface": "#28345a",
     "--control-active-bg": "#18203e",
     "--control-bg": "#131313",
     "--control-border": "#373737",
@@ -59,6 +61,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--backdrop": "rgba(16, 0, 2, 0.8)",
     "--board-blue": "#7a1e2c",
     "--board-blue-bezel": "#8d2c3b",
+    "--board-surface": "#7a1e2c",
     "--control-active-bg": "#4e1116",
     "--control-bg": "#20090d",
     "--control-border": "#5a252b",
@@ -78,9 +81,35 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--trainer-bezel": "#7a414a",
     "--win-ring": "#fff6f7",
   },
+  mogged: {
+    "--accent-color": "#ab47bc",
+    "--app-bg": "#090909",
+    "--backdrop": "rgba(0, 0, 0, 0.76)",
+    "--board-blue": "#c9548f",
+    "--board-blue-bezel": "rgba(255, 255, 255, 0.26)",
+    "--board-surface": "linear-gradient(90deg, #ec407a 0%, #ab47bc 100%)",
+    "--control-active-bg": "#2c1327",
+    "--control-bg": "#111111",
+    "--control-border": "#3b3b3b",
+    "--dev-bg": "#0c0c0c",
+    "--modal-bg": "rgba(9, 9, 9, 0.98)",
+    "--panel-bg": "rgba(14, 14, 14, 0.94)",
+    "--piece-red": "#f5f5f5",
+    "--piece-red-bezel": "#d2d2d2",
+    "--piece-yellow": "#f5f5f5",
+    "--piece-yellow-bezel": "#d2d2d2",
+    "--score-bar-red": "#f5f5f5",
+    "--score-bar-yellow": "#f5f5f5",
+    "--text-muted": "rgba(255, 255, 255, 0.38)",
+    "--text-primary": "#ffffff",
+    "--text-secondary": "#ebebeb",
+    "--trainer-fill": "#9fb86a",
+    "--trainer-bezel": "#8ca25f",
+    "--win-ring": "#ec407a",
+  },
 };
 
-export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight"];
+export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight", "mogged"];
 
 export function themeLabel(theme: ThemeName): string {
   if (theme === "dark") {
@@ -89,6 +118,10 @@ export function themeLabel(theme: ThemeName): string {
 
   if (theme === "midnight") {
     return "Astronomer";
+  }
+
+  if (theme === "mogged") {
+    return "Mogged";
   }
 
   return "Light";
