@@ -4,11 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Connect 4 Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./landing.css" />
   </head>
   <body>
     <main class="landing">
-      <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+      <div class="effects-layer" id="effects-layer" aria-hidden="true"></div>
+      <header class="hero">
+        <h1 class="title">Connect 4 Solver</h1>
+        <div class="mode-buttons" aria-label="Game modes">
+          <button class="mode-button" type="button">Training</button>
+          <button class="mode-button" type="button">Practice</button>
+          <button class="mode-button" type="button">Freeplay</button>
+        </div>
+        <button class="dev-mode-button" id="dev-mode-toggle" type="button" aria-pressed="false">Dev Mode</button>
+      </header>
+      <div class="board-shell" id="board-shell">
+        <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
+        <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
+        <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+      </div>
+      <button class="reset-control" id="reset-control" type="button">Reset</button>
+      <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
+        <label class="dev-field">
+          <span class="dev-label">Game State</span>
+          <textarea class="dev-textbox" id="game-state-box" readonly></textarea>
+        </label>
+        <label class="dev-field">
+          <span class="dev-label">Optimizer Output</span>
+          <textarea class="dev-textbox" id="optimizer-output-box" readonly></textarea>
+        </label>
+      </section>
     </main>
     <script type="module" src="./landing.ts"></script>
   </body>
