@@ -32,15 +32,20 @@ if (
 
 const board = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => EMPTY));
 const discSlots: HTMLDivElement[] = [];
+const discElements = Array.from({ length: HEIGHT }, () =>
+  Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
+);
 
 let activeColumn: number | null = null;
 let activePointerId: number | null = null;
 let currentPlayer = RED;
 let isAnimating = false;
+let isWinLocked = false;
 let dropToken = 0;
 let moveSequence = "";
 let devModeEnabled = false;
 let optimizerWorker: Worker | null = null;
+let shakeResetTimeout = 0;
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -138,7 +143,81 @@ function lowestOpenRow(column: number): number | null {
   return null;
 }
 
+function isInBounds(row: number, column: number): boolean {
+  return row >= 0 && row < HEIGHT && column >= 0 && column < WIDTH;
+}
+
+function updateWinningHighlights(): boolean {
+  const highlighted = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => false));
+  const directions: Array<[columnStep: number, rowStep: number]> = [
+    [1, 0],
+    [0, 1],
+    [1, 1],
+    [1, -1],
+  ];
+  let hasWinningRun = false;
+
+  for (let row = 0; row < HEIGHT; row += 1) {
+    for (let column = 0; column < WIDTH; column += 1) {
+      const player = board[row][column];
+      if (player === EMPTY) {
+        continue;
+      }
+
+      for (const [columnStep, rowStep] of directions) {
+        const previousRow = row - rowStep;
+        const previousColumn = column - columnStep;
+        if (isInBounds(previousRow, previousColumn) && board[previousRow][previousColumn] === player) {
+          continue;
+        }
+
+        const run: Array<[row: number, column: number]> = [];
+        let scanRow = row;
+        let scanColumn = column;
+
+        while (isInBounds(scanRow, scanColumn) && board[scanRow][scanColumn] === player) {
+          run.push([scanRow, scanColumn]);
+          scanRow += rowStep;
+          scanColumn += columnStep;
+        }
+
+        if (run.length < 4) {
+          continue;
+        }
+
+        hasWinningRun = true;
+        for (const [runRow, runColumn] of run) {
+          highlighted[runRow][runColumn] = true;
+        }
+      }
+    }
+  }
+
+  for (let row = 0; row < HEIGHT; row += 1) {
+    for (let column = 0; column < WIDTH; column += 1) {
+      discElements[row][column]?.classList.toggle("is-winning", highlighted[row][column]);
+    }
+  }
+
+  return hasWinningRun;
+}
+
+function triggerWinLockShake(): void {
+  window.clearTimeout(shakeResetTimeout);
+  boardShell.classList.remove("is-locked-shaking");
+  void boardShell.offsetWidth;
+  boardShell.classList.add("is-locked-shaking");
+  shakeResetTimeout = window.setTimeout(() => {
+    boardShell.classList.remove("is-locked-shaking");
+  }, 280);
+}
+
 function updatePreview(column: number): void {
+  if (isWinLocked) {
+    hidePreview();
+    return;
+  }
+
   activeColumn = column;
   previewPiece.style.setProperty("--column", String(column));
   previewPiece.classList.remove("hidden", "red", "yellow");
@@ -198,6 +277,8 @@ function resetBoard(): void {
   animateResetPieces();
   dropToken += 1;
   isAnimating = false;
+  window.clearTimeout(shakeResetTimeout);
+  boardShell.classList.remove("is-locked-shaking");
 
   if (activePointerId !== null && boardGrid.hasPointerCapture(activePointerId)) {
     boardGrid.releasePointerCapture(activePointerId);
@@ -205,6 +286,7 @@ function resetBoard(): void {
 
   activePointerId = null;
   currentPlayer = RED;
+  isWinLocked = false;
   moveSequence = "";
   syncMoveSequence();
   hidePreview();
@@ -212,6 +294,7 @@ function resetBoard(): void {
   for (let row = 0; row < HEIGHT; row += 1) {
     for (let column = 0; column < WIDTH; column += 1) {
       board[row][column] = EMPTY;
+      discElements[row][column] = null;
     }
   }
 
@@ -219,6 +302,7 @@ function resetBoard(): void {
     slot.replaceChildren();
   }
 
+  updateWinningHighlights();
   requestOptimizerOutput();
 }
 
@@ -230,6 +314,8 @@ function placeDisc(row: number, column: number, player: number): void {
   const disc = document.createElement("div");
   disc.className = `disc piece ${playerClass(player)}`;
   discSlots[slotIndex].append(disc);
+  discElements[row][column] = disc;
+  isWinLocked = updateWinningHighlights();
   requestOptimizerOutput();
 }
 
@@ -289,6 +375,11 @@ function endInteraction(drop: boolean): void {
 
 boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
   if (isAnimating) {
+    return;
+  }
+
+  if (isWinLocked) {
+    triggerWinLockShake();
     return;
   }
 

@@ -93,6 +93,10 @@ body {
   --preview-gap: calc(var(--cell-size) * 0.04);
 }
 
+.board-shell.is-locked-shaking {
+  animation: board-locked-shake 260ms ease-in-out;
+}
+
 .reset-control {
   margin: 0;
   padding: 0;
@@ -186,8 +190,30 @@ body {
 }
 
 .piece {
+  position: relative;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--piece-fill) 0 88%, var(--piece-bezel) 94%, var(--piece-fill) 100%);
+  background: radial-gradient(
+    circle closest-side,
+    var(--piece-fill) 0 88.571429%,
+    var(--piece-bezel) 88.571429% 100%
+  );
+}
+
+.piece::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14.285714%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.piece.is-winning::after {
+  opacity: 1;
 }
 
 .piece.red {
@@ -198,6 +224,14 @@ body {
 .piece.yellow {
   --piece-fill: #f0e08b;
   --piece-bezel: #d8ca7d;
+}
+
+.piece.red.is-winning {
+  background: radial-gradient(circle closest-side, #c65656 0 88.571429%, #ffffff 88.571429% 100%);
+}
+
+.piece.yellow.is-winning {
+  background: radial-gradient(circle closest-side, #f0e08b 0 88.571429%, #ffffff 88.571429% 100%);
 }
 
 .reset-piece {
@@ -262,4 +296,27 @@ body {
   aspect-ratio: 7 / 6.74;
   max-width: 100%;
   max-height: 100%;
+}
+
+@keyframes board-locked-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-0.45%);
+  }
+
+  40% {
+    transform: translateX(0.45%);
+  }
+
+  60% {
+    transform: translateX(-0.35%);
+  }
+
+  80% {
+    transform: translateX(0.35%);
+  }
 }
