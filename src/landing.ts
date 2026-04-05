@@ -47,6 +47,8 @@ const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
+const undoControl = document.getElementById("undo-control");
+const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
 const modeMenuToggle = document.getElementById("mode-menu-toggle");
 const modeMenu = document.getElementById("mode-menu");
@@ -82,6 +84,8 @@ if (
   !scoreBarFill ||
   !columnScoreRow ||
   !previewPiece ||
+  !undoControl ||
+  !redoControl ||
   !resetControl ||
   !modeMenuToggle ||
   !modeMenu ||
@@ -158,8 +162,11 @@ let practiceRoundIndex = 0;
 let aiMoveTimeout = 0;
 let aiScheduledSequence: string | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
+let historyIndex = 0;
+let freeplayUndoAvailable = false;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
+const moveHistory: MoveRecord[] = [];
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
@@ -178,6 +185,13 @@ type Connect4DebugState = {
   getOptimizerOutput: () => string;
   getPreviousRedScores: () => Array<number | null>;
   getPreviousYellowScores: () => Array<number | null>;
+};
+
+type MoveRecord = {
+  aiDebug: PracticeAiDebug | null;
+  column: number;
+  player: PlayerValue;
+  previousScore: number | null;
 };
 
 declare global {
@@ -416,6 +430,45 @@ function syncFeatureUI(): void {
   renderColumnScores();
   renderCurrentTrainingHints();
   renderDevOutput();
+  syncHistoryControls();
+}
+
+function lastAppliedPracticeHumanMoveIndex(): number {
+  const humanPlayer = effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+    red: RED,
+    yellow: YELLOW,
+  });
+
+  for (let index = historyIndex - 1; index >= 0; index -= 1) {
+    if (moveHistory[index]?.player === humanPlayer) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function canUndo(): boolean {
+  if (isTrainingMode()) {
+    return historyIndex > 0;
+  }
+
+  if (isPracticeMode()) {
+    return lastAppliedPracticeHumanMoveIndex() !== -1;
+  }
+
+  return freeplayUndoAvailable && historyIndex > 0;
+}
+
+function canRedo(): boolean {
+  return isTrainingMode() && historyIndex < moveHistory.length;
+}
+
+function syncHistoryControls(): void {
+  redoControl.classList.toggle("hidden", !isTrainingMode());
+  redoControl.disabled = isAnimating || !canRedo();
+  redoControl.setAttribute("aria-hidden", String(!isTrainingMode()));
+  undoControl.disabled = isAnimating || !canUndo();
 }
 
 function isOptimizerSuccessPayload(
@@ -497,6 +550,119 @@ function scoreForSelectedColumn(column: number): number | null {
 
   const score = latestOptimizerPayload.scores[column];
   return typeof score === "number" ? score : null;
+}
+
+function clearBoardVisualState(): void {
+  for (let row = 0; row < HEIGHT; row += 1) {
+    for (let column = 0; column < WIDTH; column += 1) {
+      board[row][column] = EMPTY;
+      discElements[row][column] = null;
+    }
+  }
+
+  for (const slot of discSlots) {
+    slot.replaceChildren();
+  }
+}
+
+function rebuildBoardFromHistory(): void {
+  cancelAiTurn();
+  stopOptimizerWorker();
+  dropToken += 1;
+  isAnimating = false;
+  window.clearTimeout(shakeResetTimeout);
+  boardShell.classList.remove("is-locked-shaking");
+
+  if (activePointerId !== null && boardGrid.hasPointerCapture(activePointerId)) {
+    boardGrid.releasePointerCapture(activePointerId);
+  }
+
+  activePointerId = null;
+  latestOptimizerOutput = "";
+  latestOptimizerPayload = null;
+  lastPracticeAiDebug = null;
+  moveSequence = "";
+  previousRedScores.length = 0;
+  previousYellowScores.length = 0;
+  currentPlayer = RED;
+  winningPlayer = null;
+  isWinLocked = false;
+  hidePreview();
+  clearTrainingHints();
+  clearBoardVisualState();
+
+  for (let index = 0; index < historyIndex; index += 1) {
+    const record = moveHistory[index];
+    const row = lowestOpenRow(board, record.column);
+    if (row === null) {
+      break;
+    }
+
+    board[row][record.column] = record.player;
+    if (record.player === RED) {
+      previousRedScores.push(record.previousScore);
+    } else {
+      previousYellowScores.push(record.previousScore);
+    }
+
+    moveSequence += String(record.column + 1);
+    const disc = document.createElement("div");
+    disc.className = `disc piece ${playerClass(record.player)}`;
+    discSlots[slotIndexFor(row, record.column)].append(disc);
+    discElements[row][record.column] = disc;
+    currentPlayer = nextPlayer(record.player);
+
+    if (record.aiDebug !== null) {
+      lastPracticeAiDebug = record.aiDebug;
+    }
+  }
+
+  isWinLocked = updateWinningHighlights();
+  winningPlayer = isWinLocked && historyIndex > 0 ? moveHistory[historyIndex - 1].player : null;
+  syncMoveSequence();
+  requestOptimizerOutput();
+}
+
+function commitMove(column: number, player: PlayerValue): void {
+  const record: MoveRecord = {
+    aiDebug:
+      isPracticeMode() &&
+      player !==
+        effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+          red: RED,
+          yellow: YELLOW,
+        })
+        ? lastPracticeAiDebug
+        : null,
+    column,
+    player,
+    previousScore: scoreForSelectedColumn(column),
+  };
+
+  if (isTrainingMode()) {
+    const expectedRecord = moveHistory[historyIndex];
+    if (
+      expectedRecord &&
+      expectedRecord.column === record.column &&
+      expectedRecord.player === record.player
+    ) {
+      if (expectedRecord.previousScore === null && record.previousScore !== null) {
+        expectedRecord.previousScore = record.previousScore;
+      }
+      if (record.aiDebug !== null) {
+        expectedRecord.aiDebug = record.aiDebug;
+      }
+      historyIndex += 1;
+      rebuildBoardFromHistory();
+      return;
+    }
+  }
+
+  moveHistory.length = historyIndex;
+  moveHistory.push(record);
+  historyIndex = moveHistory.length;
+  freeplayUndoAvailable = currentMode === "freeplay";
+  rebuildBoardFromHistory();
 }
 
 function clearTrainingHints(): void {
@@ -774,66 +940,13 @@ function animateResetPieces(): void {
 function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   const { advancePracticeRound = true } = options ?? {};
   animateResetPieces();
-  cancelAiTurn();
-  dropToken += 1;
-  isAnimating = false;
-  window.clearTimeout(shakeResetTimeout);
-  boardShell.classList.remove("is-locked-shaking");
-
-  if (activePointerId !== null && boardGrid.hasPointerCapture(activePointerId)) {
-    boardGrid.releasePointerCapture(activePointerId);
-  }
-
-  activePointerId = null;
   if (advancePracticeRound && isPracticeMode() && practiceColor === "alternate") {
     practiceRoundIndex += 1;
   }
-  currentPlayer = RED;
-  isWinLocked = false;
-  winningPlayer = null;
-  moveSequence = "";
-  lastPracticeAiDebug = null;
-  latestOptimizerOutput = "";
-  latestOptimizerPayload = null;
-  previousRedScores.length = 0;
-  previousYellowScores.length = 0;
-  syncMoveSequence();
-  hidePreview();
-  clearTrainingHints();
-
-  for (let row = 0; row < HEIGHT; row += 1) {
-    for (let column = 0; column < WIDTH; column += 1) {
-      board[row][column] = EMPTY;
-      discElements[row][column] = null;
-    }
-  }
-
-  for (const slot of discSlots) {
-    slot.replaceChildren();
-  }
-
-  updateWinningHighlights();
-  requestOptimizerOutput();
-}
-
-function placeDisc(row: number, column: number, player: PlayerValue): void {
-  board[row][column] = player;
-  const previousScore = scoreForSelectedColumn(column);
-  if (player === RED) {
-    previousRedScores.push(previousScore);
-  } else {
-    previousYellowScores.push(previousScore);
-  }
-  moveSequence += String(column + 1);
-  syncMoveSequence();
-  const slotIndex = slotIndexFor(row, column);
-  const disc = document.createElement("div");
-  disc.className = `disc piece ${playerClass(player)}`;
-  discSlots[slotIndex].append(disc);
-  discElements[row][column] = disc;
-  isWinLocked = updateWinningHighlights();
-  winningPlayer = isWinLocked ? player : null;
-  requestOptimizerOutput();
+  moveHistory.length = 0;
+  historyIndex = 0;
+  freeplayUndoAvailable = false;
+  rebuildBoardFromHistory();
 }
 
 function targetTopForRow(row: number): string {
@@ -866,10 +979,8 @@ function dropPreview(column: number): void {
       return;
     }
 
-    placeDisc(row, column, player);
-    currentPlayer = nextPlayer(player);
-    isAnimating = false;
     hidePreview();
+    commitMove(column, player);
   };
 
   const onTransitionEnd = (event: Event) => {
@@ -909,6 +1020,50 @@ function endInteraction(drop: boolean): void {
   }
 
   dropPreview(activeColumn);
+}
+
+function performUndo(): void {
+  if (isAnimating) {
+    return;
+  }
+
+  if (isTrainingMode()) {
+    if (historyIndex === 0) {
+      return;
+    }
+
+    historyIndex -= 1;
+    rebuildBoardFromHistory();
+    return;
+  }
+
+  if (isPracticeMode()) {
+    const lastHumanMoveIndex = lastAppliedPracticeHumanMoveIndex();
+    if (lastHumanMoveIndex === -1) {
+      return;
+    }
+
+    historyIndex = lastHumanMoveIndex;
+    rebuildBoardFromHistory();
+    return;
+  }
+
+  if (!freeplayUndoAvailable || historyIndex === 0) {
+    return;
+  }
+
+  historyIndex -= 1;
+  freeplayUndoAvailable = false;
+  rebuildBoardFromHistory();
+}
+
+function performRedo(): void {
+  if (isAnimating || !isTrainingMode() || historyIndex >= moveHistory.length) {
+    return;
+  }
+
+  historyIndex += 1;
+  rebuildBoardFromHistory();
 }
 
 function bindFeatureControl(feature: FeatureKey): void {
@@ -989,6 +1144,14 @@ boardGrid.addEventListener("lostpointercapture", () => {
 
 resetControl.addEventListener("click", () => {
   resetBoard();
+});
+
+undoControl.addEventListener("click", () => {
+  performUndo();
+});
+
+redoControl.addEventListener("click", () => {
+  performRedo();
 });
 
 modeMenuToggle.addEventListener("click", () => {
