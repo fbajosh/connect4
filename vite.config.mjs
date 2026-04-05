@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: "src",
+  base: command === "build" ? "/connect4/" : "/",
   build: {
     emptyOutDir: true,
     outDir: "../dist",
   },
-});
+}));

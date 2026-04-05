@@ -81,6 +81,8 @@ This repo also includes a GitHub Actions workflow at [`.github/workflows/deploy.
 
 The workflow runs on pushes to `main` and on manual dispatch. It keeps the VM address and SSH key out of the public YAML by loading them from GitHub Actions secrets.
 
+The production build is configured for deployment at `/connect4/`. If the public URL path changes, update [`vite.config.mjs`](./vite.config.mjs).
+
 Create a `production` environment in GitHub and add these secrets there:
 
 - `DEPLOY_SSH_HOST`: VM hostname or IP address
