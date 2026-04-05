@@ -6,16 +6,14 @@ export type SolverRecord = {
   positionScore: number;
   scores: number[];
   sequence: string;
-  source?: "local-cache" | "precomputed" | "wasm";
+  source?: "local-cache" | "wasm";
 };
 
 const CACHE_DB_NAME = "connect4-solver-cache";
 const CACHE_DB_VERSION = 1;
 const CACHE_STORE_NAME = "solutions";
-const PRECOMPUTED_ROOT = `${import.meta.env.BASE_URL}precomputed`;
 
 let databasePromise: Promise<IDBDatabase | null> | null = null;
-const shardPromiseCache = new Map<string, Promise<Map<string, SolverRecord>>>();
 
 function canUseIndexedDb(): boolean {
   return typeof indexedDB !== "undefined";
@@ -53,46 +51,6 @@ function openDatabase(): Promise<IDBDatabase | null> {
   return databasePromise;
 }
 
-function shardKey(sequence: string): string {
-  if (sequence.length === 0) {
-    return "_root";
-  }
-
-  return sequence.slice(0, 2);
-}
-
-async function loadShard(sequence: string): Promise<Map<string, SolverRecord>> {
-  const key = shardKey(sequence);
-  const cachedPromise = shardPromiseCache.get(key);
-  if (cachedPromise) {
-    return cachedPromise;
-  }
-
-  const shardPromise = (async () => {
-    const response = await fetch(`${PRECOMPUTED_ROOT}/${key}.json`, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Missing precomputed shard: ${key}`);
-    }
-
-    const payload = (await response.json()) as Record<string, Omit<SolverRecord, "source">>;
-    return new Map<string, SolverRecord>(
-      Object.entries(payload).map(([entrySequence, record]) => [
-        entrySequence,
-        {
-          ...record,
-          source: "precomputed",
-        },
-      ]),
-    );
-  })().catch(() => {
-    shardPromiseCache.delete(key);
-    return new Map<string, SolverRecord>();
-  });
-
-  shardPromiseCache.set(key, shardPromise);
-  return shardPromise;
-}
-
 function normalizeRecord(record: SolverRecord, source: SolverRecord["source"]): SolverRecord {
   return {
     ...record,
@@ -127,9 +85,7 @@ export async function getCachedSolverRecord(sequence: string): Promise<SolverRec
     return localRecord;
   }
 
-  const shard = await loadShard(sequence);
-  const precomputedRecord = shard.get(sequence);
-  return precomputedRecord ? normalizeRecord(precomputedRecord, "precomputed") : null;
+  return null;
 }
 
 export async function putCachedSolverRecord(record: SolverRecord): Promise<void> {

@@ -1,5 +1,4 @@
-import createConnect4SolverModule from "./generated/connect4-solver.js";
-import solverWasmUrl from "./generated/connect4-solver.wasm?url";
+import initRustSolver, { Position, Solver } from "connect-four-ai-wasm";
 import { getCachedSolverRecord, putCachedSolverRecord, type SolverRecord } from "./optimizer-cache";
 
 type OptimizerRequest = {
@@ -11,36 +10,17 @@ type OptimizerResponse = {
   payload: SolverRecord | WasmErrorPayload;
 };
 
-type WasmSuccessPayload = {
-  bestColumns: number[];
-  bestMoves: string;
-  elapsedMs?: number;
-  message?: string;
-  nodeCount?: number;
-  positionScore: number;
-  scores: number[];
-  sequence: string;
-};
-
 type WasmErrorPayload = {
   error: string;
   invalidAtMove?: number;
   sequence: string;
 };
 
-let solverModulePromise: ReturnType<typeof createConnect4SolverModule> | null = null;
+let solverModulePromise: Promise<void> | null = null;
 
-function getSolverModule(): ReturnType<typeof createConnect4SolverModule> {
+function getSolverModule(): Promise<void> {
   if (!solverModulePromise) {
-    solverModulePromise = createConnect4SolverModule({
-      locateFile: (path) => {
-        if (path.endsWith(".wasm")) {
-          return solverWasmUrl;
-        }
-
-        return path;
-      },
-    });
+    solverModulePromise = initRustSolver();
   }
 
   return solverModulePromise;
@@ -50,59 +30,57 @@ function formatOutput(payload: unknown): string {
   return JSON.stringify(payload, null, 2);
 }
 
-function normalizeWasmRecord(payload: WasmSuccessPayload): SolverRecord {
-  return {
-    bestColumns: [...payload.bestColumns],
-    bestMoves: payload.bestMoves,
-    elapsedMs: payload.elapsedMs,
-    nodeCount: payload.nodeCount,
-    positionScore: payload.positionScore,
-    scores: [...payload.scores],
-    sequence: payload.sequence,
-    source: "wasm",
-  };
-}
-
 async function solveWithWasm(sequence: string): Promise<SolverRecord | WasmErrorPayload> {
-  const solverModule = await getSolverModule();
-  const rawResult = solverModule.ccall("connect4_analyze_json", "string", ["string"], [sequence]);
-  if (typeof rawResult !== "string") {
-    throw new Error("Unexpected solver response.");
-  }
+  let position: Position | null = null;
+  let solver: Solver | null = null;
 
-  const parsed = JSON.parse(rawResult) as WasmSuccessPayload | WasmErrorPayload;
-  if ("error" in parsed) {
-    return parsed;
-  }
+  try {
+    await getSolverModule();
 
-  const record = normalizeWasmRecord(parsed);
-  await putCachedSolverRecord(record);
-  return record;
-}
+    position = Position.fromMoves(sequence);
+    solver = new Solver();
+    const startedAt = performance.now();
+    const rawScores = solver.getAllMoveScores(position);
+    const elapsedMs = performance.now() - startedAt;
 
-async function resolveOptimizerPayload(sequence: string): Promise<SolverRecord | WasmErrorPayload> {
-  if (sequence.length === 0) {
-    return {
-      bestColumns: [4],
-      bestMoves: "4",
-      positionScore: 0,
-      scores: [],
+    const scores = rawScores.map((score) => (score === null ? -1000 : Number(score)));
+    const playableScores = scores.filter((score) => score !== -1000);
+    const positionScore = playableScores.length === 0 ? 0 : Math.max(...playableScores);
+    const bestColumns =
+      playableScores.length === 0
+        ? []
+        : scores
+            .map((score, index) => ({ score, index }))
+            .filter((entry) => entry.score === positionScore)
+            .map((entry) => entry.index + 1);
+
+    const record: SolverRecord = {
+      bestColumns,
+      bestMoves: bestColumns.join(""),
+      elapsedMs,
+      positionScore,
+      scores,
       sequence,
-      source: "precomputed",
+      source: "wasm",
     };
-  }
 
-  const cachedRecord = await getCachedSolverRecord(sequence);
-  if (cachedRecord) {
-    return cachedRecord;
+    await putCachedSolverRecord(record);
+    return record;
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unexpected Rust solver error.",
+      sequence,
+    };
+  } finally {
+    solver?.free();
+    position?.free();
   }
-
-  return solveWithWasm(sequence);
 }
 
 async function handleRequest({ sequence }: OptimizerRequest): Promise<void> {
   try {
-    const payload = await resolveOptimizerPayload(sequence);
+    const cachedRecord = await getCachedSolverRecord(sequence);
+    const payload = cachedRecord ?? (await solveWithWasm(sequence));
     const response: OptimizerResponse = {
       output: formatOutput(payload),
       payload,

@@ -64,7 +64,7 @@ type OptimizerSuccessPayload = {
   positionScore: number;
   scores: number[];
   sequence: string;
-  source?: "local-cache" | "precomputed" | "wasm";
+  source?: "local-cache" | "wasm";
 };
 
 type OptimizerErrorPayload = {
