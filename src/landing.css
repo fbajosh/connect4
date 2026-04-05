@@ -8,6 +8,12 @@
   --edge-buffer: 4vw;
   --layout-gap: clamp(0.75rem, 1.1vw, 1.2rem);
   --preview-height-ratio: calc(0.74 / 7);
+  --board-frame-rows: 7.46;
+  --board-shell-bottom-ratio: 0.040214;
+  --score-bar-bottom-ratio: 0;
+  --score-bar-height-ratio: 0.013405;
+  --column-score-top-ratio: 0.099196;
+  --column-score-height-ratio: 0.029491;
 }
 
 html,
@@ -43,7 +49,7 @@ body {
 .hero {
   display: grid;
   justify-items: center;
-  gap: 1vw;
+  gap: 0.95rem;
   z-index: 3;
 }
 
@@ -57,37 +63,144 @@ body {
   white-space: nowrap;
 }
 
-.mode-buttons {
-  display: flex;
-  gap: 0.8vw;
-  flex-wrap: nowrap;
+.tools-menu-toggle,
+.feature-controls {
+  width: min(26rem, 100%);
 }
 
-.mode-button,
-.dev-mode-button {
+.tools-menu-toggle {
+  position: relative;
+  display: grid;
+  place-items: center;
   border: 1px solid #4d4d4d;
   border-radius: 999px;
   background: #262626;
   color: #ffffff;
   font-family: "Roboto", sans-serif;
-  font-size: clamp(0.9rem, 1.3vw, 1.1rem);
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
   font-weight: 700;
   line-height: 1;
-  padding: 0.9em 1.4em;
+  padding: 0.9em 1.15em;
+  text-align: center;
   white-space: nowrap;
 }
 
-.dev-mode-button[aria-pressed="true"] {
+.tools-menu-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 1.15rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-68%) rotate(45deg);
+  transition: transform 140ms ease;
+}
+
+.tools-menu-toggle[aria-expanded="true"] {
   border-color: #788bd0;
   background: #31437c;
+}
+
+.tools-menu-toggle[aria-expanded="true"]::after {
+  transform: translateY(-28%) rotate(-135deg);
+}
+
+.feature-controls {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.feature-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.feature-pulse {
+  min-width: 0;
+  border: 1px solid #4d4d4d;
+  border-radius: 999px;
+  background: #262626;
+  color: #ffffff;
+  font-family: "Roboto", sans-serif;
+  font-size: clamp(0.84rem, 1.15vw, 0.98rem);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.85em 1.15em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.feature-pulse:disabled {
+  opacity: 0.46;
+}
+
+.feature-pulse.is-held {
+  border-color: #788bd0;
+  background: #31437c;
+}
+
+.feature-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 2.8rem;
+  height: 1.6rem;
+  cursor: pointer;
+}
+
+.feature-toggle-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.feature-toggle-slider {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #4d4d4d;
+  border-radius: 999px;
+  background: #262626;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.feature-toggle-slider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.18rem;
+  width: 1rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffffff;
+  transform: translateY(-50%);
+  transition: transform 140ms ease;
+}
+
+.feature-toggle-input:checked + .feature-toggle-slider {
+  border-color: #788bd0;
+  background: #31437c;
+}
+
+.feature-toggle-input:checked + .feature-toggle-slider::after {
+  transform: translate(1.17rem, -50%);
 }
 
 .board-shell {
   position: absolute;
   inset-inline: 0;
-  bottom: 0;
+  bottom: calc(var(--board-shell-bottom-ratio) * 100%);
   width: 100%;
   aspect-ratio: 7 / 6;
+  z-index: 2;
   --cell-size: calc(100% / 7);
   --piece-size: calc(var(--cell-size) * 0.7);
   --preview-gap: calc(var(--cell-size) * 0.04);
@@ -113,10 +226,10 @@ body {
 }
 
 .dev-panel {
-  width: min(100%, 60rem);
+  width: 100%;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   z-index: 3;
 }
 
@@ -124,9 +237,14 @@ body {
   display: none;
 }
 
+.hidden {
+  display: none;
+}
+
 .dev-field {
   display: grid;
   gap: 0.45rem;
+  width: 100%;
 }
 
 .dev-label {
@@ -139,6 +257,7 @@ body {
 }
 
 .dev-textbox {
+  width: 100%;
   min-height: 7.5rem;
   resize: none;
   border: 1px solid #4d4d4d;
@@ -310,10 +429,61 @@ body {
 
 .board-frame {
   position: relative;
-  width: min(100cqw, calc(100cqh * 7 / 6.74));
-  aspect-ratio: 7 / 6.74;
+  width: min(100cqw, calc(100cqh * 7 / var(--board-frame-rows)));
+  aspect-ratio: 7 / var(--board-frame-rows);
   max-width: 100%;
   max-height: 100%;
+}
+
+.score-bar {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(var(--score-bar-bottom-ratio) * 100%);
+  width: 100%;
+  height: calc(var(--score-bar-height-ratio) * 100%);
+  border-radius: 999px;
+  background: #f0e08b;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.score-bar.hidden {
+  display: block;
+  visibility: hidden;
+}
+
+.score-bar-fill {
+  width: calc(var(--score-red-share, 0.5) * 100%);
+  height: 100%;
+  background: #c65656;
+}
+
+.column-score-row {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(var(--column-score-top-ratio) * 100%);
+  height: calc(var(--column-score-height-ratio) * 100%);
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: center;
+  justify-items: center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.column-score-row.hidden {
+  display: grid;
+  visibility: hidden;
+}
+
+.column-score {
+  color: #ffffff;
+  font-family: "Roboto", sans-serif;
+  font-size: clamp(0.58rem, 0.92vw, 0.88rem);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0.92;
 }
 
 @keyframes board-locked-shake {
@@ -336,5 +506,42 @@ body {
 
   80% {
     transform: translateX(0.35%);
+  }
+}
+
+@media (min-width: 1180px) {
+  .landing {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .hero {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .board-stage {
+    grid-column: 1;
+    width: 100%;
+    height: 100%;
+    align-self: stretch;
+  }
+
+  .dev-panel {
+    grid-column: 2;
+    width: 100%;
+    height: 100%;
+    align-self: stretch;
+  }
+
+  .dev-field {
+    height: 100%;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .dev-textbox {
+    min-height: 0;
+    height: 100%;
   }
 }

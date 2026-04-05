@@ -26,8 +26,12 @@ function getSolverModule(): Promise<void> {
   return solverModulePromise;
 }
 
-function formatOutput(payload: unknown): string {
-  return JSON.stringify(payload, null, 2);
+function formatOutput(payload: SolverRecord | WasmErrorPayload): string {
+  if ("error" in payload) {
+    return `error: ${payload.error}`;
+  }
+
+  return `best: ${payload.bestColumns.join(", ")}\nmoves: ${payload.scores.join(", ")}`;
 }
 
 async function solveWithWasm(sequence: string): Promise<SolverRecord | WasmErrorPayload> {
