@@ -1497,6 +1497,8 @@ for (const option of modeOptionButtons) {
 }
 
 for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
+  const row = Math.floor(index / WIDTH);
+  const column = index % WIDTH;
   const trainerSlot = document.createElement("div");
   trainerSlot.className = "trainer-slot";
   trainerSlots.push(trainerSlot);
@@ -1509,6 +1511,8 @@ for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
 
   const cell = document.createElement("div");
   cell.className = "board-cell";
+  cell.style.setProperty("--board-col", String(column));
+  cell.style.setProperty("--board-row", String(row));
   boardGrid.append(cell);
 }
 
