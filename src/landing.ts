@@ -42,11 +42,14 @@ const trainerGrid = document.getElementById("trainer-grid");
 const discGrid = document.getElementById("disc-grid");
 const effectsLayer = document.getElementById("effects-layer");
 const landingRoot = document.querySelector<HTMLElement>(".landing");
+const hero = document.querySelector<HTMLElement>(".hero");
+const boardStage = document.querySelector<HTMLElement>(".board-stage");
 const boardFrame = boardShell?.parentElement;
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
+const historyControls = document.getElementById("history-controls");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
@@ -74,6 +77,8 @@ const devOutputBox = document.getElementById("dev-output-box");
 
 if (
   !landingRoot ||
+  !hero ||
+  !boardStage ||
   !boardFrame ||
   !boardShell ||
   !boardGrid ||
@@ -84,6 +89,7 @@ if (
   !scoreBarFill ||
   !columnScoreRow ||
   !previewPiece ||
+  !historyControls ||
   !undoControl ||
   !redoControl ||
   !resetControl ||
@@ -150,6 +156,7 @@ let winningPlayer: PlayerValue | null = null;
 let dropToken = 0;
 let moveSequence = "";
 let optimizerWorker: Worker | null = null;
+let boardFrameLayoutRaf = 0;
 let shakeResetTimeout = 0;
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
@@ -220,6 +227,36 @@ function persistUiState(): void {
 function syncMoveSequence(): void {
   boardShell.dataset.sequence = moveSequence;
   syncFeatureUI();
+}
+
+function scheduleBoardFrameLayout(): void {
+  if (boardFrameLayoutRaf !== 0) {
+    return;
+  }
+
+  boardFrameLayoutRaf = window.requestAnimationFrame(() => {
+    boardFrameLayoutRaf = 0;
+    layoutBoardFrame();
+  });
+}
+
+function layoutBoardFrame(): void {
+  boardFrame.style.transform = "";
+
+  const frameRect = boardFrame.getBoundingClientRect();
+  const heroRect = hero.getBoundingClientRect();
+  const actionsRect = historyControls.getBoundingClientRect();
+  const stageRect = boardStage.getBoundingClientRect();
+  const landingStyle = window.getComputedStyle(landingRoot);
+  const layoutGap = Number.parseFloat(landingStyle.rowGap || landingStyle.gap || "0") || 0;
+  const minTop = Math.max(stageRect.top, heroRect.bottom + layoutGap);
+  const maxTop = Math.min(stageRect.bottom - frameRect.height, actionsRect.top - layoutGap - frameRect.height);
+  const desiredTop = window.innerHeight / 2 - frameRect.height / 2;
+  const clampedTop =
+    minTop <= maxTop ? Math.max(minTop, Math.min(desiredTop, maxTop)) : Math.min(minTop, maxTop);
+  const offsetY = clampedTop - frameRect.top;
+
+  boardFrame.style.transform = `translateY(${offsetY}px)`;
 }
 
 function isTrainingMode(): boolean {
@@ -431,6 +468,7 @@ function syncFeatureUI(): void {
   renderCurrentTrainingHints();
   renderDevOutput();
   syncHistoryControls();
+  scheduleBoardFrameLayout();
 }
 
 function lastAppliedPracticeHumanMoveIndex(): number {
@@ -1222,6 +1260,14 @@ practiceDevModeToggle.addEventListener("change", () => {
 
 freeplayDevModeToggle.addEventListener("change", () => {
   setFeaturePinned("devMode", freeplayDevModeToggle.checked);
+});
+
+window.addEventListener("resize", () => {
+  scheduleBoardFrameLayout();
+});
+
+window.visualViewport?.addEventListener("resize", () => {
+  scheduleBoardFrameLayout();
 });
 
 const persistedUiState = readPersistedUiState();
