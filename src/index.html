@@ -3,86 +3,207 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Connect 4 Solver</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <title>Connect 4 Trainer - Training</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./landing.css" />
   </head>
   <body>
-    <div class="page-shell">
+    <main class="landing">
+      <div class="effects-layer" id="effects-layer" aria-hidden="true"></div>
       <header class="hero">
-        <div>
-          <p class="eyebrow">TypeScript Port</p>
-          <h1>Connect 4 Solver</h1>
-          <p class="hero-copy">
-            A browser-friendly rewrite of the bitboard solver, running locally in a web worker so the page stays responsive.
-          </p>
-        </div>
-        <div class="hero-note">
-          <p>Click the board, load a move sequence like <code>443355</code>, or ask the engine for the best move.</p>
+        <h1 class="title">Connect 4 Trainer</h1>
+        <div class="menu-bar" aria-label="Menus">
+          <div class="menu-shell">
+            <button
+              class="menu-toggle"
+              id="mode-menu-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="mode-menu"
+            >
+              Mode
+            </button>
+            <div class="menu-panel hidden" id="mode-menu" aria-label="Game mode">
+              <button class="mode-option" data-mode-option="training" type="button">Training</button>
+              <button class="mode-option" data-mode-option="practice" type="button">Practice</button>
+              <button class="mode-option" data-mode-option="freeplay" type="button">Freeplay</button>
+            </div>
+          </div>
+          <div class="menu-shell">
+            <button
+              class="menu-toggle"
+              id="tools-menu-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="tools-menu"
+            >
+              Tools
+            </button>
+            <div class="menu-panel hidden" id="tools-menu" aria-label="Mode tools">
+              <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls">
+                <div class="feature-row">
+                  <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
+                  <label class="feature-toggle" for="best-move-toggle">
+                    <input class="feature-toggle-input" id="best-move-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="feature-row">
+                  <button class="feature-pulse" id="move-scores-pulse" type="button">Move Scores</button>
+                  <label class="feature-toggle" for="move-scores-toggle">
+                    <input class="feature-toggle-input" id="move-scores-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="feature-row">
+                  <button class="feature-pulse" id="game-score-pulse" type="button">Game Score</button>
+                  <label class="feature-toggle" for="game-score-toggle">
+                    <input class="feature-toggle-input" id="game-score-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="feature-row">
+                  <button class="feature-pulse" id="dev-mode-pulse" type="button">Dev Mode</button>
+                  <label class="feature-toggle" for="dev-mode-toggle">
+                    <input class="feature-toggle-input" id="dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
+                <div class="practice-row">
+                  <span class="practice-label">Color</span>
+                  <div class="practice-pill-group" role="group" aria-label="Practice color">
+                    <button class="practice-pill" data-practice-color="red" type="button">Red</button>
+                    <button class="practice-pill" data-practice-color="yellow" type="button">Yellow</button>
+                    <button class="practice-pill" data-practice-color="alternate" type="button">Alt</button>
+                  </div>
+                </div>
+                <div class="practice-row">
+                  <div class="practice-label-row">
+                    <span class="practice-label">Difficulty</span>
+                    <span class="practice-value" id="practice-difficulty-value">10</span>
+                  </div>
+                  <input
+                    class="practice-slider"
+                    id="practice-difficulty-slider"
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value="10"
+                    aria-label="Practice difficulty"
+                  />
+                </div>
+                <div class="practice-row practice-toggle-row">
+                  <span class="practice-label">Dev Mode</span>
+                  <label class="feature-toggle" for="practice-dev-mode-toggle">
+                    <input class="feature-toggle-input" id="practice-dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
+                <div class="practice-row practice-toggle-row">
+                  <span class="practice-label">Dev Mode</span>
+                  <label class="feature-toggle" for="freeplay-dev-mode-toggle">
+                    <input class="feature-toggle-input" id="freeplay-dev-mode-toggle" type="checkbox" />
+                    <span class="feature-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
-
-      <main class="layout">
-        <section class="board-panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Board</p>
-              <h2>Live Position</h2>
+      <div class="board-stage">
+        <div class="board-area">
+          <div class="board-frame">
+            <div class="score-bar" id="score-bar" aria-hidden="true">
+              <div class="score-bar-fill" id="score-bar-fill"></div>
             </div>
-            <p class="panel-note">Scores are from the current player’s perspective.</p>
+            <div class="column-score-row" id="column-score-row" aria-hidden="true"></div>
+            <div class="board-shell" id="board-shell">
+              <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
+              <div class="trainer-grid" id="trainer-grid" aria-hidden="true"></div>
+              <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
+              <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+            </div>
           </div>
-          <div class="board" id="board" aria-label="Connect 4 board"></div>
+        </div>
+        <div class="board-actions">
+          <button class="reset-control" id="reset-control" type="button">Reset</button>
+          <div class="history-controls" id="history-controls" aria-label="History controls">
+            <button class="history-button" id="undo-control" type="button">Undo</button>
+            <button class="history-button" id="redo-control" type="button">Redo</button>
+          </div>
+          <button class="about-link" id="about-control" type="button">About</button>
+        </div>
+      </div>
+      <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
+        <label class="dev-field">
+          <span class="dev-label">Dev Output</span>
+          <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
+        </label>
+      </section>
+      <div class="about-modal hidden" id="about-modal" aria-hidden="true">
+        <div class="about-backdrop" id="about-backdrop"></div>
+        <section
+          class="about-dialog"
+          id="about-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="about-title"
+        >
+          <div class="about-header">
+            <h2 class="about-title" id="about-title">About Connect 4 Trainer</h2>
+            <button class="about-close" id="about-close" type="button" aria-label="Close about dialog">
+              Close
+            </button>
+          </div>
+          <div class="about-content">
+            <p>
+              Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
+              and practicing against a solver-driven opponent.
+            </p>
+            <p>
+              Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
+              browser with IndexedDB for reuse.
+            </p>
+            <div class="about-section">
+              <h3 class="about-section-title">Attribution</h3>
+              <p>This project builds on two upstream solver efforts:</p>
+              <ul class="about-list">
+                <li>Pascal Pons' original Connect 4 solver work</li>
+                <li>Benjamin Rall's Rust/WASM solver implementation</li>
+              </ul>
+            </div>
+            <div class="about-section">
+              <h3 class="about-section-title">Links</h3>
+              <ul class="about-list">
+                <li>
+                  <a href="https://github.com/PascalPons/connect4" target="_blank" rel="noreferrer">
+                    Pascal Pons / connect4
+                  </a>
+                </li>
+                <li>
+                  <a href="https://github.com/benjaminrall/connect-four-ai" target="_blank" rel="noreferrer">
+                    Benjamin Rall / connect-four-ai
+                  </a>
+                </li>
+                <li>
+                  <a href="https://vite.dev/" target="_blank" rel="noreferrer">
+                    Vite
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
         </section>
-
-        <aside class="control-panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Controls</p>
-              <h2>Analysis</h2>
-            </div>
-          </div>
-
-          <label class="field">
-            <span class="field-label">Move Sequence</span>
-            <input id="sequence-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" />
-          </label>
-
-          <div class="button-row">
-            <button id="load-sequence" type="button">Load</button>
-            <button id="undo-move" type="button">Undo</button>
-            <button id="reset-game" type="button">Reset</button>
-          </div>
-
-          <div class="button-row">
-            <button id="analyze-position" type="button">Analyze Position</button>
-            <button id="play-best-move" type="button">Play Best Move</button>
-          </div>
-
-          <div class="button-row">
-            <button id="clear-cache" type="button" class="ghost-button">Clear Cache</button>
-          </div>
-
-          <label class="toggle">
-            <input id="weak-mode" type="checkbox" />
-            <span>Quick mode</span>
-          </label>
-
-          <div class="status-card">
-            <p id="turn-label" class="status-line"></p>
-            <p id="status-label" class="status-line"></p>
-            <p id="analysis-label" class="status-line"></p>
-          </div>
-
-          <div class="panel-header compact">
-            <div>
-              <p class="panel-eyebrow">Per Column</p>
-              <h2>Move Scores</h2>
-            </div>
-          </div>
-          <ul id="analysis-list" class="analysis-list"></ul>
-        </aside>
-      </main>
-    </div>
-
-    <script type="module" src="./app.ts"></script>
+      </div>
+    </main>
+    <script type="module" src="./landing.ts"></script>
   </body>
 </html>

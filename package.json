@@ -1,6 +1,7 @@
 {
-  "name": "connect4-web",
+  "name": "connect4-trainer",
   "private": true,
+  "description": "Browser-first Connect 4 training app powered by a Rust/WASM solver",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,5 +10,8 @@
   },
   "devDependencies": {
     "vite": "^8.0.3"
+  },
+  "dependencies": {
+    "connect-four-ai-wasm": "^1.0.0"
   }
 }

@@ -1,12 +1,41 @@
-# Connect 4 Game Solver
+# Connect 4 Trainer
 
-This repository is now a browser-friendly TypeScript Connect 4 solver in [`src/`](./src).
+This is a browser-first Connect 4 training app built with TypeScript and Vite.
 
-It is a derivative of Pascal Pons' Connect 4 solver and remains under AGPL v3.
+This project builds on two upstream solver efforts:
 
-## TypeScript Web App
+- Pascal Pons' Connect 4 solver
+- Benjamin Rall's Rust/WebAssembly solver package [`connect-four-ai`](https://github.com/benjaminrall/connect-four-ai), which powers the in-browser exact solve path used here
 
-The web version keeps the same bitboard representation and negamax search, adapts the cache size for browser memory limits, and runs the solver inside a Web Worker so the UI stays responsive.
+Please keep both projects credited when reusing or modifying this codebase.
+
+## What It Does
+
+- `Training` mode shows solver-backed hints, move scores, game score, and developer output.
+- `Practice` mode lets a player face a solver-driven AI with configurable side and difficulty.
+- `Freeplay` mode removes AI and training overlays so two humans can use the board directly.
+- UI tool state and menu state persist across reloads with `localStorage`.
+
+## Architecture
+
+The project uses Vite for local development and production builds. The browser UI is written in TypeScript, while exact client-side solving uses the Rust/WebAssembly package `connect-four-ai-wasm` from Benjamin Rall's [`connect-four-ai`](https://github.com/benjaminrall/connect-four-ai).
+
+Runtime flow:
+
+1. the UI posts the current move sequence to [`src/optimizer-worker.ts`](./src/optimizer-worker.ts)
+2. the worker checks browser-local IndexedDB via [`src/optimizer-cache.ts`](./src/optimizer-cache.ts)
+3. on a cache miss, the worker runs the Rust/WASM solver on the visitor's device
+4. solved positions are written back to IndexedDB for future reuse
+
+Main source files:
+
+- [`src/landing.ts`](./src/landing.ts): DOM wiring, board interaction, mode switching, animations
+- [`src/game-rules.ts`](./src/game-rules.ts): shared board constants, turn helpers, win detection
+- [`src/practice-ai.ts`](./src/practice-ai.ts): Practice-mode AI move selection and temperature logic
+- [`src/dev-output.ts`](./src/dev-output.ts): Dev panel formatting and score-bar math
+- [`src/ui-persistence.ts`](./src/ui-persistence.ts): persisted UI/tool/menu state
+- [`src/optimizer-worker.ts`](./src/optimizer-worker.ts): background solver bridge
+- [`src/optimizer-cache.ts`](./src/optimizer-cache.ts): IndexedDB cache layer
 
 ### Install
 
@@ -45,9 +74,13 @@ Deploy the contents of `dist/` to any static host:
 - Cloudflare Pages
 - Vercel static hosting
 
-### Current Differences From The Native Solver
+## Notes
 
-- No opening book is loaded in the web version.
-- The transposition table is smaller than the original native build, so some positions will solve more slowly in the browser.
+- All exact solve work in the shipped web app runs on the end user's device, not on your server.
+- There is no active legacy C++ or TypeScript solver path left in this repo.
+- A production build writes a static site to `dist/`.
 
-Read the associated [step by step tutorial to build a perfect Connect 4 AI](http://blog.gamesolver.org) for explanations.
+## Credits
+
+- Pascal Pons for the original Connect 4 solver work that inspired this project
+- Benjamin Rall for the Rust/WASM solver implementation used by this web app: [`connect-four-ai`](https://github.com/benjaminrall/connect-four-ai)
