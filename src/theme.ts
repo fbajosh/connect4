@@ -1,6 +1,9 @@
 import type { ThemeName } from "./app-types";
 
 type ThemeTokens = Record<string, string>;
+const ASSET_BASE = import.meta.env.BASE_URL ?? "/";
+const GREECE_BG = `url("${ASSET_BASE}greece-bg.webp")`;
+const GREASE_BG = `url("${ASSET_BASE}grease-bg.webp")`;
 
 const THEMES: Record<ThemeName, ThemeTokens> = {
   light: {
@@ -15,6 +18,8 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--control-border": "#4d4d4d",
     "--dev-bg": "#0f0f0f",
     "--modal-bg": "rgba(15, 15, 15, 0.98)",
+    "--page-bg-image": "none",
+    "--page-bg-overlay": "rgba(0, 0, 0, 0)",
     "--panel-bg": "rgba(19, 19, 19, 0.98)",
     "--piece-red": "#c65656",
     "--piece-red-bezel": "#b24d4d",
@@ -41,6 +46,8 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--control-border": "#373737",
     "--dev-bg": "#090909",
     "--modal-bg": "rgba(8, 8, 8, 0.98)",
+    "--page-bg-image": "none",
+    "--page-bg-overlay": "rgba(0, 0, 0, 0)",
     "--panel-bg": "rgba(10, 10, 10, 0.98)",
     "--piece-red": "#632b2b",
     "--piece-red-bezel": "#582626",
@@ -67,6 +74,8 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--control-border": "#5a252b",
     "--dev-bg": "#170508",
     "--modal-bg": "rgba(23, 5, 8, 0.98)",
+    "--page-bg-image": "none",
+    "--page-bg-overlay": "rgba(0, 0, 0, 0)",
     "--panel-bg": "rgba(28, 8, 11, 0.98)",
     "--piece-red": "#d76a78",
     "--piece-red-bezel": "#bf5b67",
@@ -93,6 +102,8 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--control-border": "#3b3b3b",
     "--dev-bg": "#0c0c0c",
     "--modal-bg": "rgba(9, 9, 9, 0.98)",
+    "--page-bg-image": "none",
+    "--page-bg-overlay": "rgba(0, 0, 0, 0)",
     "--panel-bg": "rgba(14, 14, 14, 0.94)",
     "--piece-red": "#f5f5f5",
     "--piece-red-bezel": "#1c1c1c",
@@ -107,9 +118,67 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--trainer-bezel": "#8ca25f",
     "--win-ring": "#ec407a",
   },
+  greece: {
+    "--accent-color": "#ab47bc",
+    "--app-bg": "#141414",
+    "--backdrop": "rgba(0, 0, 0, 0.72)",
+    "--board-blue": "#6b3f2d",
+    "--board-blue-bezel": "#8a5942",
+    "--board-surface":
+      "repeating-linear-gradient(90deg, rgba(66, 34, 20, 0.38) 0 4.5%, rgba(0, 0, 0, 0.08) 4.5% 7%, rgba(122, 74, 48, 0.2) 7% 11%, rgba(0, 0, 0, 0.05) 11% 13%), linear-gradient(180deg, #7a4b35 0%, #5f3527 100%)",
+    "--control-active-bg": "#5b3a58",
+    "--control-bg": "rgba(24, 24, 24, 0.76)",
+    "--control-border": "rgba(255, 255, 255, 0.22)",
+    "--dev-bg": "rgba(12, 12, 12, 0.92)",
+    "--modal-bg": "rgba(11, 11, 11, 0.94)",
+    "--page-bg-image": GREECE_BG,
+    "--page-bg-overlay": "rgba(0, 0, 0, 0.2)",
+    "--panel-bg": "rgba(16, 16, 16, 0.84)",
+    "--piece-red": "#f3efe7",
+    "--piece-red-bezel": "#dbd5cb",
+    "--piece-yellow": "#8b7b6b",
+    "--piece-yellow-bezel": "#756657",
+    "--score-bar-red": "#f3efe7",
+    "--score-bar-yellow": "#8b7b6b",
+    "--text-muted": "rgba(255, 255, 255, 0.38)",
+    "--text-primary": "#ffffff",
+    "--text-secondary": "#ececec",
+    "--trainer-fill": "#b3c68c",
+    "--trainer-bezel": "#9cb073",
+    "--win-ring": "#ffffff",
+  },
+  grease: {
+    "--accent-color": "#ab47bc",
+    "--app-bg": "#111111",
+    "--backdrop": "rgba(0, 0, 0, 0.74)",
+    "--board-blue": "#70453f",
+    "--board-blue-bezel": "#89615c",
+    "--board-surface":
+      "linear-gradient(160deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 12%, rgba(255, 255, 255, 0) 34%), linear-gradient(180deg, #7b4c46 0%, #603933 100%)",
+    "--control-active-bg": "#5f264b",
+    "--control-bg": "rgba(18, 18, 18, 0.78)",
+    "--control-border": "rgba(255, 255, 255, 0.2)",
+    "--dev-bg": "rgba(10, 10, 10, 0.92)",
+    "--modal-bg": "rgba(10, 10, 10, 0.95)",
+    "--page-bg-image": GREASE_BG,
+    "--page-bg-overlay": "rgba(0, 0, 0, 0.2)",
+    "--panel-bg": "rgba(14, 14, 14, 0.84)",
+    "--piece-red": "#f3f3f3",
+    "--piece-red-bezel": "#d8d8d8",
+    "--piece-yellow": "#b9bcc2",
+    "--piece-yellow-bezel": "#989ca4",
+    "--score-bar-red": "#f3f3f3",
+    "--score-bar-yellow": "#b9bcc2",
+    "--text-muted": "rgba(255, 255, 255, 0.38)",
+    "--text-primary": "#ffffff",
+    "--text-secondary": "#ececec",
+    "--trainer-fill": "#c1d48e",
+    "--trainer-bezel": "#a9bc78",
+    "--win-ring": "#ffffff",
+  },
 };
 
-export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight", "mogged"];
+export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight", "mogged", "greece", "grease"];
 
 export function themeLabel(theme: ThemeName): string {
   if (theme === "dark") {
@@ -122,6 +191,14 @@ export function themeLabel(theme: ThemeName): string {
 
   if (theme === "mogged") {
     return "Mogged";
+  }
+
+  if (theme === "greece") {
+    return "Greece";
+  }
+
+  if (theme === "grease") {
+    return "Grease";
   }
 
   return "Light";

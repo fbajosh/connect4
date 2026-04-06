@@ -18,6 +18,8 @@
   --edge-buffer: 4vw;
   --layout-gap: clamp(0.75rem, 1.1vw, 1.2rem);
   --modal-bg: rgba(15, 15, 15, 0.98);
+  --page-bg-image: none;
+  --page-bg-overlay: rgba(0, 0, 0, 0);
   --panel-bg: rgba(19, 19, 19, 0.98);
   --menu-text-size: clamp(1.008rem, 1.4vw, 1.26rem);
   --piece-red: #c65656;
@@ -59,14 +61,25 @@ body {
 
 body {
   margin: 0;
-  background:
+  background-image:
+    linear-gradient(var(--page-bg-overlay), var(--page-bg-overlay)),
     radial-gradient(
       circle at 100% 100%,
       var(--surface-shadow-strong) 0,
       var(--surface-shadow-soft) 18%,
       rgba(0, 0, 0, 0) 44%
     ),
-    var(--app-bg);
+    var(--page-bg-image);
+  background-color: var(--app-bg);
+  background-position:
+    center,
+    100% 100%,
+    center;
+  background-size:
+    cover,
+    auto,
+    cover;
+  background-repeat: no-repeat, no-repeat, no-repeat;
   font-family: var(--ui-font);
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -753,6 +766,41 @@ body::after {
   inset: 7.5%;
   opacity: 1;
   background: var(--mogged-houndstooth-pattern) center / 36% 36% repeat;
+}
+
+:root[data-theme="greece"] .piece.red::before,
+:root[data-theme="greece"] .piece.yellow::before {
+  inset: 8%;
+  opacity: 0.72;
+  background:
+    radial-gradient(circle at 24% 26%, rgba(255, 255, 255, 0.72) 0 10%, rgba(255, 255, 255, 0) 18%),
+    radial-gradient(circle at 74% 32%, rgba(255, 255, 255, 0.38) 0 9%, rgba(255, 255, 255, 0) 17%),
+    radial-gradient(circle at 38% 72%, rgba(0, 0, 0, 0.12) 0 11%, rgba(0, 0, 0, 0) 20%),
+    linear-gradient(140deg, rgba(255, 255, 255, 0.24) 0, rgba(255, 255, 255, 0.02) 30%, rgba(0, 0, 0, 0.12) 62%, rgba(255, 255, 255, 0.12) 100%);
+  filter: saturate(0.88);
+}
+
+:root[data-theme="greece"] .piece.yellow::before {
+  opacity: 0.56;
+}
+
+:root[data-theme="grease"] .board-grid::after {
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.22) 0 8%, rgba(255, 255, 255, 0.08) 15%, rgba(255, 255, 255, 0) 34%),
+    radial-gradient(
+      circle at 0 0,
+      var(--surface-highlight-strong) 0,
+      var(--surface-highlight-soft) 18%,
+      rgba(255, 255, 255, 0) 44%
+    );
+}
+
+:root[data-theme="grease"] .piece.yellow::before {
+  inset: 8%;
+  opacity: 0.78;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.65) 0 14%, rgba(255, 255, 255, 0.18) 24%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(330deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.18));
 }
 
 .reset-piece {
