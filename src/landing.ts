@@ -222,8 +222,8 @@ let aiScheduledSequence: string | null = null;
 let aiPlannedColumn: number | null = null;
 let aiPlannedDebug: PracticeAiDebug | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
-type ThemeMusicKey = "greece" | "grease";
-type ThemeMusicSource = "mid" | "ogg";
+type ThemeMusicKey = "greece" | "grease" | "mogged";
+type ThemeMusicSource = "mid" | "ogg" | "mp3";
 type ThemeMusicState = {
   audio: HTMLAudioElement;
   source: ThemeMusicSource;
@@ -231,6 +231,7 @@ type ThemeMusicState = {
 const themeMusicAudio = new Map<ThemeMusicKey, ThemeMusicState>();
 type SoundEffectKey = "board-reset" | "disc-drop" | "undo";
 const soundEffectAudio = new Map<SoundEffectKey, HTMLAudioElement>();
+let hasBoardAudioInteraction = false;
 const loadedThemeFonts = new Set<ThemeName>();
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
@@ -509,10 +510,45 @@ function setAudioEnabled(enabled: boolean): void {
 }
 
 function themeMusicUrl(theme: ThemeMusicKey, source: ThemeMusicSource): string {
-  return `${import.meta.env.BASE_URL}${theme}-music.${source}`;
+  const baseName = theme === "mogged" ? "appmogged-music" : `${theme}-music`;
+  return `${import.meta.env.BASE_URL}${baseName}.${source}`;
 }
 
-function preferredThemeMusicSource(): ThemeMusicSource {
+function themeMusicStartOffset(theme: ThemeMusicKey, source: ThemeMusicSource): number {
+  if (theme === "grease" && source === "ogg") {
+    return 11;
+  }
+
+  return 0;
+}
+
+function primeThemeMusicPosition(state: ThemeMusicState, theme: ThemeMusicKey): void {
+  const offset = themeMusicStartOffset(theme, state.source);
+  if (offset <= 0) {
+    return;
+  }
+
+  const seekToOffset = () => {
+    try {
+      state.audio.currentTime = offset;
+    } catch {
+      // Ignore seek failures; playback can still proceed from the start.
+    }
+  };
+
+  if (state.audio.readyState >= 1) {
+    seekToOffset();
+    return;
+  }
+
+  state.audio.addEventListener("loadedmetadata", seekToOffset, { once: true });
+}
+
+function preferredThemeMusicSource(theme: ThemeMusicKey): ThemeMusicSource {
+  if (theme === "mogged") {
+    return "mp3";
+  }
+
   const probe = document.createElement("audio");
   const midiSupport =
     probe.canPlayType("audio/midi") ||
@@ -540,7 +576,7 @@ function ensureThemeMusicAudio(theme: ThemeMusicKey): ThemeMusicState {
     return existingAudio;
   }
 
-  const source = preferredThemeMusicSource();
+  const source = preferredThemeMusicSource(theme);
   const audio = new Audio(themeMusicUrl(theme, source));
   audio.loop = true;
   audio.volume = 0.45;
@@ -568,12 +604,18 @@ function playThemeMusic(theme: ThemeMusicKey): void {
     return;
   }
 
+  if (theme === "mogged" && !hasBoardAudioInteraction) {
+    return;
+  }
+
   const state = ensureThemeMusicAudio(theme);
   const { audio } = state;
+  primeThemeMusicPosition(state, theme);
 
   void audio.play().catch((error: unknown) => {
     if (state.source === "mid" && error instanceof DOMException && error.name === "NotSupportedError") {
       switchThemeMusicSource(state, theme, "ogg");
+      primeThemeMusicPosition(state, theme);
       void state.audio.play().catch(() => {
         // Background playback may still be blocked or unsupported.
       });
@@ -592,7 +634,7 @@ function syncThemeAudio(allowPlayback: boolean): void {
     }
   }
 
-  if (!isAudioEnabled || (currentTheme !== "greece" && currentTheme !== "grease")) {
+  if (!isAudioEnabled || (currentTheme !== "greece" && currentTheme !== "grease" && currentTheme !== "mogged")) {
     return;
   }
 
@@ -1696,6 +1738,9 @@ function bindFeatureControl(feature: FeatureKey): void {
 }
 
 boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
+  hasBoardAudioInteraction = true;
+  syncThemeAudio(true);
+
   if (isAnimating) {
     return;
   }
