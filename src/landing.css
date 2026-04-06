@@ -46,8 +46,8 @@
   --text-muted: rgba(255, 255, 255, 0.38);
   --text-primary: #ffffff;
   --text-secondary: #e7e7e7;
-  --trainer-fill: rgba(173, 255, 92, 0.7);
-  --trainer-bezel: rgba(227, 255, 173, 0.7);
+  --trainer-fill: rgba(190, 255, 120, 0.7);
+  --trainer-bezel: rgba(236, 255, 188, 0.75);
   --ui-body-weight: 500;
   --ui-font: "Ubuntu Sans", sans-serif;
   --win-ring: #ffffff;
@@ -241,7 +241,7 @@ body::after {
   background: color-mix(in srgb, var(--panel-bg) 84%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  z-index: 6;
+  z-index: 24;
 }
 
 .menu-info-popover {
@@ -256,7 +256,7 @@ body::after {
   background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  z-index: 1;
+  z-index: 25;
 }
 
 .menu-info-title,
@@ -1211,6 +1211,12 @@ body::after {
   justify-items: start;
 }
 
+.about-dev-setting {
+  margin-top: 0.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid color-mix(in srgb, var(--control-border) 55%, transparent);
+}
+
 .about-brand-link {
   display: inline-block;
 }
@@ -1430,6 +1436,25 @@ body::after {
   }
 }
 
+@media (max-width: 980px) {
+  .menu-panel {
+    width: min(30rem, calc(100vw - 2 * var(--edge-buffer)));
+    max-width: calc(100vw - 2 * var(--edge-buffer));
+  }
+}
+
+@media (max-width: 980px) and (orientation: portrait) {
+  .menu-panel {
+    position: absolute;
+    top: auto;
+    right: 0;
+    bottom: calc(100% + 0.45rem);
+    left: auto;
+    max-height: min(70dvh, calc(100dvh - 2 * var(--edge-buffer)));
+    overflow: auto;
+  }
+}
+
 @media (max-width: 767px) {
   .hero {
     margin-top: calc(var(--layout-gap) * 2 + env(safe-area-inset-top));
@@ -1467,8 +1492,8 @@ body::after {
   }
 
   .menu-bar {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     justify-content: flex-start;
     gap: 1rem;
   }
@@ -1509,10 +1534,11 @@ body::after {
   }
 
   .menu-panel {
-    top: 0;
-    right: auto;
-    bottom: auto;
-    left: calc(100% + 0.85rem);
+    top: max(var(--edge-buffer), env(safe-area-inset-top));
+    right: max(var(--edge-buffer), env(safe-area-inset-right));
+    bottom: max(var(--edge-buffer), env(safe-area-inset-bottom));
+    left: max(50vw, calc(100% - min(30rem, calc(100vw - 2 * var(--edge-buffer)))));
+    width: auto;
   }
 }
 
