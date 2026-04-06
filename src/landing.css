@@ -241,7 +241,7 @@ body::after {
   background: color-mix(in srgb, var(--panel-bg) 84%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  z-index: 24;
+  z-index: 181;
 }
 
 .menu-info-popover {
@@ -256,7 +256,7 @@ body::after {
   background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  z-index: 25;
+  z-index: 182;
 }
 
 .menu-info-title,
@@ -702,6 +702,7 @@ body::after {
   top: 50%;
   right: max(0.35rem, env(safe-area-inset-right));
   transform: translateY(-50%);
+  z-index: 180;
 }
 
 .dev-panel {
