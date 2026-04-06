@@ -1,4 +1,4 @@
-import { buildDevOutput, scoreBarRedShare } from "./dev-output";
+import { buildDevOutput } from "./dev-output";
 import {
   type FeatureKey,
   type GameMode,
@@ -871,6 +871,7 @@ function renderDevOutput(): void {
     practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
+    remaining: currentSolvedLineRemainingText(),
     state: moveSequence,
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
@@ -1092,9 +1093,84 @@ function updateScoreBar(): void {
     return;
   }
 
-  const redShare = scoreBarRedShare(previousRedScores, previousYellowScores);
+  const redShare = currentSolvedLineRedShare();
   scoreBar.style.setProperty("--score-red-share", String(redShare));
   scoreBarFill.style.width = `${redShare * 100}%`;
+}
+
+function solvedLineLength(positionScore: number): number {
+  const halfBoard = (WIDTH * HEIGHT) / 2;
+  if (positionScore === 0) {
+    return halfBoard;
+  }
+
+  return Math.max(0, Math.min(halfBoard, halfBoard + 1 - Math.abs(positionScore)));
+}
+
+function currentSolvedLineRedShare(): number {
+  const totalCells = WIDTH * HEIGHT;
+  const halfBoard = totalCells / 2;
+
+  if (winningPlayer === RED) {
+    return 1;
+  }
+
+  if (winningPlayer === YELLOW) {
+    return 0;
+  }
+
+  if (!hasPlayableMove()) {
+    return 0.5;
+  }
+
+  if (moveSequence === "") {
+    return halfBoard / totalCells;
+  }
+
+  if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
+    return 0.5;
+  }
+
+  const { positionScore } = latestOptimizerPayload;
+  if (positionScore === 0) {
+    return 0.5;
+  }
+
+  const lineLength = solvedLineLength(positionScore);
+  const advantagedPlayer = positionScore > 0 ? currentPlayer : nextPlayer(currentPlayer);
+  const redCells = advantagedPlayer === RED ? totalCells - lineLength : lineLength;
+  return redCells / totalCells;
+}
+
+function currentSolvedLineRemainingText(): string {
+  if (winningPlayer === RED) {
+    return "red in 0";
+  }
+
+  if (winningPlayer === YELLOW) {
+    return "yellow in 0";
+  }
+
+  if (!hasPlayableMove()) {
+    return "Tie";
+  }
+
+  if (moveSequence === "") {
+    return "red in 21";
+  }
+
+  if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
+    return "-";
+  }
+
+  const { positionScore } = latestOptimizerPayload;
+  if (positionScore === 0) {
+    return "Tie";
+  }
+
+  const advantagedPlayer = positionScore > 0 ? currentPlayer : nextPlayer(currentPlayer);
+  const lineLength = solvedLineLength(positionScore);
+  return `${advantagedPlayer === RED ? "red" : "yellow"} in ${lineLength}`;
 }
 
 function activeBestColumns(): number[] | null {
