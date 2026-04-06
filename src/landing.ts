@@ -590,13 +590,19 @@ function layoutBoardFrame(): void {
   syncAboutDialogPosition();
 
   if (window.matchMedia("(orientation: landscape) and (max-height: 560px) and (max-width: 980px)").matches) {
-    const frameRect = boardFrame.getBoundingClientRect();
-    const menuWidth = Math.max(
-      frameRect.width,
-      menuBar.getBoundingClientRect().width,
-      boardActions.getBoundingClientRect().width,
+    const landingStyle = window.getComputedStyle(landingRoot);
+    const edgeBuffer = Number.parseFloat(landingStyle.paddingLeft || "0") || 0;
+    const layoutGap = Number.parseFloat(landingStyle.columnGap || landingStyle.gap || "0") || 0;
+    const leftBoundary = Math.max(
+      hero.getBoundingClientRect().right,
+      boardActions.getBoundingClientRect().right,
+    ) + layoutGap;
+    const clampedLeft = Math.min(
+      Math.max(edgeBuffer, leftBoundary),
+      window.innerWidth - edgeBuffer - 220,
     );
-    toolsMenu.style.setProperty("--menu-panel-width", `${menuWidth}px`);
+
+    toolsMenu.style.setProperty("--compact-menu-left", `${clampedLeft}px`);
     return;
   }
 
@@ -619,6 +625,7 @@ function layoutBoardFrame(): void {
     "--menu-panel-width",
     `${Math.max(frameRect.width, menuBar.getBoundingClientRect().width, boardActions.getBoundingClientRect().width)}px`,
   );
+  toolsMenu.style.removeProperty("--compact-menu-left");
 }
 
 function isTrainingMode(): boolean {

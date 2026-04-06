@@ -1534,11 +1534,14 @@ body::after {
   }
 
   .menu-panel {
+    position: fixed;
     top: max(var(--edge-buffer), env(safe-area-inset-top));
     right: max(var(--edge-buffer), env(safe-area-inset-right));
     bottom: max(var(--edge-buffer), env(safe-area-inset-bottom));
-    left: max(50vw, calc(100% - min(30rem, calc(100vw - 2 * var(--edge-buffer)))));
+    left: var(--compact-menu-left, 50vw);
     width: auto;
+    max-width: none;
+    overflow: auto;
   }
 }
 
