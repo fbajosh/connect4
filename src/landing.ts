@@ -33,6 +33,7 @@ import {
 } from "./practice-ai";
 import { shiftSolverScoresToDisplay } from "./score-display";
 import {
+  modeLabel,
   isThemeName,
   modeForPathname,
   pathForMode,
@@ -42,10 +43,13 @@ import {
 } from "./ui-persistence";
 import { appendPracticeStat, buildPracticeStatsRows, createPracticeStatId, readStoredPracticeStats, removePracticeStatById, type PracticeGameResult, type PracticeGameStat } from "./stats";
 import { applyTheme } from "./theme";
+import { createMoggedBackground } from "./mogged-background";
 const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
 const FIXED_SCORE_BAR_HEIGHT_ROWS = 0.1;
+const FIXED_TURN_INDICATOR_TOP_ROWS = 0.46;
+const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
 const boardShell = document.getElementById("board-shell");
@@ -58,21 +62,26 @@ const menuBar = document.querySelector<HTMLElement>(".menu-bar");
 const boardStage = document.querySelector<HTMLElement>(".board-stage");
 const boardActions = document.querySelector<HTMLElement>(".board-actions");
 const boardFrame = boardShell?.parentElement;
+const titleControl = document.getElementById("title-control");
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
+const turnIndicator = document.getElementById("turn-indicator");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
-const aboutControl = document.getElementById("about-control");
+const moreSettingsControl = document.getElementById("more-settings-control");
+const settingsAboutControl = document.getElementById("settings-about-control");
+const statsControl = document.getElementById("stats-control");
+const trainingModeControl = document.getElementById("training-mode-control");
+const freeplayModeControl = document.getElementById("freeplay-mode-control");
 const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
 const aboutDialog = document.getElementById("about-dialog");
+const aboutTitle = document.getElementById("about-title");
 const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
-const modeMenuToggle = document.getElementById("mode-menu-toggle");
-const modeMenu = document.getElementById("mode-menu");
 const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
 const featureControls = document.getElementById("feature-controls");
@@ -89,13 +98,18 @@ const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
 const devOutputBox = document.getElementById("dev-output-box");
+const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
+const settingsThemeSelect = document.getElementById("settings-theme-select");
 const statsTableBody = document.getElementById("stats-table-body");
+const themeBackground = document.getElementById("theme-background");
 
 if (
+  !themeBackground ||
   !landingRoot ||
   !hero ||
+  !titleControl ||
   !boardStage ||
   !boardActions ||
   !boardFrame ||
@@ -106,19 +120,23 @@ if (
   !menuBar ||
   !scoreBar ||
   !scoreBarFill ||
+  !turnIndicator ||
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
-  !aboutControl ||
+  !moreSettingsControl ||
+  !settingsAboutControl ||
+  !statsControl ||
+  !trainingModeControl ||
+  !freeplayModeControl ||
   !aboutModal ||
   !aboutBackdrop ||
   !aboutDialog ||
+  !aboutTitle ||
   !aboutClose ||
   !undoControl ||
   !redoControl ||
   !resetControl ||
-  !modeMenuToggle ||
-  !modeMenu ||
   !toolsMenuToggle ||
   !toolsMenu ||
   !featureControls ||
@@ -135,12 +153,16 @@ if (
   !gameScoreToggle ||
   !devPanel ||
   !devOutputBox ||
+  !settingsAudioToggle ||
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
+  !settingsThemeSelect ||
   !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
 }
+
+const moggedBackground = createMoggedBackground(themeBackground as HTMLCanvasElement);
 
 const board: BoardState = createBoard();
 const trainerSlots: HTMLDivElement[] = [];
@@ -151,14 +173,15 @@ const practiceColorButtons = Array.from(
 );
 const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
 const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
+const modalViews = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-modal-view]"));
 const statsRangeButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-stats-range]"));
 const themeOptionButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-theme-option]"));
+const modeButtons: Array<[GameMode, HTMLButtonElement]> = [
+  ["training", trainingModeControl as HTMLButtonElement],
+  ["freeplay", freeplayModeControl as HTMLButtonElement],
+];
 const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
-);
-
-const modeOptionButtons = Array.from(
-  modeMenu.querySelectorAll<HTMLButtonElement>("[data-mode-option]"),
 );
 
 const featurePulseButtons: Record<FeatureKey, HTMLButtonElement> = {
@@ -186,12 +209,13 @@ let boardFrameLayoutRaf = 0;
 let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
 let activeAboutTab: AboutTab = "about";
+let activeModalView: ModalView = "about";
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
-let isModeMenuExpanded = false;
 let isToolsMenuExpanded = false;
 let isDevModeEnabled = false;
+let isAudioEnabled = true;
 let isColorblindModeEnabled = false;
 let practiceColor: PracticeColor = "red";
 let practiceDifficulty = 10;
@@ -200,7 +224,20 @@ let statsRange: StatsRange = "all-time";
 let practiceRoundIndex = 0;
 let aiMoveTimeout = 0;
 let aiScheduledSequence: string | null = null;
+let aiPlannedColumn: number | null = null;
+let aiPlannedDebug: PracticeAiDebug | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
+type ThemeMusicKey = "greece" | "grease" | "mogged";
+type ThemeMusicSource = "mid" | "ogg" | "mp3";
+type ThemeMusicState = {
+  audio: HTMLAudioElement;
+  source: ThemeMusicSource;
+};
+const themeMusicAudio = new Map<ThemeMusicKey, ThemeMusicState>();
+type SoundEffectKey = "board-reset" | "disc-drop" | "undo";
+const soundEffectAudio = new Map<SoundEffectKey, HTMLAudioElement>();
+let hasBoardAudioInteraction = false;
+const loadedThemeFonts = new Set<ThemeName>();
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
@@ -208,6 +245,7 @@ const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
 let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
+let modalReturnFocusTarget: HTMLElement | null = null;
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
@@ -219,7 +257,8 @@ const featureHeld: Record<FeatureKey, boolean> = {
   gameScore: false,
 };
 
-type AboutTab = "about" | "howto" | "stats" | "settings" | "credits";
+type AboutTab = "about" | "howto" | "credits";
+type ModalView = "about" | "settings" | "stats";
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -243,9 +282,9 @@ declare global {
 
 function persistUiState(): void {
   const state: PersistedUiState = {
+    audioEnabled: isAudioEnabled,
     colorblindMode: isColorblindModeEnabled,
     devMode: isDevModeEnabled,
-    modeMenuExpanded: isModeMenuExpanded,
     toolsMenuExpanded: isToolsMenuExpanded,
     selectedMode: currentMode,
     practiceColor,
@@ -272,6 +311,7 @@ function setAboutModalOpen(open: boolean): void {
   aboutModal.setAttribute("aria-hidden", String(!open));
 
   if (open) {
+    syncModalView();
     syncAboutDialogPosition();
   }
 }
@@ -299,6 +339,44 @@ function syncAboutTabs(): void {
     const tab = panel.dataset.aboutPanel as AboutTab | undefined;
     panel.classList.toggle("hidden", tab !== activeAboutTab);
   }
+}
+
+function syncModalView(): void {
+  for (const view of modalViews) {
+    const viewName = view.dataset.modalView as ModalView | undefined;
+    view.classList.toggle("hidden", viewName !== activeModalView);
+  }
+
+  if (activeModalView === "settings") {
+    aboutTitle.textContent = "Settings";
+    return;
+  }
+
+  if (activeModalView === "stats") {
+    aboutTitle.textContent = "Statistics";
+    return;
+  }
+
+  aboutTitle.textContent = "About Connect 4 Trainer";
+}
+
+function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutTab?: AboutTab }): void {
+  activeModalView = view;
+  modalReturnFocusTarget = trigger;
+  if (view === "about" && options?.aboutTab) {
+    setAboutTab(options.aboutTab);
+  } else {
+    syncModalView();
+  }
+  setAboutModalOpen(true);
+  aboutClose.focus();
+}
+
+function closeActiveModal(): void {
+  setAboutModalOpen(false);
+  const focusTarget = modalReturnFocusTarget;
+  modalReturnFocusTarget = null;
+  (focusTarget ?? toolsMenuToggle).focus();
 }
 
 function formatStatsNumber(value: number | null): string {
@@ -352,6 +430,8 @@ function syncThemeControls(): void {
     button.setAttribute("aria-pressed", String(isSelected));
   }
 
+  settingsThemeSelect.value = currentTheme;
+  settingsAudioToggle.checked = isAudioEnabled;
   settingsColorblindModeToggle.checked = isColorblindModeEnabled;
 }
 
@@ -363,6 +443,7 @@ function syncDiscPatternMode(): void {
 function setAboutTab(tab: AboutTab): void {
   activeAboutTab = tab;
   syncAboutTabs();
+  syncModalView();
 }
 
 function setStatsRange(range: StatsRange): void {
@@ -379,6 +460,18 @@ function setDevModeEnabled(enabled: boolean): void {
   syncFeatureUI();
 }
 
+function pauseAllAudio(): void {
+  for (const { audio } of themeMusicAudio.values()) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  for (const audio of soundEffectAudio.values()) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+}
+
 function setColorblindModeEnabled(enabled: boolean): void {
   isColorblindModeEnabled = enabled;
   settingsColorblindModeToggle.checked = enabled;
@@ -386,12 +479,216 @@ function setColorblindModeEnabled(enabled: boolean): void {
   persistUiState();
 }
 
+function ensureThemeFont(theme: ThemeName): void {
+  if (loadedThemeFonts.has(theme)) {
+    return;
+  }
+
+  let href: string | null = null;
+  if (theme === "greece") {
+    href = "https://fonts.googleapis.com/css2?family=Caesar+Dressing&display=swap";
+  } else if (theme === "grease") {
+    href = "https://fonts.googleapis.com/css2?family=Atomic+Age&display=swap";
+  } else {
+    loadedThemeFonts.add(theme);
+    return;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.append(link);
+  loadedThemeFonts.add(theme);
+}
+
+function setAudioEnabled(enabled: boolean): void {
+  isAudioEnabled = enabled;
+  settingsAudioToggle.checked = enabled;
+  persistUiState();
+
+  if (!enabled) {
+    pauseAllAudio();
+    return;
+  }
+
+  syncThemeAudio(true);
+}
+
+function themeMusicUrl(theme: ThemeMusicKey, source: ThemeMusicSource): string {
+  const baseName = theme === "mogged" ? "appmogged-music" : `${theme}-music`;
+  return `${import.meta.env.BASE_URL}${baseName}.${source}`;
+}
+
+function themeMusicStartOffset(theme: ThemeMusicKey, source: ThemeMusicSource): number {
+  if (theme === "grease" && source === "ogg") {
+    return 11;
+  }
+
+  return 0;
+}
+
+function primeThemeMusicPosition(state: ThemeMusicState, theme: ThemeMusicKey): void {
+  const offset = themeMusicStartOffset(theme, state.source);
+  if (offset <= 0) {
+    return;
+  }
+
+  const seekToOffset = () => {
+    try {
+      state.audio.currentTime = offset;
+    } catch {
+      // Ignore seek failures; playback can still proceed from the start.
+    }
+  };
+
+  if (state.audio.readyState >= 1) {
+    seekToOffset();
+    return;
+  }
+
+  state.audio.addEventListener("loadedmetadata", seekToOffset, { once: true });
+}
+
+function preferredThemeMusicSource(theme: ThemeMusicKey): ThemeMusicSource {
+  if (theme === "mogged") {
+    return "mp3";
+  }
+
+  const probe = document.createElement("audio");
+  const midiSupport =
+    probe.canPlayType("audio/midi") ||
+    probe.canPlayType("audio/x-midi") ||
+    probe.canPlayType("audio/mid");
+
+  return midiSupport ? "mid" : "ogg";
+}
+
+function switchThemeMusicSource(state: ThemeMusicState, theme: ThemeMusicKey, source: ThemeMusicSource): void {
+  if (state.source === source) {
+    return;
+  }
+
+  state.source = source;
+  state.audio.pause();
+  state.audio.currentTime = 0;
+  state.audio.src = themeMusicUrl(theme, source);
+  state.audio.load();
+}
+
+function ensureThemeMusicAudio(theme: ThemeMusicKey): ThemeMusicState {
+  const existingAudio = themeMusicAudio.get(theme);
+  if (existingAudio) {
+    return existingAudio;
+  }
+
+  const source = preferredThemeMusicSource(theme);
+  const audio = new Audio(themeMusicUrl(theme, source));
+  audio.loop = true;
+  audio.volume = 0.45;
+  audio.preload = "auto";
+
+  const state: ThemeMusicState = {
+    audio,
+    source,
+  };
+
+  audio.addEventListener("error", () => {
+    if (state.source !== "mid") {
+      return;
+    }
+
+    switchThemeMusicSource(state, theme, "ogg");
+  });
+
+  themeMusicAudio.set(theme, state);
+  return state;
+}
+
+function playThemeMusic(theme: ThemeMusicKey): void {
+  if (!isAudioEnabled) {
+    return;
+  }
+
+  if (theme === "mogged" && !hasBoardAudioInteraction) {
+    return;
+  }
+
+  const state = ensureThemeMusicAudio(theme);
+  const { audio } = state;
+  primeThemeMusicPosition(state, theme);
+
+  void audio.play().catch((error: unknown) => {
+    if (state.source === "mid" && error instanceof DOMException && error.name === "NotSupportedError") {
+      switchThemeMusicSource(state, theme, "ogg");
+      primeThemeMusicPosition(state, theme);
+      void state.audio.play().catch(() => {
+        // Background playback may still be blocked or unsupported.
+      });
+      return;
+    }
+
+    // Autoplay policy or another playback failure.
+  });
+}
+
+function syncThemeAudio(allowPlayback: boolean): void {
+  for (const [theme, state] of themeMusicAudio) {
+    if (theme !== currentTheme) {
+      state.audio.pause();
+      state.audio.currentTime = 0;
+    }
+  }
+
+  if (!isAudioEnabled || (currentTheme !== "greece" && currentTheme !== "grease" && currentTheme !== "mogged")) {
+    return;
+  }
+
+  if (!allowPlayback) {
+    return;
+  }
+
+  playThemeMusic(currentTheme);
+}
+
+function soundEffectUrl(effect: SoundEffectKey): string {
+  return `${import.meta.env.BASE_URL}${effect}.mp3`;
+}
+
+function ensureSoundEffectAudio(effect: SoundEffectKey): HTMLAudioElement {
+  const existingAudio = soundEffectAudio.get(effect);
+  if (existingAudio) {
+    return existingAudio;
+  }
+
+  const audio = new Audio(soundEffectUrl(effect));
+  audio.preload = "auto";
+  audio.volume = 0.72;
+  soundEffectAudio.set(effect, audio);
+  return audio;
+}
+
+function playSoundEffect(effect: SoundEffectKey): void {
+  if (!isAudioEnabled) {
+    return;
+  }
+
+  const audio = ensureSoundEffectAudio(effect);
+  audio.pause();
+  audio.currentTime = 0;
+  void audio.play().catch(() => {
+    // Playback may be blocked or unsupported.
+  });
+}
+
 function setTheme(theme: ThemeName): void {
   currentTheme = theme;
+  ensureThemeFont(theme);
   applyTheme(theme);
+  moggedBackground.setEnabled(theme === "mogged");
   syncDiscPatternMode();
   syncThemeControls();
   persistUiState();
+  syncThemeAudio(true);
 }
 
 function scheduleBoardFrameLayout(): void {
@@ -425,6 +722,7 @@ function layoutBoardFrame(): void {
 
   boardFrame.style.transform = `translateY(${offsetY}px)`;
   boardActions.style.width = `${frameRect.width}px`;
+  toolsMenu.style.setProperty("--menu-panel-width", `${frameRect.width}px`);
 }
 
 function isTrainingMode(): boolean {
@@ -452,13 +750,9 @@ function syncModeUrl(mode: GameMode, strategy: "push" | "replace"): void {
   window.history.replaceState({ mode }, "", nextUrl);
 }
 
-function isPracticeMode(): boolean {
-  return currentMode === "practice";
-}
-
 function isHumanTurn(): boolean {
   return (
-    !isPracticeMode() ||
+    !isTrainingMode() ||
     currentPlayer ===
       effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
         red: RED,
@@ -468,9 +762,10 @@ function isHumanTurn(): boolean {
 }
 
 function updatePracticeControls(): void {
-  practiceControls.classList.toggle("hidden", !isPracticeMode());
+  practiceControls.classList.toggle("hidden", !isTrainingMode());
   freeplayControls.classList.toggle("hidden", currentMode !== "freeplay");
   featureControls.classList.toggle("hidden", !isTrainingMode());
+  statsControl.classList.toggle("hidden", !isTrainingMode());
 
   for (const button of practiceColorButtons) {
     const color = button.dataset.practiceColor as PracticeColor | undefined;
@@ -482,6 +777,7 @@ function updatePracticeControls(): void {
   practiceDifficultySlider.value = String(practiceDifficulty);
   practiceDifficultyValue.textContent = String(practiceDifficulty);
   freeplayGameScoreToggle.checked = featurePinned.gameScore;
+  settingsAudioToggle.checked = isAudioEnabled;
   settingsDevModeToggle.checked = isDevModeEnabled;
   syncThemeControls();
   syncStatsRangeControls();
@@ -539,39 +835,21 @@ function syncFeatureControls(): void {
   }
 }
 
-function syncModeMenu(): void {
-  for (const option of modeOptionButtons) {
-    const optionMode = option.dataset.modeOption as GameMode | undefined;
-    const isSelected = optionMode === currentMode;
-    option.classList.toggle("is-selected", isSelected);
-    option.setAttribute("aria-pressed", String(isSelected));
+function syncModeControls(): void {
+  for (const [mode, button] of modeButtons) {
+    const isSelected = mode === currentMode;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
   }
+
   updatePracticeControls();
-}
-
-function setModeMenuExpanded(expanded: boolean): void {
-  isModeMenuExpanded = expanded;
-  if (expanded) {
-    isToolsMenuExpanded = false;
-  }
-
-  modeMenuToggle.setAttribute("aria-expanded", String(isModeMenuExpanded));
-  modeMenu.classList.toggle("hidden", !isModeMenuExpanded);
-  toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
-  toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
-  persistUiState();
 }
 
 function setToolsMenuExpanded(expanded: boolean): void {
   isToolsMenuExpanded = expanded;
-  if (expanded) {
-    isModeMenuExpanded = false;
-  }
 
   toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
   toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
-  modeMenuToggle.setAttribute("aria-expanded", String(isModeMenuExpanded));
-  modeMenu.classList.toggle("hidden", !isModeMenuExpanded);
   persistUiState();
 }
 
@@ -585,7 +863,7 @@ function setCurrentMode(
 
   currentMode = mode;
   updateDocumentTitle();
-  syncModeMenu();
+  syncModeControls();
   persistUiState();
 
   if (historyStrategy !== "none") {
@@ -630,6 +908,14 @@ function applyBoardFrameLayout(): void {
     String(FIXED_SCORE_BAR_HEIGHT_ROWS / FIXED_BOARD_FRAME_ROWS),
   );
   boardFrame.style.setProperty(
+    "--turn-indicator-top-ratio",
+    String(FIXED_TURN_INDICATOR_TOP_ROWS / FIXED_BOARD_FRAME_ROWS),
+  );
+  boardFrame.style.setProperty(
+    "--turn-indicator-height-ratio",
+    String(FIXED_TURN_INDICATOR_HEIGHT_ROWS / FIXED_BOARD_FRAME_ROWS),
+  );
+  boardFrame.style.setProperty(
     "--column-score-top-ratio",
     String(FIXED_COLUMN_SCORE_TOP_ROWS / FIXED_BOARD_FRAME_ROWS),
   );
@@ -650,8 +936,8 @@ function renderDevOutput(): void {
 
   devOutputBox.value = buildDevOutput({
     optimizerOutput: latestOptimizerOutput,
-    practiceAiDebug: isPracticeMode() ? lastPracticeAiDebug : null,
-    practiceDifficulty: isPracticeMode() ? practiceDifficulty : null,
+    practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
+    practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
     state: moveSequence,
@@ -659,9 +945,70 @@ function renderDevOutput(): void {
   });
 }
 
+function hasPlayableMove(): boolean {
+  for (let column = 0; column < WIDTH; column += 1) {
+    if (lowestOpenRow(board, column) !== null) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isAiCalculating(): boolean {
+  if (!isTrainingMode() || isWinLocked || isHumanTurn() || aiPlannedColumn !== null) {
+    return false;
+  }
+
+  if (moveSequence === "") {
+    return false;
+  }
+
+  return !latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence;
+}
+
+function renderTurnIndicator(): void {
+  turnIndicator.classList.remove("is-red", "is-yellow");
+
+  if (isWinLocked || !hasPlayableMove()) {
+    turnIndicator.textContent = "";
+    return;
+  }
+
+  if (isTrainingMode()) {
+    if (isHumanTurn()) {
+      turnIndicator.textContent = "Your move";
+      return;
+    }
+
+    if (isAiCalculating()) {
+      turnIndicator.textContent = "Thinking...";
+      return;
+    }
+
+    if (aiPlannedColumn !== null) {
+      turnIndicator.textContent = `Playing Column ${aiPlannedColumn + 1}`;
+      return;
+    }
+
+    turnIndicator.textContent = "";
+    return;
+  }
+
+  if (currentPlayer === RED) {
+    turnIndicator.classList.add("is-red");
+    turnIndicator.textContent = "Red's turn";
+    return;
+  }
+
+  turnIndicator.classList.add("is-yellow");
+  turnIndicator.textContent = "Yellow's turn";
+}
+
 function syncFeatureUI(): void {
   applyBoardFrameLayout();
   updateScoreBar();
+  renderTurnIndicator();
   renderColumnScores();
   renderCurrentTrainingHints();
   renderDevOutput();
@@ -680,7 +1027,7 @@ function removeCurrentPracticeRecordedStat(): void {
 }
 
 function maybeRecordCompletedPracticeGame(): void {
-  if (!isPracticeMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
+  if (!isTrainingMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
     return;
   }
 
@@ -702,28 +1049,9 @@ function maybeRecordCompletedPracticeGame(): void {
   renderStatsTable();
 }
 
-function lastAppliedPracticeHumanMoveIndex(): number {
-  const humanPlayer = effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
-    red: RED,
-    yellow: YELLOW,
-  });
-
-  for (let index = historyIndex - 1; index >= 0; index -= 1) {
-    if (moveHistory[index]?.player === humanPlayer) {
-      return index;
-    }
-  }
-
-  return -1;
-}
-
 function canUndo(): boolean {
   if (isTrainingMode()) {
     return historyIndex > 0;
-  }
-
-  if (isPracticeMode()) {
-    return lastAppliedPracticeHumanMoveIndex() !== -1;
   }
 
   return freeplayUndoAvailable && historyIndex > 0;
@@ -906,7 +1234,7 @@ function rebuildBoardFromHistory(): void {
 function commitMove(column: number, player: PlayerValue): void {
   const record: MoveRecord = {
     aiDebug:
-      isPracticeMode() &&
+      isTrainingMode() &&
       player !==
         effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
           red: RED,
@@ -993,10 +1321,12 @@ function cancelAiTurn(): void {
   }
 
   aiScheduledSequence = null;
+  aiPlannedColumn = null;
+  aiPlannedDebug = null;
 }
 
 function currentPracticeAiScores(): number[] | null {
-  if (!isPracticeMode() || isWinLocked) {
+  if (!isTrainingMode() || isWinLocked) {
     return null;
   }
 
@@ -1014,7 +1344,7 @@ function currentPracticeAiScores(): number[] | null {
 function maybeScheduleAiTurn(): void {
   cancelAiTurn();
 
-  if (!isPracticeMode() || isAnimating || isWinLocked || isHumanTurn()) {
+  if (!isTrainingMode() || isAnimating || isWinLocked || isHumanTurn()) {
     return;
   }
 
@@ -1023,14 +1353,26 @@ function maybeScheduleAiTurn(): void {
     return;
   }
 
+  const aiChoice = choosePracticeAiColumn({
+    difficulty: practiceDifficulty,
+    isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
+    scores,
+  });
+  if (aiChoice.column === null) {
+    return;
+  }
+
   const scheduledSequence = moveSequence;
+  aiPlannedColumn = aiChoice.column;
+  aiPlannedDebug = aiChoice.debug;
   aiScheduledSequence = scheduledSequence;
+  turnIndicator.textContent = turnIndicatorText();
   aiMoveTimeout = window.setTimeout(() => {
     aiMoveTimeout = 0;
     aiScheduledSequence = null;
 
     if (
-      !isPracticeMode() ||
+      !isTrainingMode() ||
       isAnimating ||
       isWinLocked ||
       isHumanTurn() ||
@@ -1039,26 +1381,19 @@ function maybeScheduleAiTurn(): void {
       return;
     }
 
-    const liveScores = currentPracticeAiScores();
-    if (!liveScores) {
+    if (aiPlannedColumn === null) {
       return;
     }
 
-    const aiChoice = choosePracticeAiColumn({
-      difficulty: practiceDifficulty,
-      isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
-      scores: liveScores,
-    });
-    lastPracticeAiDebug = aiChoice.debug;
-    const chosenColumn = aiChoice.column;
-    if (chosenColumn === null) {
-      return;
-    }
+    lastPracticeAiDebug = aiPlannedDebug;
+    const chosenColumn = aiPlannedColumn;
+    aiPlannedColumn = null;
+    aiPlannedDebug = null;
 
     updatePreview(chosenColumn);
     requestAnimationFrame(() => {
       if (
-        !isPracticeMode() ||
+        !isTrainingMode() ||
         isAnimating ||
         isWinLocked ||
         isHumanTurn() ||
@@ -1086,6 +1421,8 @@ function requestOptimizerOutput(): void {
   stopOptimizerWorker();
   latestOptimizerPayload = null;
   latestOptimizerOutput = "status: Computing...";
+  aiPlannedColumn = null;
+  aiPlannedDebug = null;
   syncFeatureUI();
   maybeScheduleAiTurn();
 
@@ -1258,8 +1595,9 @@ function animateResetPieces(): void {
 
 function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   const { advancePracticeRound = true } = options ?? {};
+  playSoundEffect("board-reset");
   animateResetPieces();
-  if (advancePracticeRound && isPracticeMode() && practiceColor === "alternate") {
+  if (advancePracticeRound && isTrainingMode() && practiceColor === "alternate") {
     practiceRoundIndex += 1;
   }
   currentPracticeRecordedStatId = null;
@@ -1299,6 +1637,7 @@ function dropPreview(column: number): void {
       return;
     }
 
+    playSoundEffect("disc-drop");
     hidePreview();
     commitMove(column, player);
   };
@@ -1352,19 +1691,9 @@ function performUndo(): void {
       return;
     }
 
-    historyIndex -= 1;
-    rebuildBoardFromHistory();
-    return;
-  }
-
-  if (isPracticeMode()) {
-    const lastHumanMoveIndex = lastAppliedPracticeHumanMoveIndex();
-    if (lastHumanMoveIndex === -1) {
-      return;
-    }
-
+    playSoundEffect("undo");
     removeCurrentPracticeRecordedStat();
-    historyIndex = lastHumanMoveIndex;
+    historyIndex -= 1;
     rebuildBoardFromHistory();
     return;
   }
@@ -1373,6 +1702,7 @@ function performUndo(): void {
     return;
   }
 
+  playSoundEffect("undo");
   historyIndex -= 1;
   freeplayUndoAvailable = false;
   rebuildBoardFromHistory();
@@ -1414,6 +1744,9 @@ function bindFeatureControl(feature: FeatureKey): void {
 }
 
 boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
+  hasBoardAudioInteraction = true;
+  syncThemeAudio(true);
+
   if (isAnimating) {
     return;
   }
@@ -1471,19 +1804,35 @@ resetControl.addEventListener("click", () => {
   resetBoard();
 });
 
-aboutControl.addEventListener("click", () => {
-  setAboutModalOpen(true);
-  aboutClose.focus();
+titleControl.addEventListener("click", () => {
+  if (!canReset()) {
+    return;
+  }
+
+  resetBoard();
+});
+
+moreSettingsControl.addEventListener("click", () => {
+  setToolsMenuExpanded(false);
+  openModalView("settings", toolsMenuToggle);
+});
+
+settingsAboutControl.addEventListener("click", () => {
+  activeModalView = "about";
+  setAboutTab("about");
+});
+
+statsControl.addEventListener("click", () => {
+  setToolsMenuExpanded(false);
+  openModalView("stats", statsControl);
 });
 
 aboutClose.addEventListener("click", () => {
-  setAboutModalOpen(false);
-  aboutControl.focus();
+  closeActiveModal();
 });
 
 aboutBackdrop.addEventListener("click", () => {
-  setAboutModalOpen(false);
-  aboutControl.focus();
+  closeActiveModal();
 });
 
 undoControl.addEventListener("click", () => {
@@ -1494,25 +1843,17 @@ redoControl.addEventListener("click", () => {
   performRedo();
 });
 
-modeMenuToggle.addEventListener("click", () => {
-  setModeMenuExpanded(!isModeMenuExpanded);
-});
-
 toolsMenuToggle.addEventListener("click", () => {
   setToolsMenuExpanded(!isToolsMenuExpanded);
 });
 
-for (const option of modeOptionButtons) {
-  option.addEventListener("click", () => {
-    const selectedMode = option.dataset.modeOption as GameMode | undefined;
-    if (!selectedMode) {
-      return;
-    }
+trainingModeControl.addEventListener("click", () => {
+  setCurrentMode("training");
+});
 
-    setCurrentMode(selectedMode);
-    setModeMenuExpanded(false);
-  });
-}
+freeplayModeControl.addEventListener("click", () => {
+  setCurrentMode("freeplay");
+});
 
 for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
   const row = Math.floor(index / WIDTH);
@@ -1568,6 +1909,10 @@ settingsDevModeToggle.addEventListener("change", () => {
   setDevModeEnabled(settingsDevModeToggle.checked);
 });
 
+settingsAudioToggle.addEventListener("change", () => {
+  setAudioEnabled(settingsAudioToggle.checked);
+});
+
 settingsColorblindModeToggle.addEventListener("change", () => {
   setColorblindModeEnabled(settingsColorblindModeToggle.checked);
 });
@@ -1605,10 +1950,18 @@ for (const button of themeOptionButtons) {
   });
 }
 
+settingsThemeSelect.addEventListener("change", () => {
+  const theme = settingsThemeSelect.value as ThemeName;
+  if (!isThemeName(theme)) {
+    return;
+  }
+
+  setTheme(theme);
+});
+
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
-    setAboutModalOpen(false);
-    aboutControl.focus();
+    closeActiveModal();
     return;
   }
 
@@ -1671,7 +2024,8 @@ window.addEventListener("popstate", () => {
 });
 
 const persistedUiState = readPersistedUiState();
-currentMode = modeForPathname(window.location.pathname) ?? persistedUiState.selectedMode ?? "training";
+const persistedMode = persistedUiState.selectedMode === "freeplay" ? "freeplay" : "training";
+currentMode = modeForPathname(window.location.pathname) ?? persistedMode;
 const persistedPinned = persistedUiState.pinned ?? {};
 for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   const hasPersistedPinned = Object.prototype.hasOwnProperty.call(persistedPinned, feature);
@@ -1681,6 +2035,7 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
 }
 
 isDevModeEnabled = persistedUiState.devMode === true;
+isAudioEnabled = persistedUiState.audioEnabled !== false;
 isColorblindModeEnabled = persistedUiState.colorblindMode === true;
 practiceColor = persistedUiState.practiceColor ?? "red";
 statsRange = persistedUiState.statsRange === "today" ? "today" : "all-time";
@@ -1689,14 +2044,17 @@ const persistedDifficulty = persistedUiState.practiceDifficulty;
 if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficulty)) {
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
+ensureThemeFont(currentTheme);
 applyTheme(currentTheme);
+moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
+syncThemeAudio(false);
+settingsAudioToggle.checked = isAudioEnabled;
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
-syncModeMenu();
+syncModeControls();
 setAboutTab(activeAboutTab);
 renderStatsTable();
-setModeMenuExpanded(persistedUiState.modeMenuExpanded === true);
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
 syncMoveSequence();

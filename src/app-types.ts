@@ -1,10 +1,11 @@
-export type GameMode = "training" | "practice" | "freeplay";
+export type GameMode = "training" | "freeplay";
 export type FeatureKey = "bestMove" | "moveScores" | "gameScore";
 export type PracticeColor = "red" | "yellow" | "alternate";
-export type ThemeName = "light" | "dark" | "midnight";
+export type ThemeName = "light" | "dark" | "midnight" | "mogged" | "greece" | "grease";
 export type StatsRange = "today" | "all-time";
 
 export type PersistedUiState = {
+  audioEnabled?: boolean;
   colorblindMode?: boolean;
   devMode?: boolean;
   modeMenuExpanded?: boolean;

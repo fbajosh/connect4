@@ -3,7 +3,6 @@ import type { GameMode, PersistedUiState, ThemeName } from "./app-types";
 const UI_STATE_STORAGE_KEY = "connect4-trainer-ui-state";
 const MODE_SEGMENTS: Record<GameMode, string> = {
   training: "training",
-  practice: "practice",
   freeplay: "freeplay",
 };
 
@@ -35,10 +34,6 @@ export function writePersistedUiState(state: PersistedUiState): void {
 }
 
 export function modeLabel(mode: GameMode): string {
-  if (mode === "practice") {
-    return "Practice";
-  }
-
   if (mode === "freeplay") {
     return "Freeplay";
   }
@@ -51,7 +46,14 @@ export function titleForMode(mode: GameMode): string {
 }
 
 export function isThemeName(value: string): value is ThemeName {
-  return value === "light" || value === "dark" || value === "midnight";
+  return (
+    value === "light" ||
+    value === "dark" ||
+    value === "midnight" ||
+    value === "mogged" ||
+    value === "greece" ||
+    value === "grease"
+  );
 }
 
 export function pathForMode(mode: GameMode): string {
@@ -73,8 +75,8 @@ export function modeForPathname(pathname: string): GameMode | null {
     return "training";
   }
 
-  if (relativePath === MODE_SEGMENTS.practice) {
-    return "practice";
+  if (relativePath === "practice") {
+    return "training";
   }
 
   if (relativePath === MODE_SEGMENTS.freeplay) {
