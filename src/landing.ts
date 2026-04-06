@@ -47,6 +47,8 @@ const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
 const FIXED_SCORE_BAR_HEIGHT_ROWS = 0.1;
+const FIXED_TURN_INDICATOR_TOP_ROWS = 0.46;
+const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
 const boardShell = document.getElementById("board-shell");
@@ -62,6 +64,7 @@ const boardFrame = boardShell?.parentElement;
 const titleControl = document.getElementById("title-control");
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
+const turnIndicator = document.getElementById("turn-indicator");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
@@ -113,6 +116,7 @@ if (
   !menuBar ||
   !scoreBar ||
   !scoreBarFill ||
+  !turnIndicator ||
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
@@ -212,6 +216,8 @@ let statsRange: StatsRange = "all-time";
 let practiceRoundIndex = 0;
 let aiMoveTimeout = 0;
 let aiScheduledSequence: string | null = null;
+let aiPlannedColumn: number | null = null;
+let aiPlannedDebug: PracticeAiDebug | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
@@ -664,6 +670,14 @@ function applyBoardFrameLayout(): void {
     String(FIXED_SCORE_BAR_HEIGHT_ROWS / FIXED_BOARD_FRAME_ROWS),
   );
   boardFrame.style.setProperty(
+    "--turn-indicator-top-ratio",
+    String(FIXED_TURN_INDICATOR_TOP_ROWS / FIXED_BOARD_FRAME_ROWS),
+  );
+  boardFrame.style.setProperty(
+    "--turn-indicator-height-ratio",
+    String(FIXED_TURN_INDICATOR_HEIGHT_ROWS / FIXED_BOARD_FRAME_ROWS),
+  );
+  boardFrame.style.setProperty(
     "--column-score-top-ratio",
     String(FIXED_COLUMN_SCORE_TOP_ROWS / FIXED_BOARD_FRAME_ROWS),
   );
@@ -693,9 +707,70 @@ function renderDevOutput(): void {
   });
 }
 
+function hasPlayableMove(): boolean {
+  for (let column = 0; column < WIDTH; column += 1) {
+    if (lowestOpenRow(board, column) !== null) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isAiCalculating(): boolean {
+  if (!isTrainingMode() || isWinLocked || isHumanTurn() || aiPlannedColumn !== null) {
+    return false;
+  }
+
+  if (moveSequence === "") {
+    return false;
+  }
+
+  return !latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence;
+}
+
+function renderTurnIndicator(): void {
+  turnIndicator.classList.remove("is-red", "is-yellow");
+
+  if (isWinLocked || !hasPlayableMove()) {
+    turnIndicator.textContent = "";
+    return;
+  }
+
+  if (isTrainingMode()) {
+    if (isHumanTurn()) {
+      turnIndicator.textContent = "Your move";
+      return;
+    }
+
+    if (isAiCalculating()) {
+      turnIndicator.textContent = "Thinking...";
+      return;
+    }
+
+    if (aiPlannedColumn !== null) {
+      turnIndicator.textContent = `Playing Column ${aiPlannedColumn + 1}`;
+      return;
+    }
+
+    turnIndicator.textContent = "";
+    return;
+  }
+
+  if (currentPlayer === RED) {
+    turnIndicator.classList.add("is-red");
+    turnIndicator.textContent = "Red's turn";
+    return;
+  }
+
+  turnIndicator.classList.add("is-yellow");
+  turnIndicator.textContent = "Yellow's turn";
+}
+
 function syncFeatureUI(): void {
   applyBoardFrameLayout();
   updateScoreBar();
+  renderTurnIndicator();
   renderColumnScores();
   renderCurrentTrainingHints();
   renderDevOutput();
@@ -1008,6 +1083,8 @@ function cancelAiTurn(): void {
   }
 
   aiScheduledSequence = null;
+  aiPlannedColumn = null;
+  aiPlannedDebug = null;
 }
 
 function currentPracticeAiScores(): number[] | null {
@@ -1038,8 +1115,20 @@ function maybeScheduleAiTurn(): void {
     return;
   }
 
+  const aiChoice = choosePracticeAiColumn({
+    difficulty: practiceDifficulty,
+    isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
+    scores,
+  });
+  if (aiChoice.column === null) {
+    return;
+  }
+
   const scheduledSequence = moveSequence;
+  aiPlannedColumn = aiChoice.column;
+  aiPlannedDebug = aiChoice.debug;
   aiScheduledSequence = scheduledSequence;
+  turnIndicator.textContent = turnIndicatorText();
   aiMoveTimeout = window.setTimeout(() => {
     aiMoveTimeout = 0;
     aiScheduledSequence = null;
@@ -1054,21 +1143,14 @@ function maybeScheduleAiTurn(): void {
       return;
     }
 
-    const liveScores = currentPracticeAiScores();
-    if (!liveScores) {
+    if (aiPlannedColumn === null) {
       return;
     }
 
-    const aiChoice = choosePracticeAiColumn({
-      difficulty: practiceDifficulty,
-      isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
-      scores: liveScores,
-    });
-    lastPracticeAiDebug = aiChoice.debug;
-    const chosenColumn = aiChoice.column;
-    if (chosenColumn === null) {
-      return;
-    }
+    lastPracticeAiDebug = aiPlannedDebug;
+    const chosenColumn = aiPlannedColumn;
+    aiPlannedColumn = null;
+    aiPlannedDebug = null;
 
     updatePreview(chosenColumn);
     requestAnimationFrame(() => {
@@ -1101,6 +1183,8 @@ function requestOptimizerOutput(): void {
   stopOptimizerWorker();
   latestOptimizerPayload = null;
   latestOptimizerOutput = "status: Computing...";
+  aiPlannedColumn = null;
+  aiPlannedDebug = null;
   syncFeatureUI();
   maybeScheduleAiTurn();
 
