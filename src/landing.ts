@@ -951,7 +951,7 @@ function playCompletionSound(): void {
 
 function canUndo(): boolean {
   if (isTrainingMode()) {
-    return historyIndex > 0;
+    return trainingUndoTargetIndex() !== null;
   }
 
   return freeplayUndoAvailable && historyIndex > 0;
@@ -963,6 +963,28 @@ function canRedo(): boolean {
 
 function canReset(): boolean {
   return historyIndex > 0;
+}
+
+function trainingHumanPlayer(): PlayerValue {
+  return effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+    red: RED,
+    yellow: YELLOW,
+  });
+}
+
+function trainingUndoTargetIndex(): number | null {
+  if (!isTrainingMode()) {
+    return null;
+  }
+
+  const humanPlayer = trainingHumanPlayer();
+  for (let index = historyIndex - 1; index >= 0; index -= 1) {
+    if (moveHistory[index]?.player === humanPlayer) {
+      return index;
+    }
+  }
+
+  return null;
 }
 
 function canStartHumanMove(): boolean {
@@ -1253,23 +1275,39 @@ function maybeScheduleAiTurn(): void {
     return;
   }
 
-  const scores = currentPracticeAiScores();
-  if (!scores) {
-    return;
-  }
+  let chosenColumn: number | null = null;
+  let chosenDebug: PracticeAiDebug | null = null;
 
-  const aiChoice = choosePracticeAiColumn({
-    difficulty: practiceDifficulty,
-    isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
-    scores,
-  });
-  if (aiChoice.column === null) {
-    return;
+  if (historyIndex < moveHistory.length) {
+    const nextRecord = moveHistory[historyIndex];
+    if (nextRecord.player !== currentPlayer) {
+      return;
+    }
+
+    chosenColumn = nextRecord.column;
+    chosenDebug = nextRecord.aiDebug;
+  } else {
+    const scores = currentPracticeAiScores();
+    if (!scores) {
+      return;
+    }
+
+    const aiChoice = choosePracticeAiColumn({
+      difficulty: practiceDifficulty,
+      isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
+      scores,
+    });
+    if (aiChoice.column === null) {
+      return;
+    }
+
+    chosenColumn = aiChoice.column;
+    chosenDebug = aiChoice.debug;
   }
 
   const scheduledSequence = moveSequence;
-  aiPlannedColumn = aiChoice.column;
-  aiPlannedDebug = aiChoice.debug;
+  aiPlannedColumn = chosenColumn;
+  aiPlannedDebug = chosenDebug;
   aiScheduledSequence = scheduledSequence;
   renderTurnIndicator();
   aiMoveTimeout = window.setTimeout(() => {
@@ -1592,13 +1630,14 @@ function performUndo(): void {
   }
 
   if (isTrainingMode()) {
-    if (historyIndex === 0) {
+    const targetIndex = trainingUndoTargetIndex();
+    if (targetIndex === null) {
       return;
     }
 
     playSoundEffect("undo");
     removeCurrentPracticeRecordedStat();
-    historyIndex -= 1;
+    historyIndex = targetIndex;
     rebuildBoardFromHistory();
     return;
   }
