@@ -42,6 +42,7 @@ import {
   writePersistedUiState,
 } from "./ui-persistence";
 import { appendPracticeStat, buildPracticeStatsRows, createPracticeStatId, readStoredPracticeStats, removePracticeStatById, type PracticeGameResult, type PracticeGameStat } from "./stats";
+import { createAudioController, ensureThemeFont, type SoundEffectKey } from "./media";
 import { applyTheme } from "./theme";
 import { createMoggedBackground } from "./mogged-background";
 const FIXED_BOARD_FRAME_ROWS = 7.46;
@@ -163,6 +164,7 @@ if (
 }
 
 const moggedBackground = createMoggedBackground(themeBackground as HTMLCanvasElement);
+const audioController = createAudioController();
 
 const board: BoardState = createBoard();
 const trainerSlots: HTMLDivElement[] = [];
@@ -228,17 +230,6 @@ let aiScheduledSequence: string | null = null;
 let aiPlannedColumn: number | null = null;
 let aiPlannedDebug: PracticeAiDebug | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
-type ThemeMusicKey = "greece" | "grease" | "mogged";
-type ThemeMusicSource = "mid" | "ogg" | "mp3";
-type ThemeMusicState = {
-  audio: HTMLAudioElement;
-  source: ThemeMusicSource;
-};
-const themeMusicAudio = new Map<ThemeMusicKey, ThemeMusicState>();
-type SoundEffectKey = "board-reset" | "disc-drop" | "lose" | "undo" | "win";
-const soundEffectAudio = new Map<SoundEffectKey, HTMLAudioElement>();
-let hasBoardAudioInteraction = false;
-const loadedThemeFonts = new Set<ThemeName>();
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
@@ -462,15 +453,7 @@ function setDevModeEnabled(enabled: boolean): void {
 }
 
 function pauseAllAudio(): void {
-  for (const { audio } of themeMusicAudio.values()) {
-    audio.pause();
-    audio.currentTime = 0;
-  }
-
-  for (const audio of soundEffectAudio.values()) {
-    audio.pause();
-    audio.currentTime = 0;
-  }
+  audioController.pauseAll();
 }
 
 function setColorblindModeEnabled(enabled: boolean): void {
@@ -478,28 +461,6 @@ function setColorblindModeEnabled(enabled: boolean): void {
   settingsColorblindModeToggle.checked = enabled;
   syncDiscPatternMode();
   persistUiState();
-}
-
-function ensureThemeFont(theme: ThemeName): void {
-  if (loadedThemeFonts.has(theme)) {
-    return;
-  }
-
-  let href: string | null = null;
-  if (theme === "greece") {
-    href = "https://fonts.googleapis.com/css2?family=Caesar+Dressing&display=swap";
-  } else if (theme === "grease") {
-    href = "https://fonts.googleapis.com/css2?family=Atomic+Age&display=swap";
-  } else {
-    loadedThemeFonts.add(theme);
-    return;
-  }
-
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = href;
-  document.head.append(link);
-  loadedThemeFonts.add(theme);
 }
 
 function setAudioEnabled(enabled: boolean): void {
@@ -515,174 +476,15 @@ function setAudioEnabled(enabled: boolean): void {
   syncThemeAudio(true);
 }
 
-function themeMusicUrl(theme: ThemeMusicKey, source: ThemeMusicSource): string {
-  const baseName = theme === "mogged" ? "appmogged-music" : `${theme}-music`;
-  return `${import.meta.env.BASE_URL}${baseName}.${source}`;
-}
-
-function themeMusicStartOffset(theme: ThemeMusicKey, source: ThemeMusicSource): number {
-  if (theme === "grease" && source === "ogg") {
-    return 11;
-  }
-
-  return 0;
-}
-
-function primeThemeMusicPosition(state: ThemeMusicState, theme: ThemeMusicKey): void {
-  const offset = themeMusicStartOffset(theme, state.source);
-  if (offset <= 0) {
-    return;
-  }
-
-  if (!state.audio.paused || state.audio.currentTime > 0.25) {
-    return;
-  }
-
-  const seekToOffset = () => {
-    try {
-      state.audio.currentTime = offset;
-    } catch {
-      // Ignore seek failures; playback can still proceed from the start.
-    }
-  };
-
-  if (state.audio.readyState >= 1) {
-    seekToOffset();
-    return;
-  }
-
-  state.audio.addEventListener("loadedmetadata", seekToOffset, { once: true });
-}
-
-function preferredThemeMusicSource(theme: ThemeMusicKey): ThemeMusicSource {
-  if (theme === "mogged") {
-    return "mp3";
-  }
-
-  const probe = document.createElement("audio");
-  const midiSupport =
-    probe.canPlayType("audio/midi") ||
-    probe.canPlayType("audio/x-midi") ||
-    probe.canPlayType("audio/mid");
-
-  return midiSupport ? "mid" : "ogg";
-}
-
-function switchThemeMusicSource(state: ThemeMusicState, theme: ThemeMusicKey, source: ThemeMusicSource): void {
-  if (state.source === source) {
-    return;
-  }
-
-  state.source = source;
-  state.audio.pause();
-  state.audio.currentTime = 0;
-  state.audio.src = themeMusicUrl(theme, source);
-  state.audio.load();
-}
-
-function ensureThemeMusicAudio(theme: ThemeMusicKey): ThemeMusicState {
-  const existingAudio = themeMusicAudio.get(theme);
-  if (existingAudio) {
-    return existingAudio;
-  }
-
-  const source = preferredThemeMusicSource(theme);
-  const audio = new Audio(themeMusicUrl(theme, source));
-  audio.loop = true;
-  audio.volume = 0.45;
-  audio.preload = "auto";
-
-  const state: ThemeMusicState = {
-    audio,
-    source,
-  };
-
-  audio.addEventListener("error", () => {
-    if (state.source !== "mid") {
-      return;
-    }
-
-    switchThemeMusicSource(state, theme, "ogg");
-  });
-
-  themeMusicAudio.set(theme, state);
-  return state;
-}
-
-function playThemeMusic(theme: ThemeMusicKey): void {
-  if (!isAudioEnabled) {
-    return;
-  }
-
-  if (theme === "mogged" && !hasBoardAudioInteraction) {
-    return;
-  }
-
-  const state = ensureThemeMusicAudio(theme);
-  const { audio } = state;
-  primeThemeMusicPosition(state, theme);
-
-  void audio.play().catch((error: unknown) => {
-    if (state.source === "mid" && error instanceof DOMException && error.name === "NotSupportedError") {
-      switchThemeMusicSource(state, theme, "ogg");
-      primeThemeMusicPosition(state, theme);
-      void state.audio.play().catch(() => {
-        // Background playback may still be blocked or unsupported.
-      });
-      return;
-    }
-
-    // Autoplay policy or another playback failure.
-  });
-}
-
 function syncThemeAudio(allowPlayback: boolean): void {
-  for (const [theme, state] of themeMusicAudio) {
-    if (theme !== currentTheme) {
-      state.audio.pause();
-      state.audio.currentTime = 0;
-    }
-  }
-
-  if (!isAudioEnabled || (currentTheme !== "greece" && currentTheme !== "grease" && currentTheme !== "mogged")) {
-    return;
-  }
-
-  if (!allowPlayback) {
-    return;
-  }
-
-  playThemeMusic(currentTheme);
-}
-
-function soundEffectUrl(effect: SoundEffectKey): string {
-  return `${import.meta.env.BASE_URL}${effect}.mp3`;
-}
-
-function ensureSoundEffectAudio(effect: SoundEffectKey): HTMLAudioElement {
-  const existingAudio = soundEffectAudio.get(effect);
-  if (existingAudio) {
-    return existingAudio;
-  }
-
-  const audio = new Audio(soundEffectUrl(effect));
-  audio.preload = "auto";
-  audio.volume = 0.72;
-  soundEffectAudio.set(effect, audio);
-  return audio;
+  audioController.syncThemeAudio(currentTheme, {
+    allowPlayback,
+    audioEnabled: isAudioEnabled,
+  });
 }
 
 function playSoundEffect(effect: SoundEffectKey): void {
-  if (!isAudioEnabled) {
-    return;
-  }
-
-  const audio = ensureSoundEffectAudio(effect);
-  audio.pause();
-  audio.currentTime = 0;
-  void audio.play().catch(() => {
-    // Playback may be blocked or unsupported.
-  });
+  audioController.playSoundEffect(effect, isAudioEnabled);
 }
 
 function setTheme(theme: ThemeName): void {
@@ -1011,8 +813,25 @@ function isAiCalculating(): boolean {
 function renderTurnIndicator(): void {
   turnIndicator.classList.remove("is-red", "is-yellow");
 
-  if (isWinLocked || !hasPlayableMove()) {
+  if (isWinLocked) {
+    if (winningPlayer === RED) {
+      turnIndicator.classList.add("is-red");
+      turnIndicator.textContent = "Red wins";
+      return;
+    }
+
+    if (winningPlayer === YELLOW) {
+      turnIndicator.classList.add("is-yellow");
+      turnIndicator.textContent = "Yellow wins";
+      return;
+    }
+
     turnIndicator.textContent = "";
+    return;
+  }
+
+  if (!hasPlayableMove()) {
+    turnIndicator.textContent = "Tie";
     return;
   }
 
@@ -1091,6 +910,11 @@ function maybeRecordCompletedPracticeGame(): void {
 }
 
 function playCompletionSound(): void {
+  if (!isWinLocked) {
+    playSoundEffect("tie");
+    return;
+  }
+
   if (currentMode === "freeplay") {
     playSoundEffect("win");
     return;
@@ -1700,7 +1524,7 @@ function dropPreview(column: number): void {
       return;
     }
 
-    playSoundEffect("disc-drop");
+    playSoundEffect(currentTheme === "mogged" ? "mogg" : "disc-drop");
     hidePreview();
     commitMove(column, player);
   };
@@ -1807,8 +1631,7 @@ function bindFeatureControl(feature: FeatureKey): void {
 }
 
 boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
-  const isFirstBoardAudioInteraction = !hasBoardAudioInteraction;
-  hasBoardAudioInteraction = true;
+  const isFirstBoardAudioInteraction = audioController.noteBoardInteraction();
   if (isFirstBoardAudioInteraction) {
     syncThemeAudio(true);
   }
