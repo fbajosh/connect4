@@ -680,13 +680,25 @@ body::after {
   width: 100%;
 }
 
-.dev-label {
+.dev-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.dev-link {
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--text-primary);
   font-family: var(--ui-font);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: var(--menu-text-size);
+  font-weight: var(--ui-body-weight);
+  line-height: 1;
+  text-align: left;
+  cursor: pointer;
 }
 
 .dev-textbox {

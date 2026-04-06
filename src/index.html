@@ -214,10 +214,13 @@
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
-        <label class="dev-field">
-          <span class="dev-label">Dev Output</span>
+        <div class="dev-field">
+          <div class="dev-toolbar">
+            <button class="dev-link" id="import-state-control" type="button">Import State</button>
+            <button class="dev-link" id="export-state-control" type="button">Export State</button>
+          </div>
           <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
-        </label>
+        </div>
       </section>
       <div class="about-modal hidden" id="about-modal" aria-hidden="true">
         <div class="about-backdrop" id="about-backdrop"></div>

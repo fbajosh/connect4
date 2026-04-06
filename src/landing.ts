@@ -101,6 +101,8 @@ const moveScoresToggle = document.getElementById("move-scores-toggle");
 const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
+const importStateControl = document.getElementById("import-state-control");
+const exportStateControl = document.getElementById("export-state-control");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
@@ -159,6 +161,8 @@ if (
   !gameScorePulse ||
   !gameScoreToggle ||
   !devPanel ||
+  !importStateControl ||
+  !exportStateControl ||
   !devOutputBox ||
   !settingsAudioToggle ||
   !settingsDevModeToggle ||
@@ -238,6 +242,7 @@ let lastPracticeAiDebug: PracticeAiDebug | null = null;
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
+let isImportedGame = false;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
@@ -271,6 +276,11 @@ type MoveRecord = {
   previousScore: number | null;
 };
 
+type RebuildHistoryOptions = {
+  suppressCompletionEffects?: boolean;
+  suppressStatsRecording?: boolean;
+};
+
 declare global {
   interface Window {
     connect4State?: Connect4DebugState;
@@ -295,6 +305,66 @@ function persistUiState(): void {
     },
   };
   writePersistedUiState(state);
+}
+
+function stateSequenceFromLocation(): string | null {
+  const rawState = new URLSearchParams(window.location.search).get("state");
+  if (!rawState) {
+    return null;
+  }
+
+  const sequence = rawState.trim();
+  return sequence.length > 0 ? sequence : null;
+}
+
+function moveHistoryFromSequence(sequence: string): MoveRecord[] | null {
+  if (!/^[1-7]+$/.test(sequence)) {
+    return null;
+  }
+
+  const importedBoard = createBoard();
+  const importedHistory: MoveRecord[] = [];
+  let player: PlayerValue = RED;
+
+  for (let index = 0; index < sequence.length; index += 1) {
+    if (detectWinningMask(importedBoard).hasWinningRun) {
+      return null;
+    }
+
+    const column = Number(sequence[index]) - 1;
+    const row = lowestOpenRow(importedBoard, column);
+    if (row === null) {
+      return null;
+    }
+
+    importedBoard[row][column] = player;
+    importedHistory.push({
+      aiDebug: null,
+      column,
+      player,
+      previousScore: null,
+    });
+    player = nextPlayer(player);
+  }
+
+  return importedHistory;
+}
+
+function isValidImportSequence(sequence: string): boolean {
+  if (!/^[1-7]+$/.test(sequence)) {
+    return false;
+  }
+
+  const counts = Array.from({ length: WIDTH }, () => 0);
+  for (const character of sequence) {
+    const column = Number(character) - 1;
+    counts[column] += 1;
+    if (counts[column] > HEIGHT) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function syncMoveSequence(): void {
@@ -905,7 +975,13 @@ function removeCurrentPracticeRecordedStat(): void {
 }
 
 function maybeRecordCompletedPracticeGame(): void {
-  if (!isTrainingMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
+  if (
+    !isTrainingMode() ||
+    !isWinLocked ||
+    winningPlayer === null ||
+    currentPracticeRecordedStatId !== null ||
+    isImportedGame
+  ) {
     return;
   }
 
@@ -1094,7 +1170,11 @@ function clearBoardVisualState(): void {
   }
 }
 
-function rebuildBoardFromHistory(): void {
+function rebuildBoardFromHistory(options: RebuildHistoryOptions = {}): void {
+  const {
+    suppressCompletionEffects = false,
+    suppressStatsRecording = false,
+  } = options;
   const wasGameComplete = isWinLocked || !hasPlayableMove();
   cancelAiTurn();
   stopOptimizerWorker();
@@ -1150,10 +1230,12 @@ function rebuildBoardFromHistory(): void {
   isWinLocked = updateWinningHighlights();
   winningPlayer = isWinLocked && historyIndex > 0 ? moveHistory[historyIndex - 1].player : null;
   const isGameComplete = isWinLocked || !hasPlayableMove();
-  if (!wasGameComplete && isGameComplete) {
+  if (!suppressCompletionEffects && !wasGameComplete && isGameComplete) {
     playCompletionSound();
   }
-  maybeRecordCompletedPracticeGame();
+  if (!suppressStatsRecording) {
+    maybeRecordCompletedPracticeGame();
+  }
   syncMoveSequence();
   requestOptimizerOutput();
 }
@@ -1544,10 +1626,97 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
     practiceRoundIndex += 1;
   }
   currentPracticeRecordedStatId = null;
+  isImportedGame = false;
   moveHistory.length = 0;
   historyIndex = 0;
   freeplayUndoAvailable = false;
   rebuildBoardFromHistory();
+}
+
+function importStateFromLocation(): void {
+  const sequence = stateSequenceFromLocation();
+  const importedHistory = sequence ? moveHistoryFromSequence(sequence) : [];
+
+  moveHistory.length = 0;
+  historyIndex = 0;
+  freeplayUndoAvailable = false;
+  currentPracticeRecordedStatId = null;
+  isImportedGame = Boolean(sequence);
+
+  if (sequence && importedHistory === null) {
+    console.warn(`Ignoring invalid Connect 4 state from URL: ${sequence}`);
+    isImportedGame = false;
+    rebuildBoardFromHistory({
+      suppressCompletionEffects: true,
+      suppressStatsRecording: true,
+    });
+    return;
+  }
+
+  if (importedHistory) {
+    moveHistory.push(...importedHistory);
+    historyIndex = importedHistory.length;
+    freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
+  }
+
+  rebuildBoardFromHistory({
+    suppressCompletionEffects: true,
+    suppressStatsRecording: true,
+  });
+}
+
+function importStateSequence(sequence: string): boolean {
+  if (!isValidImportSequence(sequence)) {
+    return false;
+  }
+
+  const importedHistory = moveHistoryFromSequence(sequence);
+  if (importedHistory === null) {
+    return false;
+  }
+
+  moveHistory.length = 0;
+  moveHistory.push(...importedHistory);
+  historyIndex = importedHistory.length;
+  freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
+  currentPracticeRecordedStatId = null;
+  isImportedGame = importedHistory.length > 0;
+  rebuildBoardFromHistory({
+    suppressCompletionEffects: true,
+    suppressStatsRecording: true,
+  });
+  return true;
+}
+
+async function importStateFromClipboard(): Promise<void> {
+  if (!navigator.clipboard?.readText) {
+    console.warn("Clipboard import is unavailable.");
+    return;
+  }
+
+  try {
+    const rawText = await navigator.clipboard.readText();
+    const sequence = rawText.trim();
+    if (!importStateSequence(sequence)) {
+      console.warn("Clipboard did not contain a valid Connect 4 state.");
+      return;
+    }
+  } catch {
+    console.warn("Clipboard import failed.");
+  }
+}
+
+async function exportStateToClipboard(): Promise<void> {
+  if (!navigator.clipboard?.writeText) {
+    console.warn("Clipboard export is unavailable.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(moveSequence);
+  } catch {
+    console.warn("Clipboard export failed.");
+  }
 }
 
 function targetTopForRow(row: number): string {
@@ -1907,6 +2076,14 @@ settingsThemeSelect.addEventListener("change", () => {
   setToolsMenuExpanded(false);
 });
 
+importStateControl.addEventListener("click", () => {
+  void importStateFromClipboard();
+});
+
+exportStateControl.addEventListener("click", () => {
+  void exportStateToClipboard();
+});
+
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
     closeActiveModal();
@@ -1973,7 +2150,8 @@ window.addEventListener("popstate", () => {
     return;
   }
 
-  setCurrentMode(pathMode, { history: "none" });
+  setCurrentMode(pathMode, { history: "none", resetBoard: false });
+  importStateFromLocation();
 });
 
 const persistedUiState = readPersistedUiState();
@@ -2010,12 +2188,10 @@ setAboutTab(activeAboutTab);
 renderStatsTable();
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
-syncMoveSequence();
-requestOptimizerOutput();
-maybeScheduleAiTurn();
+importStateFromLocation();
 window.connect4State = {
   getSequence: () => moveSequence,
-  getOptimizerOutput: () => devOutputBox.value,
+  getOptimizerOutput: () => latestOptimizerOutput,
   getPreviousRedScores: () => [...previousRedScores],
   getPreviousYellowScores: () => [...previousYellowScores],
 };

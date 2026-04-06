@@ -24,8 +24,8 @@
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-DnDRIstn.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-CSTddQ1C.css">
+    <script type="module" crossorigin src="/connect4/assets/index-BdhF-ROP.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-e1yZgF-8.css">
   </head>
   <body>
     <canvas class="theme-background" id="theme-background" aria-hidden="true"></canvas>
@@ -215,10 +215,13 @@
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
-        <label class="dev-field">
-          <span class="dev-label">Dev Output</span>
+        <div class="dev-field">
+          <div class="dev-toolbar">
+            <button class="dev-link" id="import-state-control" type="button">Import State</button>
+            <button class="dev-link" id="export-state-control" type="button">Export State</button>
+          </div>
           <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
-        </label>
+        </div>
       </section>
       <div class="about-modal hidden" id="about-modal" aria-hidden="true">
         <div class="about-backdrop" id="about-backdrop"></div>
