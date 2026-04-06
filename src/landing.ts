@@ -206,6 +206,7 @@ let dropToken = 0;
 let moveSequence = "";
 let optimizerWorker: Worker | null = null;
 let boardFrameLayoutRaf = 0;
+let boardFrameLayoutTimeout = 0;
 let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
 let activeAboutTab: AboutTab = "about";
@@ -234,7 +235,7 @@ type ThemeMusicState = {
   source: ThemeMusicSource;
 };
 const themeMusicAudio = new Map<ThemeMusicKey, ThemeMusicState>();
-type SoundEffectKey = "board-reset" | "disc-drop" | "undo";
+type SoundEffectKey = "board-reset" | "disc-drop" | "lose" | "undo" | "win";
 const soundEffectAudio = new Map<SoundEffectKey, HTMLAudioElement>();
 let hasBoardAudioInteraction = false;
 const loadedThemeFonts = new Set<ThemeName>();
@@ -533,6 +534,10 @@ function primeThemeMusicPosition(state: ThemeMusicState, theme: ThemeMusicKey): 
     return;
   }
 
+  if (!state.audio.paused || state.audio.currentTime > 0.25) {
+    return;
+  }
+
   const seekToOffset = () => {
     try {
       state.audio.currentTime = offset;
@@ -691,15 +696,51 @@ function setTheme(theme: ThemeName): void {
   syncThemeAudio(true);
 }
 
+function runCriticalFrame(callback: () => void): void {
+  let hasRun = false;
+  let frameId = 0;
+  let timeoutId = 0;
+
+  const run = (): void => {
+    if (hasRun) {
+      return;
+    }
+
+    hasRun = true;
+    if (frameId !== 0) {
+      window.cancelAnimationFrame(frameId);
+    }
+    if (timeoutId !== 0) {
+      window.clearTimeout(timeoutId);
+    }
+    callback();
+  };
+
+  frameId = window.requestAnimationFrame(run);
+  timeoutId = window.setTimeout(run, 20);
+}
+
 function scheduleBoardFrameLayout(): void {
-  if (boardFrameLayoutRaf !== 0) {
+  if (boardFrameLayoutRaf !== 0 || boardFrameLayoutTimeout !== 0) {
     return;
   }
 
   boardFrameLayoutRaf = window.requestAnimationFrame(() => {
     boardFrameLayoutRaf = 0;
+    if (boardFrameLayoutTimeout !== 0) {
+      window.clearTimeout(boardFrameLayoutTimeout);
+      boardFrameLayoutTimeout = 0;
+    }
     layoutBoardFrame();
   });
+  boardFrameLayoutTimeout = window.setTimeout(() => {
+    boardFrameLayoutTimeout = 0;
+    if (boardFrameLayoutRaf !== 0) {
+      window.cancelAnimationFrame(boardFrameLayoutRaf);
+      boardFrameLayoutRaf = 0;
+    }
+    layoutBoardFrame();
+  }, 20);
 }
 
 function layoutBoardFrame(): void {
@@ -1049,6 +1090,23 @@ function maybeRecordCompletedPracticeGame(): void {
   renderStatsTable();
 }
 
+function playCompletionSound(): void {
+  if (currentMode === "freeplay") {
+    playSoundEffect("win");
+    return;
+  }
+
+  if (!isTrainingMode() || winningPlayer === null) {
+    return;
+  }
+
+  const humanPlayer = effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+    red: RED,
+    yellow: YELLOW,
+  });
+  playSoundEffect(winningPlayer === humanPlayer ? "win" : "lose");
+}
+
 function canUndo(): boolean {
   if (isTrainingMode()) {
     return historyIndex > 0;
@@ -1173,6 +1231,7 @@ function clearBoardVisualState(): void {
 }
 
 function rebuildBoardFromHistory(): void {
+  const wasGameComplete = isWinLocked || !hasPlayableMove();
   cancelAiTurn();
   stopOptimizerWorker();
   dropToken += 1;
@@ -1226,6 +1285,10 @@ function rebuildBoardFromHistory(): void {
 
   isWinLocked = updateWinningHighlights();
   winningPlayer = isWinLocked && historyIndex > 0 ? moveHistory[historyIndex - 1].player : null;
+  const isGameComplete = isWinLocked || !hasPlayableMove();
+  if (!wasGameComplete && isGameComplete) {
+    playCompletionSound();
+  }
   maybeRecordCompletedPracticeGame();
   syncMoveSequence();
   requestOptimizerOutput();
@@ -1366,7 +1429,7 @@ function maybeScheduleAiTurn(): void {
   aiPlannedColumn = aiChoice.column;
   aiPlannedDebug = aiChoice.debug;
   aiScheduledSequence = scheduledSequence;
-  turnIndicator.textContent = turnIndicatorText();
+  renderTurnIndicator();
   aiMoveTimeout = window.setTimeout(() => {
     aiMoveTimeout = 0;
     aiScheduledSequence = null;
@@ -1391,7 +1454,7 @@ function maybeScheduleAiTurn(): void {
     aiPlannedDebug = null;
 
     updatePreview(chosenColumn);
-    requestAnimationFrame(() => {
+    runCriticalFrame(() => {
       if (
         !isTrainingMode() ||
         isAnimating ||
@@ -1546,7 +1609,7 @@ function queueHumanMove(column: number): void {
   activePointerId = null;
 
   updatePreview(column);
-  requestAnimationFrame(() => {
+  runCriticalFrame(() => {
     if (!canStartHumanMove() || lowestOpenRow(board, column) === null) {
       hidePreview();
       return;
@@ -1573,7 +1636,7 @@ function animateResetPiece(source: HTMLElement): void {
   clone.style.setProperty("--reset-drop", `${window.innerHeight - rect.top + rect.height}px`);
   boardShell.append(clone);
 
-  requestAnimationFrame(() => {
+  runCriticalFrame(() => {
     clone.classList.add("falling");
   });
 
@@ -1654,7 +1717,7 @@ function dropPreview(column: number): void {
   previewPiece.addEventListener("transitionend", onTransitionEnd);
   previewPiece.classList.add("dropping");
   void previewPiece.offsetWidth;
-  requestAnimationFrame(() => {
+  runCriticalFrame(() => {
     if (currentDropToken !== dropToken) {
       return;
     }
@@ -1744,8 +1807,11 @@ function bindFeatureControl(feature: FeatureKey): void {
 }
 
 boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
+  const isFirstBoardAudioInteraction = !hasBoardAudioInteraction;
   hasBoardAudioInteraction = true;
-  syncThemeAudio(true);
+  if (isFirstBoardAudioInteraction) {
+    syncThemeAudio(true);
+  }
 
   if (isAnimating) {
     return;
@@ -1845,6 +1911,23 @@ redoControl.addEventListener("click", () => {
 
 toolsMenuToggle.addEventListener("click", () => {
   setToolsMenuExpanded(!isToolsMenuExpanded);
+});
+
+document.addEventListener("pointerdown", (event: PointerEvent) => {
+  if (!isToolsMenuExpanded) {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof Node)) {
+    return;
+  }
+
+  if (toolsMenu.contains(target) || toolsMenuToggle.contains(target)) {
+    return;
+  }
+
+  setToolsMenuExpanded(false);
 });
 
 trainingModeControl.addEventListener("click", () => {
@@ -1962,6 +2045,11 @@ settingsThemeSelect.addEventListener("change", () => {
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
     closeActiveModal();
+    return;
+  }
+
+  if (event.key === "Escape" && isToolsMenuExpanded) {
+    setToolsMenuExpanded(false);
     return;
   }
 

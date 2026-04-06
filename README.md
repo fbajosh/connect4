@@ -108,6 +108,7 @@ The workflow uses `rsync --delete`, so the target directory should be reserved f
 - There is no active legacy C++ or TypeScript solver path left in this repo.
 - The Rust/WASM solver package is vendored locally, so installs do not depend on the upstream npm package staying online.
 - A production build writes a static site to `dist/`.
+- The production build also emits route entry pages for `/connect4/training`, `/connect4/freeplay`, and the legacy `/connect4/practice` alias so direct loads work on static hosts without additional rewrites.
 
 ## Credits
 

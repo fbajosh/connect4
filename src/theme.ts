@@ -136,6 +136,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--dev-bg": "rgba(12, 12, 12, 0.92)",
     "--modal-bg": "rgba(11, 11, 11, 0.94)",
     "--page-bg-image": GREECE_BG,
+    "--page-bg-blur": "6px",
     "--page-bg-overlay": "rgba(0, 0, 0, 0.2)",
     "--panel-bg": "rgba(16, 16, 16, 0.84)",
     "--piece-red": "#f3efe7",
@@ -156,24 +157,25 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--accent-color": "#ab47bc",
     "--app-bg": "#111111",
     "--backdrop": "rgba(0, 0, 0, 0.74)",
-    "--board-blue": "#8c3f44",
-    "--board-blue-bezel": "#ad6663",
+    "--board-blue": "#9a2f3a",
+    "--board-blue-bezel": "#bc5658",
     "--board-surface":
-      "linear-gradient(160deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.09) 11%, rgba(255, 255, 255, 0) 32%), linear-gradient(180deg, #a64b4d 0%, #7a3335 100%)",
+      "linear-gradient(160deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.09) 11%, rgba(255, 255, 255, 0) 32%), linear-gradient(180deg, #b63f47 0%, #861f2b 100%)",
     "--control-active-bg": "#5f264b",
     "--control-bg": "rgba(18, 18, 18, 0.78)",
     "--control-border": "rgba(255, 255, 255, 0.2)",
     "--dev-bg": "rgba(10, 10, 10, 0.92)",
     "--modal-bg": "rgba(10, 10, 10, 0.95)",
     "--page-bg-image": GREASE_BG,
+    "--page-bg-blur": "6px",
     "--page-bg-overlay": "rgba(0, 0, 0, 0.2)",
     "--panel-bg": "rgba(14, 14, 14, 0.84)",
     "--piece-red": "#f3f3f3",
     "--piece-red-bezel": "#d8d8d8",
-    "--piece-yellow": "#b9bcc2",
-    "--piece-yellow-bezel": "#989ca4",
+    "--piece-yellow": "#969ba4",
+    "--piece-yellow-bezel": "#7a8089",
     "--score-bar-red": "#f3f3f3",
-    "--score-bar-yellow": "#b9bcc2",
+    "--score-bar-yellow": "#969ba4",
     "--text-muted": "rgba(255, 255, 255, 0.38)",
     "--text-primary": "#ffffff",
     "--text-secondary": "#ececec",
@@ -184,7 +186,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
   },
 };
 
-export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight", "mogged", "greece", "grease"];
+export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight", "greece", "grease", "mogged"];
 
 export function themeLabel(theme: ThemeName): string {
   if (theme === "dark") {
