@@ -59,6 +59,7 @@ const menuBar = document.querySelector<HTMLElement>(".menu-bar");
 const boardStage = document.querySelector<HTMLElement>(".board-stage");
 const boardActions = document.querySelector<HTMLElement>(".board-actions");
 const boardFrame = boardShell?.parentElement;
+const titleControl = document.getElementById("title-control");
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
 const columnScoreRow = document.getElementById("column-score-row");
@@ -100,6 +101,7 @@ const statsTableBody = document.getElementById("stats-table-body");
 if (
   !landingRoot ||
   !hero ||
+  !titleControl ||
   !boardStage ||
   !boardActions ||
   !boardFrame ||
@@ -1516,6 +1518,14 @@ boardGrid.addEventListener("lostpointercapture", () => {
 });
 
 resetControl.addEventListener("click", () => {
+  if (!canReset()) {
+    return;
+  }
+
+  resetBoard();
+});
+
+titleControl.addEventListener("click", () => {
   if (!canReset()) {
     return;
   }

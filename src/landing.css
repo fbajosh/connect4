@@ -18,7 +18,7 @@
   --layout-gap: clamp(0.75rem, 1.1vw, 1.2rem);
   --modal-bg: rgba(15, 15, 15, 0.98);
   --panel-bg: rgba(19, 19, 19, 0.98);
-  --menu-text-size: clamp(0.72rem, 1vw, 0.9rem);
+  --menu-text-size: clamp(1.008rem, 1.4vw, 1.26rem);
   --piece-red: #c65656;
   --piece-red-bezel: #b24d4d;
   --piece-yellow: #f0e08b;
@@ -118,6 +118,7 @@ body::after {
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .menu-bar {
