@@ -24,8 +24,8 @@
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-B-fA1hKm.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-DishJC7O.css">
+    <script type="module" crossorigin src="/connect4/assets/index-CmjSoAuy.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-Cbe1ddap.css">
   </head>
   <body>
     <canvas class="theme-background" id="theme-background" aria-hidden="true"></canvas>
@@ -102,6 +102,22 @@
                       <span class="feature-toggle-slider"></span>
                     </label>
                   </div>
+                  <div class="feature-row feature-row-stack" id="difficulty-section">
+                    <div class="practice-label-row">
+                      <span class="practice-label">Difficulty</span>
+                      <span class="practice-value" id="practice-difficulty-value">10</span>
+                    </div>
+                    <input
+                      class="practice-slider"
+                      id="practice-difficulty-slider"
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value="10"
+                      aria-label="Practice difficulty"
+                    />
+                  </div>
                 </div>
                 <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
                   <div class="practice-row practice-toggle-row">
@@ -116,98 +132,79 @@
 
               <section class="menu-section">
                 <h3 class="menu-section-title">Player Settings</h3>
-                <div class="practice-controls hidden" id="practice-controls" aria-label="Training controls">
-                  <div class="practice-row practice-color-row">
-                    <span class="practice-label">Player Color</span>
-                    <div class="practice-color-group" role="group" aria-label="Practice color">
-                      <button
-                        aria-label="Red"
-                        class="practice-color-button practice-color-red"
-                        data-practice-color="red"
-                        type="button"
-                      ></button>
-                      <button
-                        aria-label="Yellow"
-                        class="practice-color-button practice-color-yellow"
-                        data-practice-color="yellow"
-                        type="button"
-                      ></button>
-                      <button
-                        aria-label="Alternate"
-                        class="practice-color-button practice-color-alternate"
-                        data-practice-color="alternate"
-                        type="button"
-                      ></button>
+                <div class="player-settings-controls">
+                  <div class="practice-controls hidden" id="practice-controls" aria-label="Training controls">
+                    <div class="practice-row practice-color-row">
+                      <span class="practice-label">Player Color</span>
+                      <div class="practice-color-group" role="group" aria-label="Practice color">
+                        <button
+                          aria-label="Red"
+                          class="practice-color-button practice-color-red"
+                          data-practice-color="red"
+                          type="button"
+                        ></button>
+                        <button
+                          aria-label="Yellow"
+                          class="practice-color-button practice-color-yellow"
+                          data-practice-color="yellow"
+                          type="button"
+                        ></button>
+                        <button
+                          aria-label="Alternate"
+                          class="practice-color-button practice-color-alternate"
+                          data-practice-color="alternate"
+                          type="button"
+                        ></button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="settings-row settings-theme-row">
-                  <span class="practice-label">Theme</span>
-                  <label class="settings-theme-select-wrap" for="settings-theme-select">
-                    <span class="visually-hidden">Theme picker</span>
-                    <select class="settings-theme-select" id="settings-theme-select" aria-label="Theme picker">
-                      <option value="light">Light</option>
-                      <option value="dark">Dark</option>
-                      <option value="midnight">Astronomer</option>
-                      <option value="greece">Greece</option>
-                      <option value="grease">Grease</option>
-                      <option value="mogged">Mogged</option>
-                    </select>
-                  </label>
-                </div>
-                <div class="practice-row practice-toggle-row sound-row">
-                  <span class="practice-label">Sound</span>
-                  <label class="sound-toggle" for="settings-audio-toggle">
-                    <input class="sound-toggle-input" id="settings-audio-toggle" type="checkbox" />
-                    <span class="sound-toggle-visual" aria-hidden="true">
-                      <span class="sound-icon sound-icon-on">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M4 14h4l5 4V6L8 10H4z"></path>
-                          <path d="M16 9a5 5 0 0 1 0 6"></path>
-                          <path d="M18.5 6.5a8.5 8.5 0 0 1 0 11"></path>
-                        </svg>
-                      </span>
-                      <span class="sound-icon sound-icon-off">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M4 14h4l5 4V6L8 10H4z"></path>
-                          <path d="M16 8l5 8"></path>
-                          <path d="M21 8l-5 8"></path>
-                        </svg>
-                      </span>
-                    </span>
-                  </label>
-                </div>
-                <div class="settings-row">
-                  <span class="practice-label">Colorblind Mode</span>
-                  <label class="feature-toggle" for="settings-colorblind-mode-toggle">
-                    <input class="feature-toggle-input" id="settings-colorblind-mode-toggle" type="checkbox" />
-                    <span class="feature-toggle-slider"></span>
-                  </label>
-                </div>
-              </section>
-
-              <section class="menu-section hidden" id="difficulty-section">
-                <h3 class="menu-section-title">Difficulty</h3>
-                <div class="practice-row">
-                  <div class="practice-label-row">
-                    <span class="practice-label">Difficulty</span>
-                    <span class="practice-value" id="practice-difficulty-value">10</span>
+                  <div class="settings-row settings-theme-row">
+                    <span class="practice-label">Theme</span>
+                    <label class="settings-theme-select-wrap" for="settings-theme-select">
+                      <span class="visually-hidden">Theme picker</span>
+                      <select class="settings-theme-select" id="settings-theme-select" aria-label="Theme picker">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="midnight">Astronomer</option>
+                        <option value="greece">Greece</option>
+                        <option value="grease">Grease</option>
+                        <option value="mogged">Mogged</option>
+                      </select>
+                    </label>
                   </div>
-                  <input
-                    class="practice-slider"
-                    id="practice-difficulty-slider"
-                    type="range"
-                    min="1"
-                    max="10"
-                    step="1"
-                    value="10"
-                    aria-label="Practice difficulty"
-                  />
+                  <div class="practice-row practice-toggle-row sound-row">
+                    <span class="practice-label">Sound</span>
+                    <label class="sound-toggle" for="settings-audio-toggle">
+                      <input class="sound-toggle-input" id="settings-audio-toggle" type="checkbox" />
+                      <span class="sound-toggle-visual" aria-hidden="true">
+                        <span class="sound-icon sound-icon-on">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 14h4l5 4V6L8 10H4z"></path>
+                            <path d="M16 9a5 5 0 0 1 0 6"></path>
+                            <path d="M18.5 6.5a8.5 8.5 0 0 1 0 11"></path>
+                          </svg>
+                        </span>
+                        <span class="sound-icon sound-icon-off">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 14h4l5 4V6L8 10H4z"></path>
+                            <path d="M16 8l5 8"></path>
+                            <path d="M21 8l-5 8"></path>
+                          </svg>
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="settings-row">
+                    <span class="practice-label">Colorblind Mode</span>
+                    <label class="feature-toggle" for="settings-colorblind-mode-toggle">
+                      <input class="feature-toggle-input" id="settings-colorblind-mode-toggle" type="checkbox" />
+                      <span class="feature-toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="menu-action-row hidden" id="statistics-section">
+                    <button class="menu-action chevron-action" id="stats-control" type="button">Statistics</button>
+                  </div>
                 </div>
-              </section>
-
-              <section class="menu-section hidden" id="statistics-section">
-                <button class="menu-action chevron-action" id="stats-control" type="button">Statistics</button>
               </section>
 
               <section class="menu-section">

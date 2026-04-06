@@ -266,9 +266,12 @@ body::after {
   text-transform: uppercase;
 }
 
-.feature-controls {
+.feature-controls,
+.practice-controls,
+.freeplay-controls,
+.player-settings-controls {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.75rem;
 }
 
 .menu-action {
@@ -303,12 +306,6 @@ body::after {
   color: var(--text-muted);
   font-size: 1.05em;
   line-height: 1;
-}
-
-.practice-controls,
-.freeplay-controls {
-  display: grid;
-  gap: 0.75rem;
 }
 
 .practice-row {
@@ -476,6 +473,12 @@ body::after {
   gap: 0.9rem;
 }
 
+.feature-row-stack {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
 .feature-pulse {
   min-width: 0;
   margin: 0;
@@ -497,6 +500,10 @@ body::after {
 
 .feature-pulse.is-held {
   color: var(--accent-color);
+}
+
+.menu-action-row {
+  display: grid;
 }
 
 .feature-toggle {
