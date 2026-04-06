@@ -96,6 +96,7 @@ const devPanel = document.getElementById("dev-panel");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
+const settingsThemeSelect = document.getElementById("settings-theme-select");
 const statsTableBody = document.getElementById("stats-table-body");
 
 if (
@@ -146,6 +147,7 @@ if (
   !devOutputBox ||
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
+  !settingsThemeSelect ||
   !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
@@ -404,6 +406,7 @@ function syncThemeControls(): void {
     button.setAttribute("aria-pressed", String(isSelected));
   }
 
+  settingsThemeSelect.value = currentTheme;
   settingsColorblindModeToggle.checked = isColorblindModeEnabled;
 }
 
@@ -1675,6 +1678,15 @@ for (const button of themeOptionButtons) {
     setTheme(theme);
   });
 }
+
+settingsThemeSelect.addEventListener("change", () => {
+  const theme = settingsThemeSelect.value as ThemeName;
+  if (!isThemeName(theme)) {
+    return;
+  }
+
+  setTheme(theme);
+});
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {

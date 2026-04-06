@@ -135,6 +135,10 @@ body::after {
   width: auto;
 }
 
+.menu-shell-global {
+  position: static;
+}
+
 .feature-controls {
   width: 100%;
 }
@@ -510,7 +514,8 @@ body::after {
 }
 
 .history-button,
-.reset-control {
+.reset-control,
+.stats-control {
   margin: 0;
   padding: 0;
   border: 0;
@@ -526,7 +531,8 @@ body::after {
 }
 
 .history-button:disabled,
-.reset-control:disabled {
+.reset-control:disabled,
+.stats-control:disabled {
   color: var(--text-muted);
   cursor: default;
 }
@@ -535,6 +541,13 @@ body::after {
   position: absolute;
   top: 50%;
   left: max(0.35rem, env(safe-area-inset-left));
+  transform: translateY(-50%);
+}
+
+.stats-control {
+  position: absolute;
+  top: 50%;
+  right: max(0.35rem, env(safe-area-inset-right));
   transform: translateY(-50%);
 }
 
@@ -1042,6 +1055,42 @@ body::after {
   gap: 0.55rem;
 }
 
+.settings-theme-select-wrap {
+  display: none;
+}
+
+.settings-theme-select {
+  min-width: 10rem;
+  padding: 0.35rem 2rem 0.35rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--control-border) 78%, transparent);
+  border-radius: 0.65rem;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--text-primary) 50%) calc(100% - 1rem) calc(50% - 0.12rem) / 0.42rem
+      0.42rem no-repeat,
+    linear-gradient(135deg, var(--text-primary) 50%, transparent 50%) calc(100% - 0.72rem) calc(50% - 0.12rem) / 0.42rem
+      0.42rem no-repeat,
+    color-mix(in srgb, var(--panel-bg) 88%, transparent);
+  color: var(--text-primary);
+  font-family: var(--ui-font);
+  font-size: var(--menu-text-size);
+  font-weight: 700;
+  line-height: 1.1;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .settings-theme-row .settings-theme-group {
   flex-wrap: nowrap;
   justify-content: flex-end;
@@ -1172,6 +1221,26 @@ body::after {
 }
 
 @media (max-width: 767px) {
+  .settings-theme-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .settings-theme-select-wrap {
+    display: block;
+    flex: 0 1 auto;
+  }
+
+  .settings-theme-select {
+    width: auto;
+    min-width: 8.75rem;
+  }
+
+  .settings-theme-row .settings-theme-group {
+    display: none;
+  }
+
   .hero {
     margin-top: calc(var(--layout-gap) * 2 + env(safe-area-inset-top));
   }

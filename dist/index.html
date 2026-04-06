@@ -24,8 +24,8 @@
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-DSJSr5r9.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-CdJxFlLA.css">
+    <script type="module" crossorigin src="/connect4/assets/index-DFpXYWYw.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-BXmKtU7L.css">
   </head>
   <body>
     <main class="landing">
@@ -33,23 +33,7 @@
       <header class="hero">
         <h1 class="title" id="title-control">Connect 4 Trainer</h1>
         <div class="menu-bar" aria-label="Menus">
-          <div class="menu-shell">
-            <button
-              class="menu-control"
-              id="mode-menu-toggle"
-              type="button"
-              aria-expanded="false"
-              aria-controls="mode-menu"
-            >
-              Training Mode
-            </button>
-            <div class="menu-panel hidden" id="mode-menu" aria-label="Game mode">
-              <button class="mode-option" data-mode-option="training" type="button">Training</button>
-              <button class="mode-option" data-mode-option="practice" type="button">Practice</button>
-              <button class="mode-option" data-mode-option="freeplay" type="button">Freeplay</button>
-            </div>
-          </div>
-          <div class="menu-shell">
+          <div class="menu-shell menu-shell-global">
             <button
               class="menu-control"
               id="tools-menu-toggle"
@@ -57,7 +41,7 @@
               aria-expanded="false"
               aria-controls="tools-menu"
             >
-              Settings
+              Menu
             </button>
             <div class="menu-panel hidden" id="tools-menu" aria-label="Mode settings">
               <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls">
@@ -137,7 +121,20 @@
             </div>
           </div>
           <div class="menu-shell">
-            <button class="menu-control" id="stats-control" type="button">Stats</button>
+            <button
+              class="menu-control"
+              id="mode-menu-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="mode-menu"
+            >
+              Training Mode
+            </button>
+            <div class="menu-panel hidden" id="mode-menu" aria-label="Game mode">
+              <button class="mode-option" data-mode-option="training" type="button">Training</button>
+              <button class="mode-option" data-mode-option="practice" type="button">Practice</button>
+              <button class="mode-option" data-mode-option="freeplay" type="button">Freeplay</button>
+            </div>
           </div>
         </div>
       </header>
@@ -162,6 +159,7 @@
             <button class="history-button" id="undo-control" type="button">Undo</button>
             <button class="history-button" id="redo-control" type="button">Redo</button>
           </div>
+          <button class="stats-control" id="stats-control" type="button">Stats</button>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
@@ -264,6 +262,15 @@
               <div class="about-section">
                 <div class="settings-row settings-theme-row">
                   <span class="practice-label">Theme</span>
+                  <label class="settings-theme-select-wrap" for="settings-theme-select">
+                    <span class="visually-hidden">Theme picker</span>
+                    <select class="settings-theme-select" id="settings-theme-select" aria-label="Theme picker">
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                      <option value="midnight">Astronomer</option>
+                      <option value="mogged">Mogged</option>
+                    </select>
+                  </label>
                   <div class="settings-theme-group" role="group" aria-label="Theme picker">
                     <button class="settings-theme-button" data-theme-option="light" type="button">Light</button>
                     <button class="settings-theme-button" data-theme-option="dark" type="button">Dark</button>
