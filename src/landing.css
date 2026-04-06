@@ -1003,7 +1003,7 @@ body::after {
 .about-modal {
   position: fixed;
   inset: 0;
-  z-index: 7;
+  z-index: 260;
 }
 
 .about-backdrop {
