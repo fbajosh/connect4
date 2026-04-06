@@ -1391,6 +1391,11 @@ body::after {
 }
 
 @media (max-width: 980px) {
+  :root[data-theme="greece"],
+  :root[data-theme="grease"] {
+    --page-bg-blur: 3px;
+  }
+
   .menu-panel {
     width: min(30rem, calc(100vw - 2 * var(--edge-buffer)));
     max-width: calc(100vw - 2 * var(--edge-buffer));
