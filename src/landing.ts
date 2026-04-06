@@ -84,9 +84,6 @@ const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
 const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
-const menuInfoPopover = document.getElementById("menu-info-popover");
-const menuInfoTitle = document.getElementById("menu-info-title");
-const menuInfoBody = document.getElementById("menu-info-body");
 const featureSection = document.getElementById("feature-section");
 const featureSectionTitle = document.getElementById("feature-section-title");
 const featureControls = document.getElementById("feature-controls");
@@ -110,7 +107,6 @@ const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle"
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
 const statsTableBody = document.getElementById("stats-table-body");
-const infoModalBody = document.getElementById("info-modal-body");
 const themeBackground = document.getElementById("theme-background");
 
 if (
@@ -146,9 +142,6 @@ if (
   !resetControl ||
   !toolsMenuToggle ||
   !toolsMenu ||
-  !menuInfoPopover ||
-  !menuInfoTitle ||
-  !menuInfoBody ||
   !featureSection ||
   !featureSectionTitle ||
   !featureControls ||
@@ -171,8 +164,7 @@ if (
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
-  !statsTableBody ||
-  !infoModalBody
+  !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
 }
@@ -186,9 +178,6 @@ const discSlots: HTMLDivElement[] = [];
 const columnScoreSlots: HTMLSpanElement[] = [];
 const practiceColorButtons = Array.from(
   practiceControls.querySelectorAll<HTMLButtonElement>("[data-practice-color]"),
-);
-const featureInfoButtons = Array.from(
-  toolsMenu.querySelectorAll<HTMLButtonElement>("[data-feature-info]"),
 );
 const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
 const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
@@ -229,7 +218,6 @@ let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
 let activeAboutTab: AboutTab = "about";
 let activeModalView: ModalView = "about";
-let activeMenuInfoFeature: FeatureKey | null = null;
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
@@ -255,7 +243,6 @@ const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
 let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
 let modalReturnFocusTarget: HTMLElement | null = null;
-let activeInfoModalTitle = "";
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
@@ -268,7 +255,7 @@ const featureHeld: Record<FeatureKey, boolean> = {
 };
 
 type AboutTab = "about" | "howto" | "credits";
-type ModalView = "about" | "info" | "stats";
+type ModalView = "about" | "stats";
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -362,11 +349,6 @@ function syncModalView(): void {
     return;
   }
 
-  if (activeModalView === "info") {
-    aboutTitle.textContent = activeInfoModalTitle;
-    return;
-  }
-
   aboutTitle.textContent = "About Connect 4 Trainer";
 }
 
@@ -380,34 +362,6 @@ function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutT
   }
   setAboutModalOpen(true);
   aboutClose.focus();
-}
-
-function openMenuInfoPopover(feature: FeatureKey): void {
-  const infoByFeature: Record<FeatureKey, { body: string; title: string }> = {
-    bestMove: {
-      body: "Shows green hint discs in the strongest solver-backed columns for the current position.",
-      title: "Best Move",
-    },
-    gameScore: {
-      body: "Compares the running average quality of red and yellow moves over the current game.",
-      title: "Performance Comparison",
-    },
-    moveScores: {
-      body: "Shows the shifted solver score for each playable column above the board.",
-      title: "Move Scores",
-    },
-  };
-
-  const info = infoByFeature[feature];
-  if (activeMenuInfoFeature === feature && !menuInfoPopover.classList.contains("hidden")) {
-    hideMenuInfoPopover();
-    return;
-  }
-
-  activeMenuInfoFeature = feature;
-  menuInfoTitle.textContent = info.title;
-  menuInfoBody.textContent = info.body;
-  menuInfoPopover.classList.remove("hidden");
 }
 
 function closeActiveModal(): void {
@@ -752,19 +706,11 @@ function syncModeControls(): void {
   updatePracticeControls();
 }
 
-function hideMenuInfoPopover(): void {
-  activeMenuInfoFeature = null;
-  menuInfoPopover.classList.add("hidden");
-}
-
 function setToolsMenuExpanded(expanded: boolean): void {
   isToolsMenuExpanded = expanded;
 
   toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
   toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
-  if (!expanded) {
-    hideMenuInfoPopover();
-  }
   persistUiState();
 }
 
@@ -1867,17 +1813,6 @@ for (const button of practiceColorButtons) {
     }
 
     setPracticeColor(nextColor);
-  });
-}
-
-for (const button of featureInfoButtons) {
-  button.addEventListener("click", () => {
-    const feature = button.dataset.featureInfo as FeatureKey | undefined;
-    if (!feature) {
-      return;
-    }
-
-    openMenuInfoPopover(feature);
   });
 }
 

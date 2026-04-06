@@ -24,8 +24,8 @@
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-avIIXWU0.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-Kugy5lfH.css">
+    <script type="module" crossorigin src="/connect4/assets/index-B-fA1hKm.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-DishJC7O.css">
   </head>
   <body>
     <canvas class="theme-background" id="theme-background" aria-hidden="true"></canvas>
@@ -78,62 +78,25 @@
               Settings
             </button>
             <div class="menu-panel hidden" id="tools-menu" aria-label="Settings menu">
-              <div class="menu-info-popover hidden" id="menu-info-popover" aria-live="polite">
-                <h4 class="menu-info-title" id="menu-info-title"></h4>
-                <p class="menu-info-body" id="menu-info-body"></p>
-              </div>
               <section class="menu-section" id="feature-section">
                 <h3 class="menu-section-title" id="feature-section-title">Training Tools</h3>
                 <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls">
                   <div class="feature-row">
-                    <div class="feature-label-group">
-                      <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
-                      <button
-                        class="feature-info-button"
-                        data-feature-info="bestMove"
-                        title="Shows green hint discs in the strongest solver-backed columns."
-                        type="button"
-                        aria-label="About Best Move"
-                      >
-                        i
-                      </button>
-                    </div>
+                    <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
                     <label class="feature-toggle" for="best-move-toggle">
                       <input class="feature-toggle-input" id="best-move-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
                     </label>
                   </div>
                   <div class="feature-row">
-                    <div class="feature-label-group">
-                      <button class="feature-pulse" id="move-scores-pulse" type="button">Move Scores</button>
-                      <button
-                        class="feature-info-button"
-                        data-feature-info="moveScores"
-                        title="Shows the solver score for each playable column above the board."
-                        type="button"
-                        aria-label="About Move Scores"
-                      >
-                        i
-                      </button>
-                    </div>
+                    <button class="feature-pulse" id="move-scores-pulse" type="button">Move Scores</button>
                     <label class="feature-toggle" for="move-scores-toggle">
                       <input class="feature-toggle-input" id="move-scores-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
                     </label>
                   </div>
                   <div class="feature-row">
-                    <div class="feature-label-group">
-                      <button class="feature-pulse" id="game-score-pulse" type="button">Performance Comparison</button>
-                      <button
-                        class="feature-info-button"
-                        data-feature-info="gameScore"
-                        title="Compares the running average quality of red and yellow moves."
-                        type="button"
-                        aria-label="About Performance Comparison"
-                      >
-                        i
-                      </button>
-                    </div>
+                    <button class="feature-pulse" id="game-score-pulse" type="button">Performance Comparison</button>
                     <label class="feature-toggle" for="game-score-toggle">
                       <input class="feature-toggle-input" id="game-score-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
@@ -278,7 +241,7 @@
           <div class="about-view" data-modal-view="about">
             <div class="about-tabs" role="tablist" aria-label="Project information">
               <button class="about-tab" data-about-tab="about" type="button">About</button>
-              <button class="about-tab" data-about-tab="howto" type="button">How to Play</button>
+              <button class="about-tab" data-about-tab="howto" type="button">Instructions</button>
               <button class="about-tab" data-about-tab="credits" type="button">Credits</button>
             </div>
             <div class="about-content">
@@ -303,6 +266,14 @@
                     <li>Discs fall to the lowest open space in that column.</li>
                     <li>The first player to connect four discs horizontally, vertically, or diagonally wins.</li>
                     <li>If the board fills without a connect four, the game ends in a draw.</li>
+                  </ul>
+                </div>
+                <div class="about-section">
+                  <h3 class="about-section-title">Training Tools</h3>
+                  <ul class="about-list">
+                    <li><strong>Best Move</strong>: shows green hint discs in the strongest solver-backed columns for the current position.</li>
+                    <li><strong>Move Scores</strong>: shows the shifted solver score for each playable column above the board.</li>
+                    <li><strong>Performance Comparison</strong>: compares the running average quality of red and yellow moves over the current game.</li>
                   </ul>
                 </div>
               </section>
@@ -397,13 +368,6 @@
                     <tbody id="stats-table-body"></tbody>
                   </table>
                 </div>
-              </div>
-            </div>
-          </div>
-          <div class="about-view hidden" data-modal-view="info">
-            <div class="about-content">
-              <div class="about-section">
-                <p id="info-modal-body"></p>
               </div>
             </div>
           </div>
