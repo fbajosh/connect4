@@ -68,6 +68,8 @@ const historyControls = document.getElementById("history-controls");
 const moreSettingsControl = document.getElementById("more-settings-control");
 const settingsAboutControl = document.getElementById("settings-about-control");
 const statsControl = document.getElementById("stats-control");
+const trainingModeControl = document.getElementById("training-mode-control");
+const freeplayModeControl = document.getElementById("freeplay-mode-control");
 const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
 const aboutDialog = document.getElementById("about-dialog");
@@ -76,8 +78,6 @@ const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
-const modeMenuToggle = document.getElementById("mode-menu-toggle");
-const modeMenu = document.getElementById("mode-menu");
 const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
 const featureControls = document.getElementById("feature-controls");
@@ -119,6 +119,8 @@ if (
   !moreSettingsControl ||
   !settingsAboutControl ||
   !statsControl ||
+  !trainingModeControl ||
+  !freeplayModeControl ||
   !aboutModal ||
   !aboutBackdrop ||
   !aboutDialog ||
@@ -127,8 +129,6 @@ if (
   !undoControl ||
   !redoControl ||
   !resetControl ||
-  !modeMenuToggle ||
-  !modeMenu ||
   !toolsMenuToggle ||
   !toolsMenu ||
   !featureControls ||
@@ -165,12 +165,12 @@ const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-a
 const modalViews = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-modal-view]"));
 const statsRangeButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-stats-range]"));
 const themeOptionButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-theme-option]"));
+const modeButtons: Array<[GameMode, HTMLButtonElement]> = [
+  ["training", trainingModeControl as HTMLButtonElement],
+  ["freeplay", freeplayModeControl as HTMLButtonElement],
+];
 const discElements = Array.from({ length: HEIGHT }, () =>
   Array.from({ length: WIDTH }, () => null as HTMLDivElement | null),
-);
-
-const modeOptionButtons = Array.from(
-  modeMenu.querySelectorAll<HTMLButtonElement>("[data-mode-option]"),
 );
 
 const featurePulseButtons: Record<FeatureKey, HTMLButtonElement> = {
@@ -202,7 +202,6 @@ let activeModalView: ModalView = "about";
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
-let isModeMenuExpanded = false;
 let isToolsMenuExpanded = false;
 let isDevModeEnabled = false;
 let isColorblindModeEnabled = false;
@@ -260,7 +259,6 @@ function persistUiState(): void {
   const state: PersistedUiState = {
     colorblindMode: isColorblindModeEnabled,
     devMode: isDevModeEnabled,
-    modeMenuExpanded: isModeMenuExpanded,
     toolsMenuExpanded: isToolsMenuExpanded,
     selectedMode: currentMode,
     practiceColor,
@@ -329,7 +327,7 @@ function syncModalView(): void {
   }
 
   if (activeModalView === "stats") {
-    aboutTitle.textContent = "Stats";
+    aboutTitle.textContent = "Statistics";
     return;
   }
 
@@ -481,6 +479,7 @@ function layoutBoardFrame(): void {
 
   boardFrame.style.transform = `translateY(${offsetY}px)`;
   boardActions.style.width = `${frameRect.width}px`;
+  toolsMenu.style.setProperty("--menu-panel-width", `${frameRect.width}px`);
 }
 
 function isTrainingMode(): boolean {
@@ -508,13 +507,9 @@ function syncModeUrl(mode: GameMode, strategy: "push" | "replace"): void {
   window.history.replaceState({ mode }, "", nextUrl);
 }
 
-function isPracticeMode(): boolean {
-  return currentMode === "practice";
-}
-
 function isHumanTurn(): boolean {
   return (
-    !isPracticeMode() ||
+    !isTrainingMode() ||
     currentPlayer ===
       effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
         red: RED,
@@ -524,9 +519,10 @@ function isHumanTurn(): boolean {
 }
 
 function updatePracticeControls(): void {
-  practiceControls.classList.toggle("hidden", !isPracticeMode());
+  practiceControls.classList.toggle("hidden", !isTrainingMode());
   freeplayControls.classList.toggle("hidden", currentMode !== "freeplay");
   featureControls.classList.toggle("hidden", !isTrainingMode());
+  statsControl.classList.toggle("hidden", !isTrainingMode());
 
   for (const button of practiceColorButtons) {
     const color = button.dataset.practiceColor as PracticeColor | undefined;
@@ -595,40 +591,21 @@ function syncFeatureControls(): void {
   }
 }
 
-function syncModeMenu(): void {
-  modeMenuToggle.textContent = `${modeLabel(currentMode)} Mode`;
-  for (const option of modeOptionButtons) {
-    const optionMode = option.dataset.modeOption as GameMode | undefined;
-    const isSelected = optionMode === currentMode;
-    option.classList.toggle("is-selected", isSelected);
-    option.setAttribute("aria-pressed", String(isSelected));
+function syncModeControls(): void {
+  for (const [mode, button] of modeButtons) {
+    const isSelected = mode === currentMode;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
   }
+
   updatePracticeControls();
-}
-
-function setModeMenuExpanded(expanded: boolean): void {
-  isModeMenuExpanded = expanded;
-  if (expanded) {
-    isToolsMenuExpanded = false;
-  }
-
-  modeMenuToggle.setAttribute("aria-expanded", String(isModeMenuExpanded));
-  modeMenu.classList.toggle("hidden", !isModeMenuExpanded);
-  toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
-  toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
-  persistUiState();
 }
 
 function setToolsMenuExpanded(expanded: boolean): void {
   isToolsMenuExpanded = expanded;
-  if (expanded) {
-    isModeMenuExpanded = false;
-  }
 
   toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
   toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
-  modeMenuToggle.setAttribute("aria-expanded", String(isModeMenuExpanded));
-  modeMenu.classList.toggle("hidden", !isModeMenuExpanded);
   persistUiState();
 }
 
@@ -642,7 +619,7 @@ function setCurrentMode(
 
   currentMode = mode;
   updateDocumentTitle();
-  syncModeMenu();
+  syncModeControls();
   persistUiState();
 
   if (historyStrategy !== "none") {
@@ -707,8 +684,8 @@ function renderDevOutput(): void {
 
   devOutputBox.value = buildDevOutput({
     optimizerOutput: latestOptimizerOutput,
-    practiceAiDebug: isPracticeMode() ? lastPracticeAiDebug : null,
-    practiceDifficulty: isPracticeMode() ? practiceDifficulty : null,
+    practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
+    practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
     state: moveSequence,
@@ -737,7 +714,7 @@ function removeCurrentPracticeRecordedStat(): void {
 }
 
 function maybeRecordCompletedPracticeGame(): void {
-  if (!isPracticeMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
+  if (!isTrainingMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
     return;
   }
 
@@ -759,28 +736,9 @@ function maybeRecordCompletedPracticeGame(): void {
   renderStatsTable();
 }
 
-function lastAppliedPracticeHumanMoveIndex(): number {
-  const humanPlayer = effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
-    red: RED,
-    yellow: YELLOW,
-  });
-
-  for (let index = historyIndex - 1; index >= 0; index -= 1) {
-    if (moveHistory[index]?.player === humanPlayer) {
-      return index;
-    }
-  }
-
-  return -1;
-}
-
 function canUndo(): boolean {
   if (isTrainingMode()) {
     return historyIndex > 0;
-  }
-
-  if (isPracticeMode()) {
-    return lastAppliedPracticeHumanMoveIndex() !== -1;
   }
 
   return freeplayUndoAvailable && historyIndex > 0;
@@ -963,7 +921,7 @@ function rebuildBoardFromHistory(): void {
 function commitMove(column: number, player: PlayerValue): void {
   const record: MoveRecord = {
     aiDebug:
-      isPracticeMode() &&
+      isTrainingMode() &&
       player !==
         effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
           red: RED,
@@ -1053,7 +1011,7 @@ function cancelAiTurn(): void {
 }
 
 function currentPracticeAiScores(): number[] | null {
-  if (!isPracticeMode() || isWinLocked) {
+  if (!isTrainingMode() || isWinLocked) {
     return null;
   }
 
@@ -1071,7 +1029,7 @@ function currentPracticeAiScores(): number[] | null {
 function maybeScheduleAiTurn(): void {
   cancelAiTurn();
 
-  if (!isPracticeMode() || isAnimating || isWinLocked || isHumanTurn()) {
+  if (!isTrainingMode() || isAnimating || isWinLocked || isHumanTurn()) {
     return;
   }
 
@@ -1087,7 +1045,7 @@ function maybeScheduleAiTurn(): void {
     aiScheduledSequence = null;
 
     if (
-      !isPracticeMode() ||
+      !isTrainingMode() ||
       isAnimating ||
       isWinLocked ||
       isHumanTurn() ||
@@ -1115,7 +1073,7 @@ function maybeScheduleAiTurn(): void {
     updatePreview(chosenColumn);
     requestAnimationFrame(() => {
       if (
-        !isPracticeMode() ||
+        !isTrainingMode() ||
         isAnimating ||
         isWinLocked ||
         isHumanTurn() ||
@@ -1316,7 +1274,7 @@ function animateResetPieces(): void {
 function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   const { advancePracticeRound = true } = options ?? {};
   animateResetPieces();
-  if (advancePracticeRound && isPracticeMode() && practiceColor === "alternate") {
+  if (advancePracticeRound && isTrainingMode() && practiceColor === "alternate") {
     practiceRoundIndex += 1;
   }
   currentPracticeRecordedStatId = null;
@@ -1409,19 +1367,8 @@ function performUndo(): void {
       return;
     }
 
-    historyIndex -= 1;
-    rebuildBoardFromHistory();
-    return;
-  }
-
-  if (isPracticeMode()) {
-    const lastHumanMoveIndex = lastAppliedPracticeHumanMoveIndex();
-    if (lastHumanMoveIndex === -1) {
-      return;
-    }
-
     removeCurrentPracticeRecordedStat();
-    historyIndex = lastHumanMoveIndex;
+    historyIndex -= 1;
     rebuildBoardFromHistory();
     return;
   }
@@ -1547,7 +1494,6 @@ settingsAboutControl.addEventListener("click", () => {
 });
 
 statsControl.addEventListener("click", () => {
-  setModeMenuExpanded(false);
   setToolsMenuExpanded(false);
   openModalView("stats", statsControl);
 });
@@ -1568,25 +1514,17 @@ redoControl.addEventListener("click", () => {
   performRedo();
 });
 
-modeMenuToggle.addEventListener("click", () => {
-  setModeMenuExpanded(!isModeMenuExpanded);
-});
-
 toolsMenuToggle.addEventListener("click", () => {
   setToolsMenuExpanded(!isToolsMenuExpanded);
 });
 
-for (const option of modeOptionButtons) {
-  option.addEventListener("click", () => {
-    const selectedMode = option.dataset.modeOption as GameMode | undefined;
-    if (!selectedMode) {
-      return;
-    }
+trainingModeControl.addEventListener("click", () => {
+  setCurrentMode("training");
+});
 
-    setCurrentMode(selectedMode);
-    setModeMenuExpanded(false);
-  });
-}
+freeplayModeControl.addEventListener("click", () => {
+  setCurrentMode("freeplay");
+});
 
 for (let index = 0; index < WIDTH * HEIGHT; index += 1) {
   const row = Math.floor(index / WIDTH);
@@ -1753,7 +1691,8 @@ window.addEventListener("popstate", () => {
 });
 
 const persistedUiState = readPersistedUiState();
-currentMode = modeForPathname(window.location.pathname) ?? persistedUiState.selectedMode ?? "training";
+const persistedMode = persistedUiState.selectedMode === "freeplay" ? "freeplay" : "training";
+currentMode = modeForPathname(window.location.pathname) ?? persistedMode;
 const persistedPinned = persistedUiState.pinned ?? {};
 for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
   const hasPersistedPinned = Object.prototype.hasOwnProperty.call(persistedPinned, feature);
@@ -1775,10 +1714,9 @@ applyTheme(currentTheme);
 syncDiscPatternMode();
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
-syncModeMenu();
+syncModeControls();
 setAboutTab(activeAboutTab);
 renderStatsTable();
-setModeMenuExpanded(persistedUiState.modeMenuExpanded === true);
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
 syncMoveSequence();

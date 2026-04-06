@@ -66,7 +66,7 @@
                   </label>
                 </div>
               </div>
-              <div class="practice-controls hidden" id="practice-controls" aria-label="Practice controls">
+              <div class="practice-controls hidden" id="practice-controls" aria-label="Training controls">
                 <div class="practice-row practice-color-row">
                   <span class="practice-label">Color</span>
                   <div class="practice-color-group" role="group" aria-label="Practice color">
@@ -116,24 +116,16 @@
                   </label>
                 </div>
               </div>
+              <button class="menu-action hidden" id="stats-control" type="button">Statistics</button>
+              <div class="menu-spacer" aria-hidden="true"></div>
               <button class="menu-action" id="more-settings-control" type="button">More Settings</button>
             </div>
           </div>
           <div class="menu-shell">
-            <button
-              class="menu-control"
-              id="mode-menu-toggle"
-              type="button"
-              aria-expanded="false"
-              aria-controls="mode-menu"
-            >
-              Training Mode
-            </button>
-            <div class="menu-panel hidden" id="mode-menu" aria-label="Game mode">
-              <button class="mode-option" data-mode-option="training" type="button">Training</button>
-              <button class="mode-option" data-mode-option="practice" type="button">Practice</button>
-              <button class="mode-option" data-mode-option="freeplay" type="button">Freeplay</button>
-            </div>
+            <button class="menu-control mode-switch" id="training-mode-control" type="button">Training</button>
+          </div>
+          <div class="menu-shell">
+            <button class="menu-control mode-switch" id="freeplay-mode-control" type="button">Freeplay</button>
           </div>
         </div>
       </header>
@@ -158,7 +150,6 @@
             <button class="history-button" id="undo-control" type="button">Undo</button>
             <button class="history-button" id="redo-control" type="button">Redo</button>
           </div>
-          <button class="stats-control" id="stats-control" type="button">Stats</button>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
