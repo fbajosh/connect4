@@ -49,7 +49,7 @@ const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
 const FIXED_SCORE_BAR_HEIGHT_ROWS = 0.1;
-const FIXED_TURN_INDICATOR_TOP_ROWS = 0.46;
+const FIXED_TURN_INDICATOR_TOP_ROWS = 0.38;
 const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
@@ -70,9 +70,8 @@ const turnIndicator = document.getElementById("turn-indicator");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
-const moreSettingsControl = document.getElementById("more-settings-control");
-const settingsAboutControl = document.getElementById("settings-about-control");
 const statsControl = document.getElementById("stats-control");
+const aboutControl = document.getElementById("about-control");
 const trainingModeControl = document.getElementById("training-mode-control");
 const freeplayModeControl = document.getElementById("freeplay-mode-control");
 const aboutModal = document.getElementById("about-modal");
@@ -85,8 +84,15 @@ const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
 const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
+const menuInfoPopover = document.getElementById("menu-info-popover");
+const menuInfoTitle = document.getElementById("menu-info-title");
+const menuInfoBody = document.getElementById("menu-info-body");
+const featureSection = document.getElementById("feature-section");
+const featureSectionTitle = document.getElementById("feature-section-title");
 const featureControls = document.getElementById("feature-controls");
 const practiceControls = document.getElementById("practice-controls");
+const difficultySection = document.getElementById("difficulty-section");
+const statisticsSection = document.getElementById("statistics-section");
 const freeplayControls = document.getElementById("freeplay-controls");
 const practiceDifficultySlider = document.getElementById("practice-difficulty-slider");
 const practiceDifficultyValue = document.getElementById("practice-difficulty-value");
@@ -104,6 +110,7 @@ const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle"
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
 const statsTableBody = document.getElementById("stats-table-body");
+const infoModalBody = document.getElementById("info-modal-body");
 const themeBackground = document.getElementById("theme-background");
 
 if (
@@ -125,9 +132,8 @@ if (
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
-  !moreSettingsControl ||
-  !settingsAboutControl ||
   !statsControl ||
+  !aboutControl ||
   !trainingModeControl ||
   !freeplayModeControl ||
   !aboutModal ||
@@ -140,8 +146,15 @@ if (
   !resetControl ||
   !toolsMenuToggle ||
   !toolsMenu ||
+  !menuInfoPopover ||
+  !menuInfoTitle ||
+  !menuInfoBody ||
+  !featureSection ||
+  !featureSectionTitle ||
   !featureControls ||
   !practiceControls ||
+  !difficultySection ||
+  !statisticsSection ||
   !freeplayControls ||
   !practiceDifficultySlider ||
   !practiceDifficultyValue ||
@@ -158,7 +171,8 @@ if (
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
-  !statsTableBody
+  !statsTableBody ||
+  !infoModalBody
 ) {
   throw new Error("Missing required board elements.");
 }
@@ -173,11 +187,13 @@ const columnScoreSlots: HTMLSpanElement[] = [];
 const practiceColorButtons = Array.from(
   practiceControls.querySelectorAll<HTMLButtonElement>("[data-practice-color]"),
 );
+const featureInfoButtons = Array.from(
+  toolsMenu.querySelectorAll<HTMLButtonElement>("[data-feature-info]"),
+);
 const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
 const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
 const modalViews = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-modal-view]"));
 const statsRangeButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-stats-range]"));
-const themeOptionButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-theme-option]"));
 const modeButtons: Array<[GameMode, HTMLButtonElement]> = [
   ["training", trainingModeControl as HTMLButtonElement],
   ["freeplay", freeplayModeControl as HTMLButtonElement],
@@ -213,6 +229,7 @@ let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
 let activeAboutTab: AboutTab = "about";
 let activeModalView: ModalView = "about";
+let activeMenuInfoFeature: FeatureKey | null = null;
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
@@ -238,6 +255,7 @@ const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
 let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
 let modalReturnFocusTarget: HTMLElement | null = null;
+let activeInfoModalTitle = "";
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
@@ -250,7 +268,7 @@ const featureHeld: Record<FeatureKey, boolean> = {
 };
 
 type AboutTab = "about" | "howto" | "credits";
-type ModalView = "about" | "settings" | "stats";
+type ModalView = "about" | "info" | "stats";
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -339,13 +357,13 @@ function syncModalView(): void {
     view.classList.toggle("hidden", viewName !== activeModalView);
   }
 
-  if (activeModalView === "settings") {
-    aboutTitle.textContent = "Settings";
+  if (activeModalView === "stats") {
+    aboutTitle.textContent = "Statistics";
     return;
   }
 
-  if (activeModalView === "stats") {
-    aboutTitle.textContent = "Statistics";
+  if (activeModalView === "info") {
+    aboutTitle.textContent = activeInfoModalTitle;
     return;
   }
 
@@ -364,6 +382,34 @@ function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutT
   aboutClose.focus();
 }
 
+function openMenuInfoPopover(feature: FeatureKey): void {
+  const infoByFeature: Record<FeatureKey, { body: string; title: string }> = {
+    bestMove: {
+      body: "Shows green hint discs in the strongest solver-backed columns for the current position.",
+      title: "Best Move",
+    },
+    gameScore: {
+      body: "Compares the running average quality of red and yellow moves over the current game.",
+      title: "Performance Comparison",
+    },
+    moveScores: {
+      body: "Shows the shifted solver score for each playable column above the board.",
+      title: "Move Scores",
+    },
+  };
+
+  const info = infoByFeature[feature];
+  if (activeMenuInfoFeature === feature && !menuInfoPopover.classList.contains("hidden")) {
+    hideMenuInfoPopover();
+    return;
+  }
+
+  activeMenuInfoFeature = feature;
+  menuInfoTitle.textContent = info.title;
+  menuInfoBody.textContent = info.body;
+  menuInfoPopover.classList.remove("hidden");
+}
+
 function closeActiveModal(): void {
   setAboutModalOpen(false);
   const focusTarget = modalReturnFocusTarget;
@@ -376,7 +422,7 @@ function formatStatsNumber(value: number | null): string {
     return "-";
   }
 
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return String(Math.round(value));
 }
 
 function formatWinRate(value: number | null): string {
@@ -384,7 +430,7 @@ function formatWinRate(value: number | null): string {
     return "-";
   }
 
-  return `${(value * 100).toFixed(1)}%`;
+  return `${Math.round(value * 100)}%`;
 }
 
 function renderStatsTable(): void {
@@ -415,13 +461,6 @@ function syncStatsRangeControls(): void {
 }
 
 function syncThemeControls(): void {
-  for (const button of themeOptionButtons) {
-    const theme = button.dataset.themeOption as ThemeName | undefined;
-    const isSelected = theme === currentTheme;
-    button.classList.toggle("is-selected", isSelected);
-    button.setAttribute("aria-pressed", String(isSelected));
-  }
-
   settingsThemeSelect.value = currentTheme;
   settingsAudioToggle.checked = isAudioEnabled;
   settingsColorblindModeToggle.checked = isColorblindModeEnabled;
@@ -550,6 +589,17 @@ function layoutBoardFrame(): void {
   boardActions.style.width = "";
   syncAboutDialogPosition();
 
+  if (window.matchMedia("(orientation: landscape) and (max-height: 560px) and (max-width: 980px)").matches) {
+    const frameRect = boardFrame.getBoundingClientRect();
+    const menuWidth = Math.max(
+      frameRect.width,
+      menuBar.getBoundingClientRect().width,
+      boardActions.getBoundingClientRect().width,
+    );
+    toolsMenu.style.setProperty("--menu-panel-width", `${menuWidth}px`);
+    return;
+  }
+
   const frameRect = boardFrame.getBoundingClientRect();
   const heroRect = hero.getBoundingClientRect();
   const actionsRect = historyControls.getBoundingClientRect();
@@ -565,7 +615,10 @@ function layoutBoardFrame(): void {
 
   boardFrame.style.transform = `translateY(${offsetY}px)`;
   boardActions.style.width = `${frameRect.width}px`;
-  toolsMenu.style.setProperty("--menu-panel-width", `${frameRect.width}px`);
+  toolsMenu.style.setProperty(
+    "--menu-panel-width",
+    `${Math.max(frameRect.width, menuBar.getBoundingClientRect().width, boardActions.getBoundingClientRect().width)}px`,
+  );
 }
 
 function isTrainingMode(): boolean {
@@ -605,10 +658,14 @@ function isHumanTurn(): boolean {
 }
 
 function updatePracticeControls(): void {
+  const inTraining = isTrainingMode();
   practiceControls.classList.toggle("hidden", !isTrainingMode());
   freeplayControls.classList.toggle("hidden", currentMode !== "freeplay");
-  featureControls.classList.toggle("hidden", !isTrainingMode());
-  statsControl.classList.toggle("hidden", !isTrainingMode());
+  featureControls.classList.toggle("hidden", !inTraining);
+  featureSection.classList.toggle("hidden", !inTraining && currentMode !== "freeplay");
+  featureSectionTitle.textContent = inTraining ? "Training Tools" : "Display";
+  difficultySection.classList.toggle("hidden", !inTraining);
+  statisticsSection.classList.toggle("hidden", !inTraining);
 
   for (const button of practiceColorButtons) {
     const color = button.dataset.practiceColor as PracticeColor | undefined;
@@ -688,11 +745,19 @@ function syncModeControls(): void {
   updatePracticeControls();
 }
 
+function hideMenuInfoPopover(): void {
+  activeMenuInfoFeature = null;
+  menuInfoPopover.classList.add("hidden");
+}
+
 function setToolsMenuExpanded(expanded: boolean): void {
   isToolsMenuExpanded = expanded;
 
   toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
   toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
+  if (!expanded) {
+    hideMenuInfoPopover();
+  }
   persistUiState();
 }
 
@@ -1701,14 +1766,9 @@ titleControl.addEventListener("click", () => {
   resetBoard();
 });
 
-moreSettingsControl.addEventListener("click", () => {
+aboutControl.addEventListener("click", () => {
   setToolsMenuExpanded(false);
-  openModalView("settings", toolsMenuToggle);
-});
-
-settingsAboutControl.addEventListener("click", () => {
-  activeModalView = "about";
-  setAboutTab("about");
+  openModalView("about", aboutControl, { aboutTab: "about" });
 });
 
 statsControl.addEventListener("click", () => {
@@ -1803,6 +1863,17 @@ for (const button of practiceColorButtons) {
   });
 }
 
+for (const button of featureInfoButtons) {
+  button.addEventListener("click", () => {
+    const feature = button.dataset.featureInfo as FeatureKey | undefined;
+    if (!feature) {
+      return;
+    }
+
+    openMenuInfoPopover(feature);
+  });
+}
+
 practiceDifficultySlider.addEventListener("input", () => {
   setPracticeDifficulty(Number(practiceDifficultySlider.value));
 });
@@ -1845,17 +1916,6 @@ for (const button of statsRangeButtons) {
   });
 }
 
-for (const button of themeOptionButtons) {
-  button.addEventListener("click", () => {
-    const theme = button.dataset.themeOption as ThemeName | undefined;
-    if (!theme) {
-      return;
-    }
-
-    setTheme(theme);
-  });
-}
-
 settingsThemeSelect.addEventListener("change", () => {
   const theme = settingsThemeSelect.value as ThemeName;
   if (!isThemeName(theme)) {
@@ -1863,6 +1923,7 @@ settingsThemeSelect.addEventListener("change", () => {
   }
 
   setTheme(theme);
+  setToolsMenuExpanded(false);
 });
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
