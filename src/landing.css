@@ -48,7 +48,7 @@
   --text-secondary: #e7e7e7;
   --trainer-fill: rgba(190, 255, 120, 0.7);
   --trainer-bezel: rgba(236, 255, 188, 0.75);
-  --ui-body-weight: 500;
+  --ui-body-weight: 400;
   --ui-font: "Ubuntu Sans", sans-serif;
   --win-ring: #ffffff;
   --column-score-top-ratio: 0.099196;
@@ -1052,6 +1052,7 @@ body::after {
 
 .about-section-title {
   font-size: var(--modal-body-size);
+  font-weight: 700;
 }
 
 .about-close {
@@ -1086,7 +1087,7 @@ body::after {
   color: var(--text-primary);
   font-family: var(--ui-font);
   font-size: var(--modal-body-size);
-  font-weight: var(--ui-body-weight);
+  font-weight: 700;
   line-height: 1;
   text-align: center;
   white-space: nowrap;
@@ -1265,6 +1266,13 @@ body::after {
   white-space: nowrap;
   color: var(--text-primary);
   font-size: var(--modal-body-size);
+}
+
+.stats-table th {
+  font-weight: 700;
+}
+
+.stats-table td {
   font-weight: var(--ui-body-weight);
 }
 
@@ -1331,7 +1339,7 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-family: var(--ui-font);
   font-size: var(--menu-text-size);
   font-weight: var(--ui-body-weight);
@@ -1339,7 +1347,7 @@ body::after {
   letter-spacing: 0.01em;
   text-align: center;
   white-space: nowrap;
-  opacity: 0.82;
+  opacity: 1;
   pointer-events: none;
   z-index: 0;
 }
@@ -1361,7 +1369,7 @@ body::after {
   color: var(--text-primary);
   font-family: var(--ui-font);
   font-size: var(--menu-text-size);
-  font-weight: 700;
+  font-weight: var(--ui-body-weight);
   line-height: 1;
   white-space: nowrap;
   opacity: 0.92;
