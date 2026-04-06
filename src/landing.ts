@@ -67,6 +67,7 @@ const titleControl = document.getElementById("title-control");
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
 const turnIndicator = document.getElementById("turn-indicator");
+const compactTurnIndicator = document.getElementById("compact-turn-indicator");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
@@ -127,6 +128,7 @@ if (
   !scoreBar ||
   !scoreBarFill ||
   !turnIndicator ||
+  !compactTurnIndicator ||
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
@@ -617,6 +619,7 @@ function layoutBoardFrame(): void {
     const landingStyle = window.getComputedStyle(landingRoot);
     const edgeBuffer = Number.parseFloat(landingStyle.paddingLeft || "0") || 0;
     const layoutGap = Number.parseFloat(landingStyle.columnGap || landingStyle.gap || "0") || 0;
+    boardActions.style.width = `${menuBar.getBoundingClientRect().width}px`;
     const leftBoundary = Math.max(
       hero.getBoundingClientRect().right,
       boardActions.getBoundingClientRect().right,
@@ -901,57 +904,67 @@ function isAiCalculating(): boolean {
 
 function renderTurnIndicator(): void {
   turnIndicator.classList.remove("is-red", "is-yellow");
+  compactTurnIndicator.classList.remove("is-red", "is-yellow");
+
+  const setTurnIndicator = (text: string, color: "red" | "yellow" | null = null): void => {
+    turnIndicator.textContent = text;
+    compactTurnIndicator.textContent = text;
+
+    if (color === "red") {
+      turnIndicator.classList.add("is-red");
+      compactTurnIndicator.classList.add("is-red");
+    } else if (color === "yellow") {
+      turnIndicator.classList.add("is-yellow");
+      compactTurnIndicator.classList.add("is-yellow");
+    }
+  };
 
   if (isWinLocked) {
     if (winningPlayer === RED) {
-      turnIndicator.classList.add("is-red");
-      turnIndicator.textContent = "Red wins";
+      setTurnIndicator("Red wins", "red");
       return;
     }
 
     if (winningPlayer === YELLOW) {
-      turnIndicator.classList.add("is-yellow");
-      turnIndicator.textContent = "Yellow wins";
+      setTurnIndicator("Yellow wins", "yellow");
       return;
     }
 
-    turnIndicator.textContent = "";
+    setTurnIndicator("");
     return;
   }
 
   if (!hasPlayableMove()) {
-    turnIndicator.textContent = "Tie";
+    setTurnIndicator("Tie");
     return;
   }
 
   if (isTrainingMode()) {
     if (isHumanTurn()) {
-      turnIndicator.textContent = "Your move";
+      setTurnIndicator("Your move");
       return;
     }
 
     if (isAiCalculating()) {
-      turnIndicator.textContent = "Thinking...";
+      setTurnIndicator("Thinking...");
       return;
     }
 
     if (aiPlannedColumn !== null) {
-      turnIndicator.textContent = `Playing Column ${aiPlannedColumn + 1}`;
+      setTurnIndicator(`Playing Column ${aiPlannedColumn + 1}`);
       return;
     }
 
-    turnIndicator.textContent = "";
+    setTurnIndicator("");
     return;
   }
 
   if (currentPlayer === RED) {
-    turnIndicator.classList.add("is-red");
-    turnIndicator.textContent = "Red's turn";
+    setTurnIndicator("Red's turn", "red");
     return;
   }
 
-  turnIndicator.classList.add("is-yellow");
-  turnIndicator.textContent = "Yellow's turn";
+  setTurnIndicator("Yellow's turn", "yellow");
 }
 
 function syncFeatureUI(): void {

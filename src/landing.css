@@ -623,6 +623,9 @@ body::after {
 .history-button,
 .reset-control,
 .settings-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
   padding: 0;
   border: 0;
@@ -635,6 +638,28 @@ body::after {
   cursor: pointer;
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
+}
+
+.action-icon {
+  width: 1.24em;
+  height: 1.24em;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.action-icon.is-fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.reset-control .action-icon,
+.settings-control .action-icon {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .history-button:disabled,
@@ -1364,6 +1389,15 @@ body::after {
   z-index: 0;
 }
 
+.compact-turn-indicator {
+  position: static;
+  min-height: 0;
+  display: none;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+
 .turn-indicator.is-red {
   color: var(--piece-red);
 }
@@ -1477,6 +1511,14 @@ body::after {
     gap: 1rem;
   }
 
+  .compact-turn-indicator {
+    display: flex;
+  }
+
+  .board-frame > .turn-indicator {
+    display: none;
+  }
+
   .board-stage {
     display: contents;
   }
@@ -1493,16 +1535,19 @@ body::after {
   .board-actions {
     grid-column: 1;
     grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     width: auto !important;
-    justify-items: start;
-    align-content: end;
+    justify-items: unset;
+    align-content: unset;
     align-self: end;
-    gap: 1rem;
+    gap: 0.9rem;
   }
 
   .history-controls {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 1rem;
   }
 
