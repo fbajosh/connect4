@@ -43,6 +43,7 @@ import {
 } from "./ui-persistence";
 import { appendPracticeStat, buildPracticeStatsRows, createPracticeStatId, readStoredPracticeStats, removePracticeStatById, type PracticeGameResult, type PracticeGameStat } from "./stats";
 import { applyTheme } from "./theme";
+import { createMoggedBackground } from "./mogged-background";
 const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
@@ -102,8 +103,10 @@ const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle"
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
 const statsTableBody = document.getElementById("stats-table-body");
+const themeBackground = document.getElementById("theme-background");
 
 if (
+  !themeBackground ||
   !landingRoot ||
   !hero ||
   !titleControl ||
@@ -158,6 +161,8 @@ if (
 ) {
   throw new Error("Missing required board elements.");
 }
+
+const moggedBackground = createMoggedBackground(themeBackground as HTMLCanvasElement);
 
 const board: BoardState = createBoard();
 const trainerSlots: HTMLDivElement[] = [];
@@ -679,6 +684,7 @@ function setTheme(theme: ThemeName): void {
   currentTheme = theme;
   ensureThemeFont(theme);
   applyTheme(theme);
+  moggedBackground.setEnabled(theme === "mogged");
   syncDiscPatternMode();
   syncThemeControls();
   persistUiState();
@@ -2040,6 +2046,7 @@ if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficul
 }
 ensureThemeFont(currentTheme);
 applyTheme(currentTheme);
+moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
 syncThemeAudio(false);
 settingsAudioToggle.checked = isAudioEnabled;
