@@ -5,6 +5,7 @@ export type ThemeName = "light" | "dark" | "midnight" | "mogged" | "greece" | "g
 export type StatsRange = "today" | "all-time";
 
 export type PersistedUiState = {
+  audioEnabled?: boolean;
   colorblindMode?: boolean;
   devMode?: boolean;
   modeMenuExpanded?: boolean;

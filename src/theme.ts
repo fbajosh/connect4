@@ -32,6 +32,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--text-secondary": "#e7e7e7",
     "--trainer-fill": "#9fb86a",
     "--trainer-bezel": "#8ca25f",
+    "--ui-font": "\"Ubuntu Sans\", sans-serif",
     "--win-ring": "#ffffff",
   },
   dark: {
@@ -60,6 +61,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--text-secondary": "#bebebe",
     "--trainer-fill": "#4f5c35",
     "--trainer-bezel": "#475330",
+    "--ui-font": "\"Ubuntu Sans\", sans-serif",
     "--win-ring": "#f5f5f5",
   },
   midnight: {
@@ -88,6 +90,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--text-secondary": "#e7c7ce",
     "--trainer-fill": "#8a4a54",
     "--trainer-bezel": "#7a414a",
+    "--ui-font": "\"Ubuntu Sans\", sans-serif",
     "--win-ring": "#fff6f7",
   },
   mogged: {
@@ -116,6 +119,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--text-secondary": "#ebebeb",
     "--trainer-fill": "#9fb86a",
     "--trainer-bezel": "#8ca25f",
+    "--ui-font": "\"Ubuntu Sans\", sans-serif",
     "--win-ring": "#ec407a",
   },
   greece: {
@@ -145,16 +149,17 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--text-secondary": "#ececec",
     "--trainer-fill": "#b3c68c",
     "--trainer-bezel": "#9cb073",
+    "--ui-font": "\"Caesar Dressing\", serif",
     "--win-ring": "#ffffff",
   },
   grease: {
     "--accent-color": "#ab47bc",
     "--app-bg": "#111111",
     "--backdrop": "rgba(0, 0, 0, 0.74)",
-    "--board-blue": "#70453f",
-    "--board-blue-bezel": "#89615c",
+    "--board-blue": "#8c3f44",
+    "--board-blue-bezel": "#ad6663",
     "--board-surface":
-      "linear-gradient(160deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 12%, rgba(255, 255, 255, 0) 34%), linear-gradient(180deg, #7b4c46 0%, #603933 100%)",
+      "linear-gradient(160deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.09) 11%, rgba(255, 255, 255, 0) 32%), linear-gradient(180deg, #a64b4d 0%, #7a3335 100%)",
     "--control-active-bg": "#5f264b",
     "--control-bg": "rgba(18, 18, 18, 0.78)",
     "--control-border": "rgba(255, 255, 255, 0.2)",
@@ -174,6 +179,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--text-secondary": "#ececec",
     "--trainer-fill": "#c1d48e",
     "--trainer-bezel": "#a9bc78",
+    "--ui-font": "\"Atomic Age\", system-ui",
     "--win-ring": "#ffffff",
   },
 };

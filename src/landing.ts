@@ -97,6 +97,7 @@ const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
 const devOutputBox = document.getElementById("dev-output-box");
+const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
@@ -149,6 +150,7 @@ if (
   !gameScoreToggle ||
   !devPanel ||
   !devOutputBox ||
+  !settingsAudioToggle ||
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
@@ -208,6 +210,7 @@ let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
 let isToolsMenuExpanded = false;
 let isDevModeEnabled = false;
+let isAudioEnabled = true;
 let isColorblindModeEnabled = false;
 let practiceColor: PracticeColor = "red";
 let practiceDifficulty = 10;
@@ -219,6 +222,16 @@ let aiScheduledSequence: string | null = null;
 let aiPlannedColumn: number | null = null;
 let aiPlannedDebug: PracticeAiDebug | null = null;
 let lastPracticeAiDebug: PracticeAiDebug | null = null;
+type ThemeMusicKey = "greece" | "grease";
+type ThemeMusicSource = "mid" | "ogg";
+type ThemeMusicState = {
+  audio: HTMLAudioElement;
+  source: ThemeMusicSource;
+};
+const themeMusicAudio = new Map<ThemeMusicKey, ThemeMusicState>();
+type SoundEffectKey = "board-reset" | "disc-drop" | "undo";
+const soundEffectAudio = new Map<SoundEffectKey, HTMLAudioElement>();
+const loadedThemeFonts = new Set<ThemeName>();
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
@@ -263,6 +276,7 @@ declare global {
 
 function persistUiState(): void {
   const state: PersistedUiState = {
+    audioEnabled: isAudioEnabled,
     colorblindMode: isColorblindModeEnabled,
     devMode: isDevModeEnabled,
     toolsMenuExpanded: isToolsMenuExpanded,
@@ -411,6 +425,7 @@ function syncThemeControls(): void {
   }
 
   settingsThemeSelect.value = currentTheme;
+  settingsAudioToggle.checked = isAudioEnabled;
   settingsColorblindModeToggle.checked = isColorblindModeEnabled;
 }
 
@@ -439,6 +454,18 @@ function setDevModeEnabled(enabled: boolean): void {
   syncFeatureUI();
 }
 
+function pauseAllAudio(): void {
+  for (const { audio } of themeMusicAudio.values()) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  for (const audio of soundEffectAudio.values()) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+}
+
 function setColorblindModeEnabled(enabled: boolean): void {
   isColorblindModeEnabled = enabled;
   settingsColorblindModeToggle.checked = enabled;
@@ -446,12 +473,174 @@ function setColorblindModeEnabled(enabled: boolean): void {
   persistUiState();
 }
 
+function ensureThemeFont(theme: ThemeName): void {
+  if (loadedThemeFonts.has(theme)) {
+    return;
+  }
+
+  let href: string | null = null;
+  if (theme === "greece") {
+    href = "https://fonts.googleapis.com/css2?family=Caesar+Dressing&display=swap";
+  } else if (theme === "grease") {
+    href = "https://fonts.googleapis.com/css2?family=Atomic+Age&display=swap";
+  } else {
+    loadedThemeFonts.add(theme);
+    return;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.append(link);
+  loadedThemeFonts.add(theme);
+}
+
+function setAudioEnabled(enabled: boolean): void {
+  isAudioEnabled = enabled;
+  settingsAudioToggle.checked = enabled;
+  persistUiState();
+
+  if (!enabled) {
+    pauseAllAudio();
+    return;
+  }
+
+  syncThemeAudio(true);
+}
+
+function themeMusicUrl(theme: ThemeMusicKey, source: ThemeMusicSource): string {
+  return `${import.meta.env.BASE_URL}${theme}-music.${source}`;
+}
+
+function preferredThemeMusicSource(): ThemeMusicSource {
+  const probe = document.createElement("audio");
+  const midiSupport =
+    probe.canPlayType("audio/midi") ||
+    probe.canPlayType("audio/x-midi") ||
+    probe.canPlayType("audio/mid");
+
+  return midiSupport ? "mid" : "ogg";
+}
+
+function switchThemeMusicSource(state: ThemeMusicState, theme: ThemeMusicKey, source: ThemeMusicSource): void {
+  if (state.source === source) {
+    return;
+  }
+
+  state.source = source;
+  state.audio.pause();
+  state.audio.currentTime = 0;
+  state.audio.src = themeMusicUrl(theme, source);
+  state.audio.load();
+}
+
+function ensureThemeMusicAudio(theme: ThemeMusicKey): ThemeMusicState {
+  const existingAudio = themeMusicAudio.get(theme);
+  if (existingAudio) {
+    return existingAudio;
+  }
+
+  const source = preferredThemeMusicSource();
+  const audio = new Audio(themeMusicUrl(theme, source));
+  audio.loop = true;
+  audio.volume = 0.45;
+  audio.preload = "auto";
+
+  const state: ThemeMusicState = {
+    audio,
+    source,
+  };
+
+  audio.addEventListener("error", () => {
+    if (state.source !== "mid") {
+      return;
+    }
+
+    switchThemeMusicSource(state, theme, "ogg");
+  });
+
+  themeMusicAudio.set(theme, state);
+  return state;
+}
+
+function playThemeMusic(theme: ThemeMusicKey): void {
+  if (!isAudioEnabled) {
+    return;
+  }
+
+  const state = ensureThemeMusicAudio(theme);
+  const { audio } = state;
+
+  void audio.play().catch((error: unknown) => {
+    if (state.source === "mid" && error instanceof DOMException && error.name === "NotSupportedError") {
+      switchThemeMusicSource(state, theme, "ogg");
+      void state.audio.play().catch(() => {
+        // Background playback may still be blocked or unsupported.
+      });
+      return;
+    }
+
+    // Autoplay policy or another playback failure.
+  });
+}
+
+function syncThemeAudio(allowPlayback: boolean): void {
+  for (const [theme, state] of themeMusicAudio) {
+    if (theme !== currentTheme) {
+      state.audio.pause();
+      state.audio.currentTime = 0;
+    }
+  }
+
+  if (!isAudioEnabled || (currentTheme !== "greece" && currentTheme !== "grease")) {
+    return;
+  }
+
+  if (!allowPlayback) {
+    return;
+  }
+
+  playThemeMusic(currentTheme);
+}
+
+function soundEffectUrl(effect: SoundEffectKey): string {
+  return `${import.meta.env.BASE_URL}${effect}.mp3`;
+}
+
+function ensureSoundEffectAudio(effect: SoundEffectKey): HTMLAudioElement {
+  const existingAudio = soundEffectAudio.get(effect);
+  if (existingAudio) {
+    return existingAudio;
+  }
+
+  const audio = new Audio(soundEffectUrl(effect));
+  audio.preload = "auto";
+  audio.volume = 0.72;
+  soundEffectAudio.set(effect, audio);
+  return audio;
+}
+
+function playSoundEffect(effect: SoundEffectKey): void {
+  if (!isAudioEnabled) {
+    return;
+  }
+
+  const audio = ensureSoundEffectAudio(effect);
+  audio.pause();
+  audio.currentTime = 0;
+  void audio.play().catch(() => {
+    // Playback may be blocked or unsupported.
+  });
+}
+
 function setTheme(theme: ThemeName): void {
   currentTheme = theme;
+  ensureThemeFont(theme);
   applyTheme(theme);
   syncDiscPatternMode();
   syncThemeControls();
   persistUiState();
+  syncThemeAudio(true);
 }
 
 function scheduleBoardFrameLayout(): void {
@@ -540,6 +729,7 @@ function updatePracticeControls(): void {
   practiceDifficultySlider.value = String(practiceDifficulty);
   practiceDifficultyValue.textContent = String(practiceDifficulty);
   freeplayGameScoreToggle.checked = featurePinned.gameScore;
+  settingsAudioToggle.checked = isAudioEnabled;
   settingsDevModeToggle.checked = isDevModeEnabled;
   syncThemeControls();
   syncStatsRangeControls();
@@ -1357,6 +1547,7 @@ function animateResetPieces(): void {
 
 function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   const { advancePracticeRound = true } = options ?? {};
+  playSoundEffect("board-reset");
   animateResetPieces();
   if (advancePracticeRound && isTrainingMode() && practiceColor === "alternate") {
     practiceRoundIndex += 1;
@@ -1398,6 +1589,7 @@ function dropPreview(column: number): void {
       return;
     }
 
+    playSoundEffect("disc-drop");
     hidePreview();
     commitMove(column, player);
   };
@@ -1451,6 +1643,7 @@ function performUndo(): void {
       return;
     }
 
+    playSoundEffect("undo");
     removeCurrentPracticeRecordedStat();
     historyIndex -= 1;
     rebuildBoardFromHistory();
@@ -1461,6 +1654,7 @@ function performUndo(): void {
     return;
   }
 
+  playSoundEffect("undo");
   historyIndex -= 1;
   freeplayUndoAvailable = false;
   rebuildBoardFromHistory();
@@ -1664,6 +1858,10 @@ settingsDevModeToggle.addEventListener("change", () => {
   setDevModeEnabled(settingsDevModeToggle.checked);
 });
 
+settingsAudioToggle.addEventListener("change", () => {
+  setAudioEnabled(settingsAudioToggle.checked);
+});
+
 settingsColorblindModeToggle.addEventListener("change", () => {
   setColorblindModeEnabled(settingsColorblindModeToggle.checked);
 });
@@ -1786,6 +1984,7 @@ for (const feature of Object.keys(featureToggleInputs) as FeatureKey[]) {
 }
 
 isDevModeEnabled = persistedUiState.devMode === true;
+isAudioEnabled = persistedUiState.audioEnabled !== false;
 isColorblindModeEnabled = persistedUiState.colorblindMode === true;
 practiceColor = persistedUiState.practiceColor ?? "red";
 statsRange = persistedUiState.statsRange === "today" ? "today" : "all-time";
@@ -1794,8 +1993,11 @@ const persistedDifficulty = persistedUiState.practiceDifficulty;
 if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficulty)) {
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
+ensureThemeFont(currentTheme);
 applyTheme(currentTheme);
 syncDiscPatternMode();
+syncThemeAudio(false);
+settingsAudioToggle.checked = isAudioEnabled;
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
 syncModeControls();
