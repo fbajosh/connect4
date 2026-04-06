@@ -19,6 +19,7 @@
   --layout-gap: clamp(0.75rem, 1.1vw, 1.2rem);
   --modal-bg: rgba(15, 15, 15, 0.98);
   --page-bg-image: none;
+  --page-bg-blur: 0px;
   --page-bg-overlay: rgba(0, 0, 0, 0);
   --panel-bg: rgba(19, 19, 19, 0.98);
   --menu-text-size: clamp(1.008rem, 1.4vw, 1.26rem);
@@ -60,29 +61,39 @@ body {
 }
 
 body {
+  position: relative;
+  isolation: isolate;
   margin: 0;
-  background-image:
-    linear-gradient(var(--page-bg-overlay), var(--page-bg-overlay)),
-    radial-gradient(
-      circle at 100% 100%,
-      var(--surface-shadow-strong) 0,
-      var(--surface-shadow-soft) 18%,
-      rgba(0, 0, 0, 0) 44%
-    ),
-    var(--page-bg-image);
+  background-image: radial-gradient(
+    circle at 100% 100%,
+    var(--surface-shadow-strong) 0,
+    var(--surface-shadow-soft) 18%,
+    rgba(0, 0, 0, 0) 44%
+  );
   background-color: var(--app-bg);
-  background-position:
-    center,
-    100% 100%,
-    center;
-  background-size:
-    cover,
-    auto,
-    cover;
-  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: 100% 100%;
+  background-size: auto;
+  background-repeat: no-repeat;
   font-family: var(--ui-font);
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--page-bg-overlay), var(--page-bg-overlay)),
+    var(--page-bg-image);
+  background-position: center, center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+  filter: blur(var(--page-bg-blur));
+  transform: scale(1.06);
+  transform-origin: center;
+  pointer-events: none;
+  z-index: -2;
 }
 
 body::after {

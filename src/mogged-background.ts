@@ -43,7 +43,6 @@ export function createMoggedBackground(canvas: HTMLCanvasElement): MoggedBackgro
   }
 
   const wisps = Array.from({ length: WISP_COUNT }, () => randomWisp());
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let animationFrame = 0;
   let enabled = false;
   let height = 0;
@@ -147,13 +146,12 @@ export function createMoggedBackground(canvas: HTMLCanvasElement): MoggedBackgro
 
     resize();
     drawBackground(lastTimestamp || performance.now());
-    if (!reduceMotion.matches && animationFrame === 0) {
+    if (animationFrame === 0) {
       animationFrame = window.requestAnimationFrame(step);
     }
   }
 
   window.addEventListener("resize", resize);
-  reduceMotion.addEventListener("change", syncAnimationState);
 
   return {
     setEnabled(nextEnabled: boolean): void {
