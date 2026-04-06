@@ -95,7 +95,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
     "--modal-bg": "rgba(9, 9, 9, 0.98)",
     "--panel-bg": "rgba(14, 14, 14, 0.94)",
     "--piece-red": "#f5f5f5",
-    "--piece-red-bezel": "#d2d2d2",
+    "--piece-red-bezel": "#1c1c1c",
     "--piece-yellow": "#f5f5f5",
     "--piece-yellow-bezel": "#d2d2d2",
     "--score-bar-red": "#f5f5f5",
