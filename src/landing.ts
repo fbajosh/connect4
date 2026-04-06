@@ -1,4 +1,4 @@
-import { buildDevOutput, scoreBarRedShare } from "./dev-output";
+import { buildDevOutput } from "./dev-output";
 import {
   type FeatureKey,
   type GameMode,
@@ -67,6 +67,7 @@ const titleControl = document.getElementById("title-control");
 const scoreBar = document.getElementById("score-bar");
 const scoreBarFill = document.getElementById("score-bar-fill");
 const turnIndicator = document.getElementById("turn-indicator");
+const compactTurnIndicator = document.getElementById("compact-turn-indicator");
 const columnScoreRow = document.getElementById("column-score-row");
 const previewPiece = document.getElementById("preview-piece");
 const historyControls = document.getElementById("history-controls");
@@ -84,9 +85,6 @@ const redoControl = document.getElementById("redo-control");
 const resetControl = document.getElementById("reset-control");
 const toolsMenuToggle = document.getElementById("tools-menu-toggle");
 const toolsMenu = document.getElementById("tools-menu");
-const menuInfoPopover = document.getElementById("menu-info-popover");
-const menuInfoTitle = document.getElementById("menu-info-title");
-const menuInfoBody = document.getElementById("menu-info-body");
 const featureSection = document.getElementById("feature-section");
 const featureSectionTitle = document.getElementById("feature-section-title");
 const featureControls = document.getElementById("feature-controls");
@@ -104,13 +102,14 @@ const moveScoresToggle = document.getElementById("move-scores-toggle");
 const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
+const importStateControl = document.getElementById("import-state-control");
+const exportStateControl = document.getElementById("export-state-control");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
 const statsTableBody = document.getElementById("stats-table-body");
-const infoModalBody = document.getElementById("info-modal-body");
 const themeBackground = document.getElementById("theme-background");
 
 if (
@@ -129,6 +128,7 @@ if (
   !scoreBar ||
   !scoreBarFill ||
   !turnIndicator ||
+  !compactTurnIndicator ||
   !columnScoreRow ||
   !previewPiece ||
   !historyControls ||
@@ -146,9 +146,6 @@ if (
   !resetControl ||
   !toolsMenuToggle ||
   !toolsMenu ||
-  !menuInfoPopover ||
-  !menuInfoTitle ||
-  !menuInfoBody ||
   !featureSection ||
   !featureSectionTitle ||
   !featureControls ||
@@ -166,13 +163,14 @@ if (
   !gameScorePulse ||
   !gameScoreToggle ||
   !devPanel ||
+  !importStateControl ||
+  !exportStateControl ||
   !devOutputBox ||
   !settingsAudioToggle ||
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
-  !statsTableBody ||
-  !infoModalBody
+  !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
 }
@@ -186,9 +184,6 @@ const discSlots: HTMLDivElement[] = [];
 const columnScoreSlots: HTMLSpanElement[] = [];
 const practiceColorButtons = Array.from(
   practiceControls.querySelectorAll<HTMLButtonElement>("[data-practice-color]"),
-);
-const featureInfoButtons = Array.from(
-  toolsMenu.querySelectorAll<HTMLButtonElement>("[data-feature-info]"),
 );
 const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
 const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
@@ -229,7 +224,6 @@ let shakeResetTimeout = 0;
 let isAboutModalOpen = false;
 let activeAboutTab: AboutTab = "about";
 let activeModalView: ModalView = "about";
-let activeMenuInfoFeature: FeatureKey | null = null;
 let latestOptimizerOutput = "";
 let latestOptimizerPayload: OptimizerSuccessPayload | null = null;
 let currentMode: GameMode = "training";
@@ -250,12 +244,12 @@ let lastPracticeAiDebug: PracticeAiDebug | null = null;
 let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
+let isImportedGame = false;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
 let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
 let modalReturnFocusTarget: HTMLElement | null = null;
-let activeInfoModalTitle = "";
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
   moveScores: false,
@@ -268,7 +262,7 @@ const featureHeld: Record<FeatureKey, boolean> = {
 };
 
 type AboutTab = "about" | "howto" | "credits";
-type ModalView = "about" | "info" | "stats";
+type ModalView = "about" | "stats";
 
 type Connect4DebugState = {
   getSequence: () => string;
@@ -282,6 +276,11 @@ type MoveRecord = {
   column: number;
   player: PlayerValue;
   previousScore: number | null;
+};
+
+type RebuildHistoryOptions = {
+  suppressCompletionEffects?: boolean;
+  suppressStatsRecording?: boolean;
 };
 
 declare global {
@@ -308,6 +307,66 @@ function persistUiState(): void {
     },
   };
   writePersistedUiState(state);
+}
+
+function stateSequenceFromLocation(): string | null {
+  const rawState = new URLSearchParams(window.location.search).get("state");
+  if (!rawState) {
+    return null;
+  }
+
+  const sequence = rawState.trim();
+  return sequence.length > 0 ? sequence : null;
+}
+
+function moveHistoryFromSequence(sequence: string): MoveRecord[] | null {
+  if (!/^[1-7]+$/.test(sequence)) {
+    return null;
+  }
+
+  const importedBoard = createBoard();
+  const importedHistory: MoveRecord[] = [];
+  let player: PlayerValue = RED;
+
+  for (let index = 0; index < sequence.length; index += 1) {
+    if (detectWinningMask(importedBoard).hasWinningRun) {
+      return null;
+    }
+
+    const column = Number(sequence[index]) - 1;
+    const row = lowestOpenRow(importedBoard, column);
+    if (row === null) {
+      return null;
+    }
+
+    importedBoard[row][column] = player;
+    importedHistory.push({
+      aiDebug: null,
+      column,
+      player,
+      previousScore: null,
+    });
+    player = nextPlayer(player);
+  }
+
+  return importedHistory;
+}
+
+function isValidImportSequence(sequence: string): boolean {
+  if (!/^[1-7]+$/.test(sequence)) {
+    return false;
+  }
+
+  const counts = Array.from({ length: WIDTH }, () => 0);
+  for (const character of sequence) {
+    const column = Number(character) - 1;
+    counts[column] += 1;
+    if (counts[column] > HEIGHT) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function syncMoveSequence(): void {
@@ -362,11 +421,6 @@ function syncModalView(): void {
     return;
   }
 
-  if (activeModalView === "info") {
-    aboutTitle.textContent = activeInfoModalTitle;
-    return;
-  }
-
   aboutTitle.textContent = "About Connect 4 Trainer";
 }
 
@@ -380,34 +434,6 @@ function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutT
   }
   setAboutModalOpen(true);
   aboutClose.focus();
-}
-
-function openMenuInfoPopover(feature: FeatureKey): void {
-  const infoByFeature: Record<FeatureKey, { body: string; title: string }> = {
-    bestMove: {
-      body: "Shows green hint discs in the strongest solver-backed columns for the current position.",
-      title: "Best Move",
-    },
-    gameScore: {
-      body: "Compares the running average quality of red and yellow moves over the current game.",
-      title: "Performance Comparison",
-    },
-    moveScores: {
-      body: "Shows the shifted solver score for each playable column above the board.",
-      title: "Move Scores",
-    },
-  };
-
-  const info = infoByFeature[feature];
-  if (activeMenuInfoFeature === feature && !menuInfoPopover.classList.contains("hidden")) {
-    hideMenuInfoPopover();
-    return;
-  }
-
-  activeMenuInfoFeature = feature;
-  menuInfoTitle.textContent = info.title;
-  menuInfoBody.textContent = info.body;
-  menuInfoPopover.classList.remove("hidden");
 }
 
 function closeActiveModal(): void {
@@ -590,13 +616,20 @@ function layoutBoardFrame(): void {
   syncAboutDialogPosition();
 
   if (window.matchMedia("(orientation: landscape) and (max-height: 560px) and (max-width: 980px)").matches) {
-    const frameRect = boardFrame.getBoundingClientRect();
-    const menuWidth = Math.max(
-      frameRect.width,
-      menuBar.getBoundingClientRect().width,
-      boardActions.getBoundingClientRect().width,
+    const landingStyle = window.getComputedStyle(landingRoot);
+    const edgeBuffer = Number.parseFloat(landingStyle.paddingLeft || "0") || 0;
+    const layoutGap = Number.parseFloat(landingStyle.columnGap || landingStyle.gap || "0") || 0;
+    boardActions.style.width = `${menuBar.getBoundingClientRect().width}px`;
+    const leftBoundary = Math.max(
+      hero.getBoundingClientRect().right,
+      boardActions.getBoundingClientRect().right,
+    ) + layoutGap;
+    const clampedLeft = Math.min(
+      Math.max(edgeBuffer, leftBoundary),
+      window.innerWidth - edgeBuffer - 220,
     );
-    toolsMenu.style.setProperty("--menu-panel-width", `${menuWidth}px`);
+
+    toolsMenu.style.setProperty("--compact-menu-left", `${clampedLeft}px`);
     return;
   }
 
@@ -619,6 +652,7 @@ function layoutBoardFrame(): void {
     "--menu-panel-width",
     `${Math.max(frameRect.width, menuBar.getBoundingClientRect().width, boardActions.getBoundingClientRect().width)}px`,
   );
+  toolsMenu.style.removeProperty("--compact-menu-left");
 }
 
 function isTrainingMode(): boolean {
@@ -745,19 +779,11 @@ function syncModeControls(): void {
   updatePracticeControls();
 }
 
-function hideMenuInfoPopover(): void {
-  activeMenuInfoFeature = null;
-  menuInfoPopover.classList.add("hidden");
-}
-
 function setToolsMenuExpanded(expanded: boolean): void {
   isToolsMenuExpanded = expanded;
 
   toolsMenuToggle.setAttribute("aria-expanded", String(isToolsMenuExpanded));
   toolsMenu.classList.toggle("hidden", !isToolsMenuExpanded);
-  if (!expanded) {
-    hideMenuInfoPopover();
-  }
   persistUiState();
 }
 
@@ -848,6 +874,7 @@ function renderDevOutput(): void {
     practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
+    remaining: currentSolvedLineRemainingText(),
     state: moveSequence,
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
@@ -877,57 +904,67 @@ function isAiCalculating(): boolean {
 
 function renderTurnIndicator(): void {
   turnIndicator.classList.remove("is-red", "is-yellow");
+  compactTurnIndicator.classList.remove("is-red", "is-yellow");
+
+  const setTurnIndicator = (text: string, color: "red" | "yellow" | null = null): void => {
+    turnIndicator.textContent = text;
+    compactTurnIndicator.textContent = text;
+
+    if (color === "red") {
+      turnIndicator.classList.add("is-red");
+      compactTurnIndicator.classList.add("is-red");
+    } else if (color === "yellow") {
+      turnIndicator.classList.add("is-yellow");
+      compactTurnIndicator.classList.add("is-yellow");
+    }
+  };
 
   if (isWinLocked) {
     if (winningPlayer === RED) {
-      turnIndicator.classList.add("is-red");
-      turnIndicator.textContent = "Red wins";
+      setTurnIndicator("Red wins", "red");
       return;
     }
 
     if (winningPlayer === YELLOW) {
-      turnIndicator.classList.add("is-yellow");
-      turnIndicator.textContent = "Yellow wins";
+      setTurnIndicator("Yellow wins", "yellow");
       return;
     }
 
-    turnIndicator.textContent = "";
+    setTurnIndicator("");
     return;
   }
 
   if (!hasPlayableMove()) {
-    turnIndicator.textContent = "Tie";
+    setTurnIndicator("Tie");
     return;
   }
 
   if (isTrainingMode()) {
     if (isHumanTurn()) {
-      turnIndicator.textContent = "Your move";
+      setTurnIndicator("Your move");
       return;
     }
 
     if (isAiCalculating()) {
-      turnIndicator.textContent = "Thinking...";
+      setTurnIndicator("Thinking...");
       return;
     }
 
     if (aiPlannedColumn !== null) {
-      turnIndicator.textContent = `Playing Column ${aiPlannedColumn + 1}`;
+      setTurnIndicator(`Playing Column ${aiPlannedColumn + 1}`);
       return;
     }
 
-    turnIndicator.textContent = "";
+    setTurnIndicator("");
     return;
   }
 
   if (currentPlayer === RED) {
-    turnIndicator.classList.add("is-red");
-    turnIndicator.textContent = "Red's turn";
+    setTurnIndicator("Red's turn", "red");
     return;
   }
 
-  turnIndicator.classList.add("is-yellow");
-  turnIndicator.textContent = "Yellow's turn";
+  setTurnIndicator("Yellow's turn", "yellow");
 }
 
 function syncFeatureUI(): void {
@@ -952,7 +989,13 @@ function removeCurrentPracticeRecordedStat(): void {
 }
 
 function maybeRecordCompletedPracticeGame(): void {
-  if (!isTrainingMode() || !isWinLocked || winningPlayer === null || currentPracticeRecordedStatId !== null) {
+  if (
+    !isTrainingMode() ||
+    !isWinLocked ||
+    winningPlayer === null ||
+    currentPracticeRecordedStatId !== null ||
+    isImportedGame
+  ) {
     return;
   }
 
@@ -998,7 +1041,7 @@ function playCompletionSound(): void {
 
 function canUndo(): boolean {
   if (isTrainingMode()) {
-    return historyIndex > 0;
+    return trainingUndoTargetIndex() !== null;
   }
 
   return freeplayUndoAvailable && historyIndex > 0;
@@ -1010,6 +1053,28 @@ function canRedo(): boolean {
 
 function canReset(): boolean {
   return historyIndex > 0;
+}
+
+function trainingHumanPlayer(): PlayerValue {
+  return effectivePracticeHumanPlayer(practiceColor, practiceRoundIndex, {
+    red: RED,
+    yellow: YELLOW,
+  });
+}
+
+function trainingUndoTargetIndex(): number | null {
+  if (!isTrainingMode()) {
+    return null;
+  }
+
+  const humanPlayer = trainingHumanPlayer();
+  for (let index = historyIndex - 1; index >= 0; index -= 1) {
+    if (moveHistory[index]?.player === humanPlayer) {
+      return index;
+    }
+  }
+
+  return null;
 }
 
 function canStartHumanMove(): boolean {
@@ -1041,9 +1106,84 @@ function updateScoreBar(): void {
     return;
   }
 
-  const redShare = scoreBarRedShare(previousRedScores, previousYellowScores);
+  const redShare = currentSolvedLineRedShare();
   scoreBar.style.setProperty("--score-red-share", String(redShare));
   scoreBarFill.style.width = `${redShare * 100}%`;
+}
+
+function solvedLineLength(positionScore: number): number {
+  const halfBoard = (WIDTH * HEIGHT) / 2;
+  if (positionScore === 0) {
+    return halfBoard;
+  }
+
+  return Math.max(0, Math.min(halfBoard, halfBoard + 1 - Math.abs(positionScore)));
+}
+
+function currentSolvedLineRedShare(): number {
+  const totalCells = WIDTH * HEIGHT;
+  const halfBoard = totalCells / 2;
+
+  if (winningPlayer === RED) {
+    return 1;
+  }
+
+  if (winningPlayer === YELLOW) {
+    return 0;
+  }
+
+  if (!hasPlayableMove()) {
+    return 0.5;
+  }
+
+  if (moveSequence === "") {
+    return halfBoard / totalCells;
+  }
+
+  if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
+    return 0.5;
+  }
+
+  const { positionScore } = latestOptimizerPayload;
+  if (positionScore === 0) {
+    return 0.5;
+  }
+
+  const lineLength = solvedLineLength(positionScore);
+  const advantagedPlayer = positionScore > 0 ? currentPlayer : nextPlayer(currentPlayer);
+  const redCells = advantagedPlayer === RED ? totalCells - lineLength : lineLength;
+  return redCells / totalCells;
+}
+
+function currentSolvedLineRemainingText(): string {
+  if (winningPlayer === RED) {
+    return "red in 0";
+  }
+
+  if (winningPlayer === YELLOW) {
+    return "yellow in 0";
+  }
+
+  if (!hasPlayableMove()) {
+    return "Tie";
+  }
+
+  if (moveSequence === "") {
+    return "red in 21";
+  }
+
+  if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
+    return "-";
+  }
+
+  const { positionScore } = latestOptimizerPayload;
+  if (positionScore === 0) {
+    return "Tie";
+  }
+
+  const advantagedPlayer = positionScore > 0 ? currentPlayer : nextPlayer(currentPlayer);
+  const lineLength = solvedLineLength(positionScore);
+  return `${advantagedPlayer === RED ? "red" : "yellow"} in ${lineLength}`;
 }
 
 function activeBestColumns(): number[] | null {
@@ -1119,7 +1259,11 @@ function clearBoardVisualState(): void {
   }
 }
 
-function rebuildBoardFromHistory(): void {
+function rebuildBoardFromHistory(options: RebuildHistoryOptions = {}): void {
+  const {
+    suppressCompletionEffects = false,
+    suppressStatsRecording = false,
+  } = options;
   const wasGameComplete = isWinLocked || !hasPlayableMove();
   cancelAiTurn();
   stopOptimizerWorker();
@@ -1175,10 +1319,12 @@ function rebuildBoardFromHistory(): void {
   isWinLocked = updateWinningHighlights();
   winningPlayer = isWinLocked && historyIndex > 0 ? moveHistory[historyIndex - 1].player : null;
   const isGameComplete = isWinLocked || !hasPlayableMove();
-  if (!wasGameComplete && isGameComplete) {
+  if (!suppressCompletionEffects && !wasGameComplete && isGameComplete) {
     playCompletionSound();
   }
-  maybeRecordCompletedPracticeGame();
+  if (!suppressStatsRecording) {
+    maybeRecordCompletedPracticeGame();
+  }
   syncMoveSequence();
   requestOptimizerOutput();
 }
@@ -1300,23 +1446,39 @@ function maybeScheduleAiTurn(): void {
     return;
   }
 
-  const scores = currentPracticeAiScores();
-  if (!scores) {
-    return;
-  }
+  let chosenColumn: number | null = null;
+  let chosenDebug: PracticeAiDebug | null = null;
 
-  const aiChoice = choosePracticeAiColumn({
-    difficulty: practiceDifficulty,
-    isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
-    scores,
-  });
-  if (aiChoice.column === null) {
-    return;
+  if (historyIndex < moveHistory.length) {
+    const nextRecord = moveHistory[historyIndex];
+    if (nextRecord.player !== currentPlayer) {
+      return;
+    }
+
+    chosenColumn = nextRecord.column;
+    chosenDebug = nextRecord.aiDebug;
+  } else {
+    const scores = currentPracticeAiScores();
+    if (!scores) {
+      return;
+    }
+
+    const aiChoice = choosePracticeAiColumn({
+      difficulty: practiceDifficulty,
+      isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
+      scores,
+    });
+    if (aiChoice.column === null) {
+      return;
+    }
+
+    chosenColumn = aiChoice.column;
+    chosenDebug = aiChoice.debug;
   }
 
   const scheduledSequence = moveSequence;
-  aiPlannedColumn = aiChoice.column;
-  aiPlannedDebug = aiChoice.debug;
+  aiPlannedColumn = chosenColumn;
+  aiPlannedDebug = chosenDebug;
   aiScheduledSequence = scheduledSequence;
   renderTurnIndicator();
   aiMoveTimeout = window.setTimeout(() => {
@@ -1553,10 +1715,97 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
     practiceRoundIndex += 1;
   }
   currentPracticeRecordedStatId = null;
+  isImportedGame = false;
   moveHistory.length = 0;
   historyIndex = 0;
   freeplayUndoAvailable = false;
   rebuildBoardFromHistory();
+}
+
+function importStateFromLocation(): void {
+  const sequence = stateSequenceFromLocation();
+  const importedHistory = sequence ? moveHistoryFromSequence(sequence) : [];
+
+  moveHistory.length = 0;
+  historyIndex = 0;
+  freeplayUndoAvailable = false;
+  currentPracticeRecordedStatId = null;
+  isImportedGame = Boolean(sequence);
+
+  if (sequence && importedHistory === null) {
+    console.warn(`Ignoring invalid Connect 4 state from URL: ${sequence}`);
+    isImportedGame = false;
+    rebuildBoardFromHistory({
+      suppressCompletionEffects: true,
+      suppressStatsRecording: true,
+    });
+    return;
+  }
+
+  if (importedHistory) {
+    moveHistory.push(...importedHistory);
+    historyIndex = importedHistory.length;
+    freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
+  }
+
+  rebuildBoardFromHistory({
+    suppressCompletionEffects: true,
+    suppressStatsRecording: true,
+  });
+}
+
+function importStateSequence(sequence: string): boolean {
+  if (!isValidImportSequence(sequence)) {
+    return false;
+  }
+
+  const importedHistory = moveHistoryFromSequence(sequence);
+  if (importedHistory === null) {
+    return false;
+  }
+
+  moveHistory.length = 0;
+  moveHistory.push(...importedHistory);
+  historyIndex = importedHistory.length;
+  freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
+  currentPracticeRecordedStatId = null;
+  isImportedGame = importedHistory.length > 0;
+  rebuildBoardFromHistory({
+    suppressCompletionEffects: true,
+    suppressStatsRecording: true,
+  });
+  return true;
+}
+
+async function importStateFromClipboard(): Promise<void> {
+  if (!navigator.clipboard?.readText) {
+    console.warn("Clipboard import is unavailable.");
+    return;
+  }
+
+  try {
+    const rawText = await navigator.clipboard.readText();
+    const sequence = rawText.trim();
+    if (!importStateSequence(sequence)) {
+      console.warn("Clipboard did not contain a valid Connect 4 state.");
+      return;
+    }
+  } catch {
+    console.warn("Clipboard import failed.");
+  }
+}
+
+async function exportStateToClipboard(): Promise<void> {
+  if (!navigator.clipboard?.writeText) {
+    console.warn("Clipboard export is unavailable.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(moveSequence);
+  } catch {
+    console.warn("Clipboard export failed.");
+  }
 }
 
 function targetTopForRow(row: number): string {
@@ -1639,13 +1888,14 @@ function performUndo(): void {
   }
 
   if (isTrainingMode()) {
-    if (historyIndex === 0) {
+    const targetIndex = trainingUndoTargetIndex();
+    if (targetIndex === null) {
       return;
     }
 
     playSoundEffect("undo");
     removeCurrentPracticeRecordedStat();
-    historyIndex -= 1;
+    historyIndex = targetIndex;
     rebuildBoardFromHistory();
     return;
   }
@@ -1863,17 +2113,6 @@ for (const button of practiceColorButtons) {
   });
 }
 
-for (const button of featureInfoButtons) {
-  button.addEventListener("click", () => {
-    const feature = button.dataset.featureInfo as FeatureKey | undefined;
-    if (!feature) {
-      return;
-    }
-
-    openMenuInfoPopover(feature);
-  });
-}
-
 practiceDifficultySlider.addEventListener("input", () => {
   setPracticeDifficulty(Number(practiceDifficultySlider.value));
 });
@@ -1924,6 +2163,14 @@ settingsThemeSelect.addEventListener("change", () => {
 
   setTheme(theme);
   setToolsMenuExpanded(false);
+});
+
+importStateControl.addEventListener("click", () => {
+  void importStateFromClipboard();
+});
+
+exportStateControl.addEventListener("click", () => {
+  void exportStateToClipboard();
 });
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
@@ -1992,7 +2239,8 @@ window.addEventListener("popstate", () => {
     return;
   }
 
-  setCurrentMode(pathMode, { history: "none" });
+  setCurrentMode(pathMode, { history: "none", resetBoard: false });
+  importStateFromLocation();
 });
 
 const persistedUiState = readPersistedUiState();
@@ -2029,12 +2277,10 @@ setAboutTab(activeAboutTab);
 renderStatsTable();
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
-syncMoveSequence();
-requestOptimizerOutput();
-maybeScheduleAiTurn();
+importStateFromLocation();
 window.connect4State = {
   getSequence: () => moveSequence,
-  getOptimizerOutput: () => devOutputBox.value,
+  getOptimizerOutput: () => latestOptimizerOutput,
   getPreviousRedScores: () => [...previousRedScores],
   getPreviousYellowScores: () => [...previousYellowScores],
 };
