@@ -13,8 +13,8 @@ type MoggedBackgroundController = {
 };
 
 const WISP_COUNT = 96;
-const MIN_GREY = 0x00;
-const MAX_GREY = 0x30;
+const HUE_OFFSET_DEGREES = 90;
+const RAINBOW_CYCLE_DEGREES_PER_MS = 0.018;
 
 function randomWisp(depth = Math.random()): Wisp {
   return {
@@ -28,8 +28,12 @@ function randomWisp(depth = Math.random()): Wisp {
   };
 }
 
-function greyAt(depth: number): number {
-  return Math.round(MIN_GREY + (MAX_GREY - MIN_GREY) * depth);
+function wrapHue(hue: number): number {
+  return ((hue % 360) + 360) % 360;
+}
+
+function hsla(hue: number, saturation: number, lightness: number, alpha: number): string {
+  return `hsla(${wrapHue(hue)}, ${saturation}%, ${lightness}%, ${alpha})`;
 }
 
 export function createMoggedBackground(canvas: HTMLCanvasElement): MoggedBackgroundController {
@@ -63,36 +67,42 @@ export function createMoggedBackground(canvas: HTMLCanvasElement): MoggedBackgro
     const centerX = width / 2;
     const centerY = height / 2;
     const time = timeMs * 0.00024;
+    const primaryHue = wrapHue(timeMs * RAINBOW_CYCLE_DEGREES_PER_MS);
+    const secondaryHue = primaryHue + HUE_OFFSET_DEGREES;
 
     context.clearRect(0, 0, width, height);
 
     const baseGradient = context.createRadialGradient(centerX, centerY, minDimension * 0.02, centerX, centerY, minDimension * 0.92);
     baseGradient.addColorStop(0, "#000000");
-    baseGradient.addColorStop(0.52, "#141414");
-    baseGradient.addColorStop(1, "#303030");
+    baseGradient.addColorStop(0.42, hsla(primaryHue, 92, 12, 0.32));
+    baseGradient.addColorStop(0.74, hsla(secondaryHue, 92, 16, 0.22));
+    baseGradient.addColorStop(1, "#161616");
     context.fillStyle = baseGradient;
     context.fillRect(0, 0, width, height);
 
     const vortexGradient = context.createRadialGradient(centerX, centerY, minDimension * 0.04, centerX, centerY, minDimension * 0.36);
     vortexGradient.addColorStop(0, "rgba(0, 0, 0, 0.72)");
-    vortexGradient.addColorStop(0.58, "rgba(24, 24, 24, 0.25)");
+    vortexGradient.addColorStop(0.4, hsla(primaryHue, 96, 24, 0.16));
+    vortexGradient.addColorStop(0.58, hsla(secondaryHue, 96, 20, 0.13));
     vortexGradient.addColorStop(1, "rgba(24, 24, 24, 0)");
     context.fillStyle = vortexGradient;
     context.fillRect(0, 0, width, height);
 
     context.globalCompositeOperation = "screen";
-    for (const wisp of wisps) {
+    for (let index = 0; index < wisps.length; index += 1) {
+      const wisp = wisps[index];
       const tunnelRadius = Math.pow(wisp.depth, 1.2) * minDimension * wisp.lane;
       const angle = wisp.angle + time * (0.85 + wisp.drift);
       const x = centerX + Math.cos(angle) * tunnelRadius;
       const y = centerY + Math.sin(angle) * tunnelRadius * 0.7;
       const radius = (0.03 + wisp.scale * 0.055) * minDimension * (0.22 + wisp.depth * 1.15);
-      const grey = greyAt(0.15 + wisp.depth * 0.85);
+      const baseHue = index % 2 === 0 ? primaryHue : secondaryHue;
+      const hue = baseHue + wisp.depth * 24 + Math.sin(angle * 1.4) * 10;
       const alpha = wisp.opacity * (0.28 + wisp.depth * 0.95);
       const cloud = context.createRadialGradient(x - radius * 0.16, y - radius * 0.14, radius * 0.08, x, y, radius);
-      cloud.addColorStop(0, `rgba(${grey}, ${grey}, ${grey}, ${alpha})`);
-      cloud.addColorStop(0.44, `rgba(${grey}, ${grey}, ${grey}, ${alpha * 0.58})`);
-      cloud.addColorStop(1, `rgba(${grey}, ${grey}, ${grey}, 0)`);
+      cloud.addColorStop(0, hsla(hue, 98, 72, alpha));
+      cloud.addColorStop(0.44, hsla(hue + 18, 94, 58, alpha * 0.58));
+      cloud.addColorStop(1, hsla(hue + 32, 88, 42, 0));
       context.fillStyle = cloud;
       context.beginPath();
       context.ellipse(x, y, radius * 1.45, radius * 0.82, angle, 0, Math.PI * 2);
