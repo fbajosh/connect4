@@ -90,6 +90,7 @@ const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
 const aboutDialog = document.getElementById("about-dialog");
 const aboutTitle = document.getElementById("about-title");
+const aboutVersion = document.getElementById("about-version");
 const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
@@ -152,6 +153,7 @@ if (
   !aboutBackdrop ||
   !aboutDialog ||
   !aboutTitle ||
+  !aboutVersion ||
   !aboutClose ||
   !undoControl ||
   !redoControl ||
@@ -220,6 +222,8 @@ const featureToggleInputs: Record<FeatureKey, HTMLInputElement> = {
   moveScores: moveScoresToggle as HTMLInputElement,
   gameScore: gameScoreToggle as HTMLInputElement,
 };
+
+const buildVersion = import.meta.env.VITE_BUILD_VERSION?.trim() || "dev";
 
 let activeColumn: number | null = null;
 let activePointerId: number | null = null;
@@ -2510,6 +2514,7 @@ applyTheme(currentTheme);
 moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
 syncThemeAudio(false);
+aboutVersion.textContent = `Version ${buildVersion}`;
 settingsAudioToggle.checked = isAudioEnabled;
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
