@@ -245,6 +245,7 @@ let isAudioEnabled = true;
 let isColorblindModeEnabled = false;
 let practiceColor: PracticeColor = "red";
 let practiceDifficulty = 10;
+let lowestAiDifficultyThisGame: number | null = null;
 let statsDifficulty = 10;
 let currentTheme: ThemeName = "light";
 let practiceRoundIndex = 0;
@@ -1218,7 +1219,7 @@ function maybeRecordCompletedPracticeGame(): void {
     !isWinLocked || winningPlayer === null ? "tie" : winningPlayer === humanPlayer ? "win" : "loss";
   const stat: PracticeGameStat = {
     completedAt: Date.now(),
-    difficulty: practiceDifficulty,
+    difficulty: lowestAiDifficultyThisGame ?? practiceDifficulty,
     gameDurationMs: pendingPracticeGameDurationMs ?? 0,
     id: createPracticeStatId(),
     moveCount: historyIndex,
@@ -1548,6 +1549,11 @@ function rebuildBoardFromHistory(options: RebuildHistoryOptions = {}): void {
 }
 
 function commitMove(column: number, player: PlayerValue): void {
+  if (isTrainingMode() && player !== trainingHumanPlayer()) {
+    lowestAiDifficultyThisGame =
+      lowestAiDifficultyThisGame === null ? practiceDifficulty : Math.min(lowestAiDifficultyThisGame, practiceDifficulty);
+  }
+
   const record: MoveRecord = {
     aiDebug:
       isTrainingMode() &&
@@ -1935,6 +1941,7 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   }
   currentPracticeRecordedStatId = null;
   isImportedGame = false;
+  lowestAiDifficultyThisGame = null;
   didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
   resetGameTimer();
@@ -1954,6 +1961,7 @@ function importStateFromLocation(): void {
   freeplayUndoAvailable = false;
   currentPracticeRecordedStatId = null;
   isImportedGame = Boolean(sequence);
+  lowestAiDifficultyThisGame = null;
   didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
   resetGameTimer();
@@ -1997,6 +2005,7 @@ function importStateSequence(sequence: string): boolean {
   freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
   currentPracticeRecordedStatId = null;
   isImportedGame = importedHistory.length > 0;
+  lowestAiDifficultyThisGame = null;
   didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
   resetGameTimer();
