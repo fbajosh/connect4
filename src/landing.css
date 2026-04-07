@@ -1183,8 +1183,7 @@ body::after {
 
 .about-content p,
 .about-list,
-.about-content table,
-.about-version {
+.about-content table {
   margin: 0;
   color: var(--text-secondary);
   font-family: var(--ui-font);
@@ -1199,16 +1198,6 @@ body::after {
 
 .about-panel.hidden {
   display: none;
-}
-
-.about-footer {
-  margin-top: 0.15rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid color-mix(in srgb, var(--control-border) 55%, transparent);
-}
-
-.about-version {
-  text-align: right;
 }
 
 .about-section {
@@ -1304,6 +1293,12 @@ body::after {
 
 .stats-filter-row {
   align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.stats-filter-row .settings-theme-select-wrap {
+  width: auto;
 }
 
 .stats-difficulty-select {
