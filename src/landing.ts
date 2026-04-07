@@ -1101,16 +1101,20 @@ function renderDevOutput(): void {
 
   devOutputBox.value = buildDevOutput({
     assistsEnabled: didUseAssistThisGame,
+    difficultyFloor: isTrainingMode() ? String(trainingStatDifficulty()) : "",
     optimizerOutput: latestOptimizerOutput,
+    playerColor: currentHumanPlayerColorLabel(),
     practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
     practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
     previousRedScores,
     previousYellowScores,
     remaining: currentSolvedLineRemainingText(),
+    scoreShare: currentScoreShareLabel(),
     state: moveSequence,
     timer: formatDuration(currentGameTimerMs()),
     undoUsed: didUseUndoThisGame,
     version: buildVersion,
+    winDiscs: currentWinningDiscCount() === null ? "" : String(currentWinningDiscCount()),
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
 }
@@ -1326,6 +1330,19 @@ function trainingHumanPlayer(): PlayerValue {
     red: RED,
     yellow: YELLOW,
   });
+}
+
+function currentHumanPlayerColorLabel(): string {
+  if (!isTrainingMode()) {
+    return "";
+  }
+
+  const actualColor = playerClass(trainingHumanPlayer());
+  return practiceColor === "alternate" ? `${actualColor} (alternate)` : actualColor;
+}
+
+function currentScoreShareLabel(): string {
+  return `red ${ (currentSolvedLineRedShare() * 100).toFixed(4) }%`;
 }
 
 function isHumanCurrentlyLosing(): boolean {

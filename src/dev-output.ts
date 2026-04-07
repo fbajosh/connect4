@@ -4,16 +4,20 @@ type ScoreHistory = Array<number | null>;
 
 type DevOutputOptions = {
   assistsEnabled: boolean;
+  difficultyFloor: string;
   optimizerOutput: string;
+  playerColor: string;
   practiceDifficulty: number | null;
   practiceAiDebug: PracticeAiDebug | null;
   previousRedScores: ScoreHistory;
   previousYellowScores: ScoreHistory;
   remaining: string;
+  scoreShare: string;
   state: string;
   timer: string;
   undoUsed: boolean;
   version: string;
+  winDiscs: string;
   winner: string | null;
 };
 
@@ -89,22 +93,30 @@ export function buildDevOutput(options: DevOutputOptions): string {
   const lines = [
     `version: ${options.version}`,
     `state: ${options.state}`,
+    `player_color: ${options.playerColor}`,
+    `difficulty_floor: ${options.difficultyFloor}`,
+    `remaining: ${options.remaining.toLowerCase()}`,
+    `score_share: ${options.scoreShare}`,
+    `timer: ${options.timer}`,
     `winner: ${options.winner ?? ""}`,
+    `win_discs: ${options.winDiscs}`,
+    "--",
+    `assists_enabled: ${options.assistsEnabled ? "yes" : "no"}`,
+    `undo_used: ${options.undoUsed ? "yes" : "no"}`,
+    "--",
     `status: ${status}`,
     `best: ${best}`,
     `moves: ${moves}`,
     `error: ${error}`,
-    `remaining: ${options.remaining.toLowerCase()}`,
+    "--",
+    `scores: ${scores}`,
+    `pattern_adjust: ${patternAdjust}`,
+    `temperature: ${temperature}`,
+    `rng: ${rng}`,
+    "--",
+    `previous_red: ${formatScoreHistory(options.previousRedScores)}`,
+    `previous_yellow: ${formatScoreHistory(options.previousYellowScores)}`,
   ];
 
-  lines.push(`timer: ${options.timer}`);
-  lines.push(`assists enabled: ${options.assistsEnabled ? "yes" : "no"}`);
-  lines.push(`undo used: ${options.undoUsed ? "yes" : "no"}`);
-  lines.push(`scores: ${scores}`);
-  lines.push(`pattern_adjust: ${patternAdjust}`);
-  lines.push(`temperature: ${temperature}`);
-  lines.push(`rng: ${rng}`);
-  lines.push(`previous-red: ${formatScoreHistory(options.previousRedScores)}`);
-  lines.push(`previous-yellow: ${formatScoreHistory(options.previousYellowScores)}`);
   return lines.join("\n");
 }

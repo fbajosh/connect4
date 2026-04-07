@@ -1293,6 +1293,12 @@ body::after {
 
 .stats-filter-row {
   align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.stats-filter-row .settings-theme-select-wrap {
+  width: auto;
 }
 
 .stats-difficulty-select {
