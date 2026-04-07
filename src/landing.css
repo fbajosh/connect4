@@ -1578,6 +1578,23 @@ body::after {
     bottom: max(env(safe-area-inset-bottom), 0px);
     max-height: none;
   }
+
+  .landing.has-dev-panel {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+
+  .landing.has-dev-panel .board-area {
+    grid-row: 1 / span 3;
+  }
+
+  .landing.has-dev-panel .dev-panel {
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+    min-height: 0;
+    align-self: start;
+    justify-self: stretch;
+  }
 }
 
 @media (min-width: 1180px) {
