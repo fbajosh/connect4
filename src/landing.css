@@ -722,6 +722,14 @@ body::after {
   gap: 0.45rem;
 }
 
+.dev-toolbar-right {
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 0.45rem;
+}
+
 .dev-icon-button {
   display: inline-flex;
   align-items: center;
@@ -736,11 +744,6 @@ body::after {
   color: var(--text-primary);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-}
-
-.dev-close-control {
-  grid-column: 3;
-  justify-self: end;
 }
 
 .dev-resize-control {
@@ -1604,11 +1607,11 @@ body::after {
   }
 
   .title {
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .title-line {
-    display: block;
+    display: inline;
   }
 
   .menu-bar {
@@ -1648,7 +1651,7 @@ body::after {
     width: auto !important;
     justify-items: unset;
     align-content: unset;
-    align-self: end;
+    align-self: center;
     gap: 0.7rem;
     flex-wrap: nowrap;
   }
@@ -1660,9 +1663,22 @@ body::after {
   }
 
   .reset-control,
+  .history-button,
+  .settings-control,
+  .landing.has-dev-panel .compact-landscape-dev-controls .dev-icon-button {
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .reset-control,
   .board-settings-shell {
     position: static;
     transform: none;
+  }
+
+  .board-settings-shell {
+    display: flex;
+    align-items: center;
   }
 
   .landing.has-dev-panel .dev-toolbar {
