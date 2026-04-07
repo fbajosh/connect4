@@ -40,11 +40,19 @@ export function practiceTemperature(difficulty: number): number {
     return 0;
   }
 
-  if (difficulty <= 5) {
-    return 6 - difficulty;
+  if (difficulty === 2) {
+    return 40;
   }
 
-  return 1 - (difficulty - 5) * 0.2;
+  if (difficulty === 3) {
+    return 20;
+  }
+
+  if (difficulty === 4) {
+    return 10;
+  }
+
+  return 10 - difficulty;
 }
 
 function shiftValuesToZero(values: number[]): number[] {
