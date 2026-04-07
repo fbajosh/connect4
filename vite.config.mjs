@@ -87,23 +87,20 @@ function navigationCacheKey(pathname) {
 
 async function respondToNavigation(request, url) {
   const precache = await caches.open(PRECACHE_CACHE_NAME);
+  const runtime = await caches.open(RUNTIME_CACHE_NAME);
   const cacheKey = navigationCacheKey(url.pathname);
-
-  if (cacheKey) {
-    const cachedRoute = await precache.match(cacheKey);
-    if (cachedRoute) {
-      return cachedRoute;
-    }
-  }
-
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      const runtime = await caches.open(RUNTIME_CACHE_NAME);
       void runtime.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
+    const cachedRuntimeResponse = await runtime.match(request);
+    if (cachedRuntimeResponse) {
+      return cachedRuntimeResponse;
+    }
+
     if (cacheKey) {
       const cachedRoute = await precache.match(cacheKey);
       if (cachedRoute) {
