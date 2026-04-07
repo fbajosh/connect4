@@ -39,7 +39,7 @@ import {
   titleForMode,
   writePersistedUiState,
 } from "./ui-persistence";
-import { registerPwaServiceWorker } from "./pwa";
+import { refreshPwaOfflineCache, registerPwaServiceWorker, stripPwaCacheRefreshParamFromUrl } from "./pwa";
 import {
   APP_LANGUAGE_OPTIONS,
   APP_LOCALE,
@@ -135,10 +135,12 @@ const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
 const devToolbar = document.getElementById("dev-toolbar");
 const devToolbarLeft = devToolbar?.querySelector<HTMLElement>(".dev-toolbar-left");
+const devToolbarRight = devToolbar?.querySelector<HTMLElement>(".dev-toolbar-right");
 const compactLandscapeDevControls = document.getElementById("compact-landscape-dev-controls");
 const importStateControl = document.getElementById("import-state-control");
 const exportStateControl = document.getElementById("export-state-control");
 const devResizeControl = document.getElementById("dev-resize-control");
+const devRefreshControl = document.getElementById("dev-refresh-control");
 const devCloseControl = document.getElementById("dev-close-control");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsAudioToggle = document.getElementById("settings-audio-toggle");
@@ -204,10 +206,12 @@ if (
   !devPanel ||
   !devToolbar ||
   !devToolbarLeft ||
+  !devToolbarRight ||
   !compactLandscapeDevControls ||
   !importStateControl ||
   !exportStateControl ||
   !devResizeControl ||
+  !devRefreshControl ||
   !devCloseControl ||
   !devOutputBox ||
   !settingsAudioToggle ||
@@ -220,6 +224,8 @@ if (
 ) {
   throw new Error("Missing required board elements.");
 }
+
+stripPwaCacheRefreshParamFromUrl();
 
 applyStaticTranslations(document);
 
@@ -1143,8 +1149,8 @@ function syncCompactLandscapeDevControls(): void {
       compactLandscapeDevControls.append(devToolbarLeft);
     }
 
-    if (devCloseControl.parentElement !== compactLandscapeDevControls) {
-      compactLandscapeDevControls.append(devCloseControl);
+    if (devToolbarRight.parentElement !== compactLandscapeDevControls) {
+      compactLandscapeDevControls.append(devToolbarRight);
     }
 
     compactLandscapeDevControls.classList.remove("hidden");
@@ -1155,8 +1161,8 @@ function syncCompactLandscapeDevControls(): void {
     devToolbar.insertBefore(devToolbarLeft, devResizeControl);
   }
 
-  if (devCloseControl.parentElement !== devToolbar) {
-    devToolbar.append(devCloseControl);
+  if (devToolbarRight.parentElement !== devToolbar) {
+    devToolbar.append(devToolbarRight);
   }
 
   compactLandscapeDevControls.classList.add("hidden");
@@ -2698,6 +2704,10 @@ importStateControl.addEventListener("click", () => {
 
 exportStateControl.addEventListener("click", () => {
   void exportStateToClipboard();
+});
+
+devRefreshControl.addEventListener("click", () => {
+  void refreshPwaOfflineCache();
 });
 
 devCloseControl.addEventListener("click", () => {
