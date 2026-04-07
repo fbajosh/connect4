@@ -2,8 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Browser-first Connect 4 training app with solver-backed hints, practice, and stats." />
+    <meta name="theme-color" content="#181818" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Connect 4 Trainer" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta property="og:site_name" content="Connect 4 Trainer" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Connect 4 Trainer" />
@@ -15,17 +20,18 @@
     <meta name="twitter:description" content="Browser-first Connect 4 training app with solver-backed hints, practice, and stats." />
     <meta name="twitter:image" content="https://appmogged.com/connect4/og-wide.png" />
     <title>Connect 4 Trainer - Training</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/connect4/assets/favicon-GYQE1Sf0.svg" />
     <link rel="icon" type="image/png" href="/connect4/assets/favicon-DC-pduA7.png" />
-    <link rel="apple-touch-icon" href="/connect4/assets/favicon-DC-pduA7.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./pwa-icons/apple-touch-icon-180.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-BxN6M4ty.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-Cy2_9DvZ.css">
+    <script type="module" crossorigin src="/connect4/assets/index-3TEkBxqC.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-BK2x5Yjd.css">
   </head>
   <body>
     <canvas class="theme-background" id="theme-background" aria-hidden="true"></canvas>
@@ -248,8 +254,8 @@
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
         <div class="dev-field">
           <div class="dev-toolbar">
-            <button class="dev-link" id="import-state-control" type="button">Import State</button>
-            <button class="dev-link" id="export-state-control" type="button">Export State</button>
+            <button class="dev-link" id="import-state-control" type="button">import state</button>
+            <button class="dev-link" id="export-state-control" type="button">export state</button>
           </div>
           <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
         </div>
@@ -374,26 +380,39 @@
                     </label>
                   </div>
                 </div>
+                <div class="about-footer">
+                  <p class="about-version" id="about-version">Version dev</p>
+                </div>
               </section>
             </div>
           </div>
           <div class="about-view hidden" data-modal-view="stats">
             <div class="about-content">
               <div class="about-section">
-                <div class="settings-toggle-group stats-range-group" role="group" aria-label="Stats scope">
-                  <button class="settings-toggle-button" data-stats-range="today" type="button">Today</button>
-                  <button class="settings-toggle-button" data-stats-range="all-time" type="button">All-time</button>
+                <div class="settings-row stats-filter-row">
+                  <label class="practice-label" for="stats-difficulty-select">Difficulty</label>
+                  <div class="settings-theme-select-wrap">
+                    <select class="settings-theme-select stats-difficulty-select" id="stats-difficulty-select">
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="stats-table-wrap">
                   <table class="stats-table">
                     <thead>
                       <tr>
-                        <th scope="col">Dif.</th>
-                        <th scope="col">W</th>
-                        <th scope="col">L</th>
-                        <th scope="col">W/L</th>
-                        <th scope="col">W Len</th>
-                        <th scope="col">L Len</th>
+                        <th scope="col">Metric</th>
+                        <th scope="col">Today</th>
+                        <th scope="col">Lifetime</th>
                       </tr>
                     </thead>
                     <tbody id="stats-table-body"></tbody>

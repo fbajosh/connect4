@@ -7,7 +7,6 @@ import {
   type OptimizerWorkerResponse,
   type PersistedUiState,
   type PracticeColor,
-  type StatsRange,
   type ThemeName,
 } from "./app-types";
 import {
@@ -33,7 +32,6 @@ import {
 } from "./practice-ai";
 import { shiftSolverScoresToDisplay } from "./score-display";
 import {
-  modeLabel,
   isThemeName,
   modeForPathname,
   pathForMode,
@@ -41,10 +39,21 @@ import {
   titleForMode,
   writePersistedUiState,
 } from "./ui-persistence";
-import { appendPracticeStat, buildPracticeStatsRows, createPracticeStatId, readStoredPracticeStats, removePracticeStatById, type PracticeGameResult, type PracticeGameStat } from "./stats";
+import { registerPwaServiceWorker } from "./pwa";
+import {
+  appendPracticeStat,
+  buildPracticeDifficultyStats,
+  createPracticeStatId,
+  readStoredPracticeStats,
+  removePracticeStatById,
+  type PracticeGameResult,
+  type PracticeGameStat,
+  type PracticeStatsSummary,
+} from "./stats";
 import { createAudioController, ensureThemeFont, type SoundEffectKey } from "./media";
 import { applyTheme } from "./theme";
 import { createMoggedBackground } from "./mogged-background";
+
 const FIXED_BOARD_FRAME_ROWS = 7.46;
 const FIXED_BOARD_SHELL_BOTTOM_ROWS = 0.3;
 const FIXED_SCORE_BAR_BOTTOM_ROWS = 0;
@@ -53,6 +62,9 @@ const FIXED_TURN_INDICATOR_TOP_ROWS = 0.38;
 const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
+const COMPACT_LANDSCAPE_MEDIA_QUERY = "(orientation: landscape) and (max-height: 560px) and (max-width: 980px)";
+const BOARD_RESET_DOUBLE_TAP_WINDOW_MS = 320;
+const BOARD_COMPLETE_TAP_SHAKE_DELAY_MS = 321;
 const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
@@ -79,6 +91,7 @@ const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
 const aboutDialog = document.getElementById("about-dialog");
 const aboutTitle = document.getElementById("about-title");
+const aboutVersion = document.getElementById("about-version");
 const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
@@ -109,6 +122,7 @@ const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
+const statsDifficultySelect = document.getElementById("stats-difficulty-select") as HTMLSelectElement | null;
 const statsTableBody = document.getElementById("stats-table-body");
 const themeBackground = document.getElementById("theme-background");
 
@@ -140,6 +154,7 @@ if (
   !aboutBackdrop ||
   !aboutDialog ||
   !aboutTitle ||
+  !aboutVersion ||
   !aboutClose ||
   !undoControl ||
   !redoControl ||
@@ -170,6 +185,7 @@ if (
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
+  !statsDifficultySelect ||
   !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
@@ -188,7 +204,6 @@ const practiceColorButtons = Array.from(
 const aboutTabButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-about-tab]"));
 const aboutPanels = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-about-panel]"));
 const modalViews = Array.from(aboutModal.querySelectorAll<HTMLElement>("[data-modal-view]"));
-const statsRangeButtons = Array.from(aboutModal.querySelectorAll<HTMLButtonElement>("[data-stats-range]"));
 const modeButtons: Array<[GameMode, HTMLButtonElement]> = [
   ["training", trainingModeControl as HTMLButtonElement],
   ["freeplay", freeplayModeControl as HTMLButtonElement],
@@ -208,6 +223,8 @@ const featureToggleInputs: Record<FeatureKey, HTMLInputElement> = {
   moveScores: moveScoresToggle as HTMLInputElement,
   gameScore: gameScoreToggle as HTMLInputElement,
 };
+
+const buildVersion = import.meta.env.VITE_BUILD_VERSION?.trim() || "dev";
 
 let activeColumn: number | null = null;
 let activePointerId: number | null = null;
@@ -233,8 +250,9 @@ let isAudioEnabled = true;
 let isColorblindModeEnabled = false;
 let practiceColor: PracticeColor = "red";
 let practiceDifficulty = 10;
+let lowestAiDifficultyThisGame: number | null = null;
+let statsDifficulty = 10;
 let currentTheme: ThemeName = "light";
-let statsRange: StatsRange = "all-time";
 let practiceRoundIndex = 0;
 let aiMoveTimeout = 0;
 let aiScheduledSequence: string | null = null;
@@ -245,6 +263,14 @@ let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
 let isImportedGame = false;
+let didUseAssistThisGame = false;
+let didUseUndoThisGame = false;
+let gameTimerInterval = 0;
+let gameTimerStartedAt: number | null = null;
+let pendingBoardResetShakeTimeout = 0;
+let lastBoardResetTapAt = 0;
+let lastBoardResetTapPointerType: string | null = null;
+let pendingPracticeGameDurationMs: number | null = null;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
@@ -298,7 +324,6 @@ function persistUiState(): void {
     selectedMode: currentMode,
     practiceColor,
     practiceDifficulty,
-    statsRange,
     theme: currentTheme,
     pinned: {
       bestMove: featurePinned.bestMove,
@@ -429,6 +454,8 @@ function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutT
   modalReturnFocusTarget = trigger;
   if (view === "about" && options?.aboutTab) {
     setAboutTab(options.aboutTab);
+  } else if (view === "stats") {
+    setStatsDifficulty(practiceDifficulty);
   } else {
     syncModalView();
   }
@@ -448,7 +475,11 @@ function formatStatsNumber(value: number | null): string {
     return "-";
   }
 
-  return String(Math.round(value));
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value.toFixed(1).replace(/\.0$/, "");
 }
 
 function formatWinRate(value: number | null): string {
@@ -456,34 +487,214 @@ function formatWinRate(value: number | null): string {
     return "-";
   }
 
-  return `${Math.round(value * 100)}%`;
+  return `${(value * 100).toFixed(1).replace(/\.0$/, "")}%`;
+}
+
+function formatDuration(value: number | null): string {
+  if (value === null) {
+    return "-";
+  }
+
+  const totalSeconds = Math.max(0, Math.round(value / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function currentGameTimerMs(): number {
+  if (gameTimerStartedAt === null) {
+    return 0;
+  }
+
+  return Math.max(0, Date.now() - gameTimerStartedAt);
+}
+
+function syncGameTimerInterval(): void {
+  if (gameTimerStartedAt !== null) {
+    if (gameTimerInterval !== 0) {
+      return;
+    }
+
+    gameTimerInterval = window.setInterval(() => {
+      if (effectiveDevModeVisible()) {
+        renderDevOutput();
+      }
+    }, 1000);
+    return;
+  }
+
+  if (gameTimerInterval !== 0) {
+    window.clearInterval(gameTimerInterval);
+    gameTimerInterval = 0;
+  }
+}
+
+function hasTrainingAssistEnabled(): boolean {
+  if (!isTrainingMode()) {
+    return false;
+  }
+
+  for (const feature of Object.keys(featurePinned) as FeatureKey[]) {
+    if (featurePinned[feature] || featureHeld[feature]) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function markAssistUsedIfEnabled(): void {
+  if (hasTrainingAssistEnabled()) {
+    didUseAssistThisGame = true;
+  }
+}
+
+function startGameTimerIfNeeded(player: PlayerValue): void {
+  if (gameTimerStartedAt !== null) {
+    return;
+  }
+
+  if (currentMode === "training" && player !== trainingHumanPlayer()) {
+    return;
+  }
+
+  pendingPracticeGameDurationMs = null;
+  gameTimerStartedAt = Date.now();
+  syncGameTimerInterval();
+  renderDevOutput();
+}
+
+function completeGameTimer(): void {
+  pendingPracticeGameDurationMs = currentGameTimerMs();
+  gameTimerStartedAt = null;
+  syncGameTimerInterval();
+  renderDevOutput();
+}
+
+function resetGameTimer(): void {
+  pendingPracticeGameDurationMs = null;
+  gameTimerStartedAt = null;
+  syncGameTimerInterval();
+  renderDevOutput();
+}
+
+function clearPendingBoardResetShake(): void {
+  if (pendingBoardResetShakeTimeout !== 0) {
+    window.clearTimeout(pendingBoardResetShakeTimeout);
+    pendingBoardResetShakeTimeout = 0;
+  }
+}
+
+function clearPendingBoardResetTap(): void {
+  clearPendingBoardResetShake();
+  lastBoardResetTapAt = 0;
+  lastBoardResetTapPointerType = null;
+}
+
+function isGameComplete(): boolean {
+  return isWinLocked || !hasPlayableMove();
+}
+
+function scheduleCompletedGameShake(): void {
+  clearPendingBoardResetShake();
+  pendingBoardResetShakeTimeout = window.setTimeout(() => {
+    pendingBoardResetShakeTimeout = 0;
+    lastBoardResetTapAt = 0;
+    lastBoardResetTapPointerType = null;
+    if (!isGameComplete()) {
+      return;
+    }
+
+    triggerWinLockShake();
+  }, BOARD_COMPLETE_TAP_SHAKE_DELAY_MS);
+}
+
+function maybeHandleBoardDoubleTapReset(event: PointerEvent): boolean {
+  if (!isGameComplete()) {
+    clearPendingBoardResetTap();
+    return false;
+  }
+
+  const isDoubleTap =
+    lastBoardResetTapAt !== 0 &&
+    event.timeStamp - lastBoardResetTapAt <= BOARD_RESET_DOUBLE_TAP_WINDOW_MS &&
+    lastBoardResetTapPointerType === event.pointerType;
+
+  lastBoardResetTapAt = event.timeStamp;
+  lastBoardResetTapPointerType = event.pointerType;
+
+  if (!isDoubleTap || !canReset()) {
+    scheduleCompletedGameShake();
+    return true;
+  }
+
+  clearPendingBoardResetTap();
+  resetBoard();
+  return true;
+}
+
+function statsMetricValue(label: string, summary: PracticeStatsSummary): string {
+  switch (label) {
+    case "Wins":
+      return String(summary.wins);
+    case "Losses":
+      return String(summary.losses);
+    case "Ties":
+      return String(summary.ties);
+    case "Win rate":
+      return formatWinRate(summary.winRate);
+    case "Avg. win length":
+      return formatStatsNumber(summary.averageWinLength);
+    case "Avg. loss length":
+      return formatStatsNumber(summary.averageLossLength);
+    case "Wins without undo":
+      return String(summary.winsWithoutUndo);
+    case "Wins without assist":
+      return String(summary.winsWithoutAssist);
+    case "Avg. game time":
+      return formatDuration(summary.averageGameTimeMs);
+    case "Fastest win":
+      return formatDuration(summary.fastestWinMs);
+    default:
+      return "-";
+  }
 }
 
 function renderStatsTable(): void {
-  const rows = buildPracticeStatsRows(practiceStats, statsRange);
+  const stats = buildPracticeDifficultyStats(practiceStats, statsDifficulty);
+  const metricLabels = [
+    "Wins",
+    "Losses",
+    "Ties",
+    "Win rate",
+    "Avg. win length",
+    "Avg. loss length",
+    "Wins without undo",
+    "Wins without assist",
+    "Avg. game time",
+    "Fastest win",
+  ];
   statsTableBody.replaceChildren();
 
-  for (const row of rows) {
+  for (const label of metricLabels) {
     const tableRow = document.createElement("tr");
     tableRow.innerHTML = `
-      <th scope="row">${row.difficulty}</th>
-      <td>${row.wins}</td>
-      <td>${row.losses}</td>
-      <td>${formatWinRate(row.winRate)}</td>
-      <td>${formatStatsNumber(row.averageWinLength)}</td>
-      <td>${formatStatsNumber(row.averageLossLength)}</td>
+      <th scope="row">${label}</th>
+      <td>${statsMetricValue(label, stats.today)}</td>
+      <td>${statsMetricValue(label, stats.lifetime)}</td>
     `;
     statsTableBody.append(tableRow);
   }
 }
 
-function syncStatsRangeControls(): void {
-  for (const button of statsRangeButtons) {
-    const range = button.dataset.statsRange as StatsRange | undefined;
-    const isSelected = range === statsRange;
-    button.classList.toggle("is-selected", isSelected);
-    button.setAttribute("aria-pressed", String(isSelected));
-  }
+function syncStatsDifficultyControl(): void {
+  statsDifficultySelect.value = String(statsDifficulty);
 }
 
 function syncThemeControls(): void {
@@ -503,10 +714,9 @@ function setAboutTab(tab: AboutTab): void {
   syncModalView();
 }
 
-function setStatsRange(range: StatsRange): void {
-  statsRange = range;
-  persistUiState();
-  syncStatsRangeControls();
+function setStatsDifficulty(nextDifficulty: number): void {
+  statsDifficulty = Math.max(1, Math.min(10, Math.round(nextDifficulty)));
+  syncStatsDifficultyControl();
   renderStatsTable();
 }
 
@@ -615,7 +825,7 @@ function layoutBoardFrame(): void {
   boardActions.style.width = "";
   syncAboutDialogPosition();
 
-  if (window.matchMedia("(orientation: landscape) and (max-height: 560px) and (max-width: 980px)").matches) {
+  if (window.matchMedia(COMPACT_LANDSCAPE_MEDIA_QUERY).matches) {
     const landingStyle = window.getComputedStyle(landingRoot);
     const edgeBuffer = Number.parseFloat(landingStyle.paddingLeft || "0") || 0;
     const layoutGap = Number.parseFloat(landingStyle.columnGap || landingStyle.gap || "0") || 0;
@@ -714,7 +924,7 @@ function updatePracticeControls(): void {
   settingsAudioToggle.checked = isAudioEnabled;
   settingsDevModeToggle.checked = isDevModeEnabled;
   syncThemeControls();
-  syncStatsRangeControls();
+  syncStatsDifficultyControl();
 }
 
 function isFeatureVisible(feature: FeatureKey): boolean {
@@ -743,6 +953,7 @@ function setFeaturePinned(feature: FeatureKey, pinned: boolean): void {
     featureHeld[feature] = false;
   }
 
+  markAssistUsedIfEnabled();
   featureToggleInputs[feature].checked = pinned;
   persistUiState();
   syncFeatureControls();
@@ -755,6 +966,7 @@ function setFeatureHeld(feature: FeatureKey, held: boolean): void {
   }
 
   featureHeld[feature] = held;
+  markAssistUsedIfEnabled();
   syncFeatureControls();
   syncFeatureUI();
 }
@@ -869,6 +1081,7 @@ function renderDevOutput(): void {
   }
 
   devOutputBox.value = buildDevOutput({
+    assistsEnabled: didUseAssistThisGame,
     optimizerOutput: latestOptimizerOutput,
     practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
     practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
@@ -876,6 +1089,8 @@ function renderDevOutput(): void {
     previousYellowScores,
     remaining: currentSolvedLineRemainingText(),
     state: moveSequence,
+    timer: formatDuration(currentGameTimerMs()),
+    undoUsed: didUseUndoThisGame,
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
 }
@@ -991,11 +1206,13 @@ function removeCurrentPracticeRecordedStat(): void {
 function maybeRecordCompletedPracticeGame(): void {
   if (
     !isTrainingMode() ||
-    !isWinLocked ||
-    winningPlayer === null ||
     currentPracticeRecordedStatId !== null ||
     isImportedGame
   ) {
+    return;
+  }
+
+  if (!isWinLocked && hasPlayableMove()) {
     return;
   }
 
@@ -1003,13 +1220,17 @@ function maybeRecordCompletedPracticeGame(): void {
     red: RED,
     yellow: YELLOW,
   });
-  const result: PracticeGameResult = winningPlayer === humanPlayer ? "win" : "loss";
+  const result: PracticeGameResult =
+    !isWinLocked || winningPlayer === null ? "tie" : winningPlayer === humanPlayer ? "win" : "loss";
   const stat: PracticeGameStat = {
     completedAt: Date.now(),
-    difficulty: practiceDifficulty,
+    difficulty: lowestAiDifficultyThisGame ?? practiceDifficulty,
+    gameDurationMs: pendingPracticeGameDurationMs ?? 0,
     id: createPracticeStatId(),
     moveCount: historyIndex,
     result,
+    usedAssist: didUseAssistThisGame,
+    usedUndo: didUseUndoThisGame,
   };
 
   practiceStats = appendPracticeStat(stat);
@@ -1319,6 +1540,9 @@ function rebuildBoardFromHistory(options: RebuildHistoryOptions = {}): void {
   isWinLocked = updateWinningHighlights();
   winningPlayer = isWinLocked && historyIndex > 0 ? moveHistory[historyIndex - 1].player : null;
   const isGameComplete = isWinLocked || !hasPlayableMove();
+  if (!wasGameComplete && isGameComplete) {
+    completeGameTimer();
+  }
   if (!suppressCompletionEffects && !wasGameComplete && isGameComplete) {
     playCompletionSound();
   }
@@ -1330,6 +1554,11 @@ function rebuildBoardFromHistory(options: RebuildHistoryOptions = {}): void {
 }
 
 function commitMove(column: number, player: PlayerValue): void {
+  if (isTrainingMode() && player !== trainingHumanPlayer()) {
+    lowestAiDifficultyThisGame =
+      lowestAiDifficultyThisGame === null ? practiceDifficulty : Math.min(lowestAiDifficultyThisGame, practiceDifficulty);
+  }
+
   const record: MoveRecord = {
     aiDebug:
       isTrainingMode() &&
@@ -1464,8 +1693,10 @@ function maybeScheduleAiTurn(): void {
     }
 
     const aiChoice = choosePracticeAiColumn({
+      board,
       difficulty: practiceDifficulty,
       isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
+      player: currentPlayer,
       scores,
     });
     if (aiChoice.column === null) {
@@ -1709,6 +1940,7 @@ function animateResetPieces(): void {
 
 function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   const { advancePracticeRound = true } = options ?? {};
+  clearPendingBoardResetTap();
   playSoundEffect("board-reset");
   animateResetPieces();
   if (advancePracticeRound && isTrainingMode() && practiceColor === "alternate") {
@@ -1716,6 +1948,10 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   }
   currentPracticeRecordedStatId = null;
   isImportedGame = false;
+  lowestAiDifficultyThisGame = null;
+  didUseAssistThisGame = hasTrainingAssistEnabled();
+  didUseUndoThisGame = false;
+  resetGameTimer();
   moveHistory.length = 0;
   historyIndex = 0;
   freeplayUndoAvailable = false;
@@ -1726,11 +1962,16 @@ function importStateFromLocation(): void {
   const sequence = stateSequenceFromLocation();
   const importedHistory = sequence ? moveHistoryFromSequence(sequence) : [];
 
+  clearPendingBoardResetTap();
   moveHistory.length = 0;
   historyIndex = 0;
   freeplayUndoAvailable = false;
   currentPracticeRecordedStatId = null;
   isImportedGame = Boolean(sequence);
+  lowestAiDifficultyThisGame = null;
+  didUseAssistThisGame = hasTrainingAssistEnabled();
+  didUseUndoThisGame = false;
+  resetGameTimer();
 
   if (sequence && importedHistory === null) {
     console.warn(`Ignoring invalid Connect 4 state from URL: ${sequence}`);
@@ -1764,12 +2005,17 @@ function importStateSequence(sequence: string): boolean {
     return false;
   }
 
+  clearPendingBoardResetTap();
   moveHistory.length = 0;
   moveHistory.push(...importedHistory);
   historyIndex = importedHistory.length;
   freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
   currentPracticeRecordedStatId = null;
   isImportedGame = importedHistory.length > 0;
+  lowestAiDifficultyThisGame = null;
+  didUseAssistThisGame = hasTrainingAssistEnabled();
+  didUseUndoThisGame = false;
+  resetGameTimer();
   rebuildBoardFromHistory({
     suppressCompletionEffects: true,
     suppressStatsRecording: true,
@@ -1820,6 +2066,7 @@ function dropPreview(column: number): void {
   }
 
   const player = currentPlayer;
+  startGameTimerIfNeeded(player);
   const currentDropToken = ++dropToken;
   let didFinish = false;
   isAnimating = true;
@@ -1893,6 +2140,7 @@ function performUndo(): void {
       return;
     }
 
+    didUseUndoThisGame = true;
     playSoundEffect("undo");
     removeCurrentPracticeRecordedStat();
     historyIndex = targetIndex;
@@ -1904,6 +2152,7 @@ function performUndo(): void {
     return;
   }
 
+  didUseUndoThisGame = true;
   playSoundEffect("undo");
   historyIndex -= 1;
   freeplayUndoAvailable = false;
@@ -1955,6 +2204,10 @@ boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
     return;
   }
 
+  if (maybeHandleBoardDoubleTapReset(event)) {
+    return;
+  }
+
   if (!isHumanTurn()) {
     return;
   }
@@ -1964,6 +2217,7 @@ boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
     return;
   }
 
+  clearPendingBoardResetTap();
   activePointerId = event.pointerId;
   boardGrid.setPointerCapture(event.pointerId);
   updatePreview(columnFromPointer(event.clientX));
@@ -2144,16 +2398,9 @@ for (const button of aboutTabButtons) {
   });
 }
 
-for (const button of statsRangeButtons) {
-  button.addEventListener("click", () => {
-    const range = button.dataset.statsRange as StatsRange | undefined;
-    if (!range) {
-      return;
-    }
-
-    setStatsRange(range);
-  });
-}
+statsDifficultySelect.addEventListener("change", () => {
+  setStatsDifficulty(Number(statsDifficultySelect.value));
+});
 
 settingsThemeSelect.addEventListener("change", () => {
   const theme = settingsThemeSelect.value as ThemeName;
@@ -2258,20 +2505,23 @@ isDevModeEnabled = persistedUiState.devMode === true;
 isAudioEnabled = persistedUiState.audioEnabled !== false;
 isColorblindModeEnabled = persistedUiState.colorblindMode === true;
 practiceColor = persistedUiState.practiceColor ?? "red";
-statsRange = persistedUiState.statsRange === "today" ? "today" : "all-time";
 currentTheme = isThemeName(persistedUiState.theme ?? "") ? persistedUiState.theme : "light";
 const persistedDifficulty = persistedUiState.practiceDifficulty;
 if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficulty)) {
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
+statsDifficulty = practiceDifficulty;
+didUseAssistThisGame = hasTrainingAssistEnabled();
 ensureThemeFont(currentTheme);
 applyTheme(currentTheme);
 moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
 syncThemeAudio(false);
+aboutVersion.textContent = `Version ${buildVersion}`;
 settingsAudioToggle.checked = isAudioEnabled;
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
+registerPwaServiceWorker();
 syncModeControls();
 setAboutTab(activeAboutTab);
 renderStatsTable();

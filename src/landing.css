@@ -708,21 +708,23 @@ body::after {
 .dev-toolbar {
   display: flex;
   align-items: center;
-  gap: 1.35rem;
+  justify-content: space-evenly;
+  width: 100%;
+  gap: 0.85rem;
 }
 
 .dev-link {
-  width: max-content;
+  flex: 1 1 0;
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--text-primary);
-  font-family: var(--ui-font);
-  font-size: var(--menu-text-size);
-  font-weight: var(--ui-body-weight);
-  line-height: 1;
-  text-align: left;
+  font-family: "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -1169,7 +1171,8 @@ body::after {
 
 .about-content p,
 .about-list,
-.about-content table {
+.about-content table,
+.about-version {
   margin: 0;
   color: var(--text-secondary);
   font-family: var(--ui-font);
@@ -1184,6 +1187,16 @@ body::after {
 
 .about-panel.hidden {
   display: none;
+}
+
+.about-footer {
+  margin-top: 0.15rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--control-border) 55%, transparent);
+}
+
+.about-version {
+  text-align: right;
 }
 
 .about-section {
@@ -1244,15 +1257,6 @@ body::after {
   flex: 0 1 auto;
 }
 
-.stats-range-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  justify-items: center;
-  align-items: center;
-  width: 100%;
-  gap: 0;
-}
-
 .settings-theme-select {
   width: auto;
   min-width: 8.75rem;
@@ -1286,6 +1290,14 @@ body::after {
   border: 0;
 }
 
+.stats-filter-row {
+  align-items: center;
+}
+
+.stats-difficulty-select {
+  min-width: 5rem;
+}
+
 .stats-table-wrap {
   overflow: auto;
 }
@@ -1293,6 +1305,7 @@ body::after {
 .stats-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .stats-table th,
@@ -1300,13 +1313,18 @@ body::after {
   padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--control-border);
   text-align: left;
-  white-space: nowrap;
+  vertical-align: top;
   color: var(--text-primary);
   font-size: var(--modal-body-size);
 }
 
 .stats-table th {
   font-weight: 700;
+}
+
+.stats-table thead th:first-child,
+.stats-table tbody th {
+  width: 50%;
 }
 
 .stats-table td {
@@ -1566,6 +1584,29 @@ body::after {
     width: auto;
     max-width: none;
     overflow: auto;
+  }
+
+  .about-dialog {
+    top: max(env(safe-area-inset-top), 0px);
+    bottom: max(env(safe-area-inset-bottom), 0px);
+    max-height: none;
+  }
+
+  .landing.has-dev-panel {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+
+  .landing.has-dev-panel .board-area {
+    grid-row: 1 / span 3;
+  }
+
+  .landing.has-dev-panel .dev-panel {
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+    min-height: 0;
+    align-self: start;
+    justify-self: stretch;
   }
 }
 
