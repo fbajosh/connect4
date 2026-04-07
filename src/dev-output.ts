@@ -37,45 +37,73 @@ function formatRoundedTenthsList(scores: Array<number | null>): string {
   return scores.map((score) => (score === null ? "-" : score.toFixed(1))).join(", ");
 }
 
-export function buildDevOutput(options: DevOutputOptions): string {
-  const lines = [`version: ${options.version}`, `state: ${options.state}`];
-
-  if (options.winner !== null) {
-    lines.push(`winner: ${options.winner}`);
-  } else if (options.optimizerOutput.length > 0) {
-    lines.push(options.optimizerOutput.toLowerCase());
+function extractOutputField(output: string, prefix: string): string {
+  const normalizedOutput = output.trim().toLowerCase();
+  if (!normalizedOutput) {
+    return "";
   }
 
-  lines.push(`remaining: ${options.remaining.toLowerCase()}`);
+  for (const line of normalizedOutput.split("\n")) {
+    if (line.startsWith(`${prefix}:`)) {
+      return line.slice(prefix.length + 1).trim();
+    }
+  }
+
+  return "";
+}
+
+export function buildDevOutput(options: DevOutputOptions): string {
+  const optimizerOutput = options.optimizerOutput.trim().toLowerCase();
+  const best = extractOutputField(optimizerOutput, "best");
+  const moves = extractOutputField(optimizerOutput, "moves");
+  const error = extractOutputField(optimizerOutput, "error");
+  let status = extractOutputField(optimizerOutput, "status");
+  if (!status && optimizerOutput && !best && !moves && !error) {
+    status = optimizerOutput;
+  }
+
+  const scores = options.practiceAiDebug ? formatDisplayScoreList(options.practiceAiDebug.rawScores) : "";
+  const patternAdjust = options.practiceAiDebug
+    ? formatRoundedTenthsList(options.practiceAiDebug.patternAdjustments)
+    : "";
+  let temperature = "";
+  if (options.practiceAiDebug !== null) {
+    if (options.practiceAiDebug.selectionMode === "flat") {
+      temperature =
+        options.practiceDifficulty !== null ? `flat (${options.practiceDifficulty})` : "flat";
+    } else if (options.practiceAiDebug.selectionMode === "deterministic") {
+      temperature =
+        options.practiceDifficulty !== null ? `deterministic (${options.practiceDifficulty})` : "deterministic";
+    } else if (options.practiceDifficulty !== null && options.practiceAiDebug.temperature !== null) {
+      temperature = `${options.practiceAiDebug.temperature.toFixed(3)} (${options.practiceDifficulty})`;
+    } else if (options.practiceAiDebug.temperature !== null) {
+      temperature = options.practiceAiDebug.temperature.toFixed(3);
+    } else {
+      temperature = "-";
+    }
+  }
+  const rng = options.practiceAiDebug?.rng === null || options.practiceAiDebug === null
+    ? ""
+    : options.practiceAiDebug.rng.toFixed(6);
+
+  const lines = [
+    `version: ${options.version}`,
+    `state: ${options.state}`,
+    `winner: ${options.winner ?? ""}`,
+    `status: ${status}`,
+    `best: ${best}`,
+    `moves: ${moves}`,
+    `error: ${error}`,
+    `remaining: ${options.remaining.toLowerCase()}`,
+  ];
+
   lines.push(`timer: ${options.timer}`);
   lines.push(`assists enabled: ${options.assistsEnabled ? "yes" : "no"}`);
   lines.push(`undo used: ${options.undoUsed ? "yes" : "no"}`);
-
-  if (options.practiceAiDebug !== null) {
-    lines.push(`scores: ${formatDisplayScoreList(options.practiceAiDebug.rawScores)}`);
-    lines.push(`pattern_adjust: ${formatRoundedTenthsList(options.practiceAiDebug.patternAdjustments)}`);
-    if (options.practiceAiDebug.selectionMode === "flat") {
-      if (options.practiceDifficulty !== null) {
-        lines.push(`temperature: flat (${options.practiceDifficulty})`);
-      } else {
-        lines.push("temperature: flat");
-      }
-    } else if (options.practiceAiDebug.selectionMode === "deterministic") {
-      if (options.practiceDifficulty !== null) {
-        lines.push(`temperature: deterministic (${options.practiceDifficulty})`);
-      } else {
-        lines.push("temperature: deterministic");
-      }
-    } else if (options.practiceDifficulty !== null && options.practiceAiDebug.temperature !== null) {
-      lines.push(`temperature: ${options.practiceAiDebug.temperature.toFixed(3)} (${options.practiceDifficulty})`);
-    } else if (options.practiceAiDebug.temperature !== null) {
-      lines.push(`temperature: ${options.practiceAiDebug.temperature.toFixed(3)}`);
-    } else {
-      lines.push("temperature: -");
-    }
-    lines.push(`rng: ${options.practiceAiDebug.rng === null ? "-" : options.practiceAiDebug.rng.toFixed(6)}`);
-  }
-
+  lines.push(`scores: ${scores}`);
+  lines.push(`pattern_adjust: ${patternAdjust}`);
+  lines.push(`temperature: ${temperature}`);
+  lines.push(`rng: ${rng}`);
   lines.push(`previous-red: ${formatScoreHistory(options.previousRedScores)}`);
   lines.push(`previous-yellow: ${formatScoreHistory(options.previousYellowScores)}`);
   return lines.join("\n");
