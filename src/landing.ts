@@ -1102,6 +1102,7 @@ function renderDevOutput(): void {
   devOutputBox.value = buildDevOutput({
     assistsEnabled: didUseAssistThisGame,
     difficultyFloor: isTrainingMode() ? String(trainingStatDifficulty()) : "",
+    lastMove: historyIndex > 0 ? `${playerClass(moveHistory[historyIndex - 1].player)} ${moveHistory[historyIndex - 1].column + 1}` : "",
     optimizerOutput: latestOptimizerOutput,
     playerColor: currentHumanPlayerColorLabel(),
     practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
