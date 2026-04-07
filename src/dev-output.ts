@@ -13,6 +13,7 @@ type DevOutputOptions = {
   state: string;
   timer: string;
   undoUsed: boolean;
+  version: string;
   winner: string | null;
 };
 
@@ -37,18 +38,18 @@ function formatRoundedTenthsList(scores: Array<number | null>): string {
 }
 
 export function buildDevOutput(options: DevOutputOptions): string {
-  const lines = [`state: ${options.state}`];
+  const lines = [`version: ${options.version}`, `state: ${options.state}`];
 
   if (options.winner !== null) {
     lines.push(`winner: ${options.winner}`);
   } else if (options.optimizerOutput.length > 0) {
-    lines.push(options.optimizerOutput);
+    lines.push(options.optimizerOutput.toLowerCase());
   }
 
-  lines.push(`remaining: ${options.remaining}`);
+  lines.push(`remaining: ${options.remaining.toLowerCase()}`);
   lines.push(`timer: ${options.timer}`);
-  lines.push(`Assists enabled: ${options.assistsEnabled ? "yes" : "no"}`);
-  lines.push(`Undo used: ${options.undoUsed ? "yes" : "no"}`);
+  lines.push(`assists enabled: ${options.assistsEnabled ? "yes" : "no"}`);
+  lines.push(`undo used: ${options.undoUsed ? "yes" : "no"}`);
 
   if (options.practiceAiDebug !== null) {
     lines.push(`scores: ${formatDisplayScoreList(options.practiceAiDebug.rawScores)}`);
@@ -72,7 +73,7 @@ export function buildDevOutput(options: DevOutputOptions): string {
     } else {
       lines.push("temperature: -");
     }
-    lines.push(`RNG: ${options.practiceAiDebug.rng === null ? "-" : options.practiceAiDebug.rng.toFixed(6)}`);
+    lines.push(`rng: ${options.practiceAiDebug.rng === null ? "-" : options.practiceAiDebug.rng.toFixed(6)}`);
   }
 
   lines.push(`previous-red: ${formatScoreHistory(options.previousRedScores)}`);

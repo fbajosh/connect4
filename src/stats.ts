@@ -1,22 +1,40 @@
 export type PracticeGameResult = "win" | "loss" | "tie";
+export type PracticeEventKind = "loss-undo" | "repeat-loss" | "reset" | "reset-while-losing";
 
 export type PracticeGameStat = {
   completedAt: number;
   difficulty: number;
   gameDurationMs: number | null;
   id: string;
+  kind: "game";
   moveCount: number;
   result: PracticeGameResult;
   usedAssist: boolean;
   usedUndo: boolean;
+  winningDiscCount: number | null;
 };
+
+export type PracticeEventStat = {
+  difficulty: number;
+  id: string;
+  kind: PracticeEventKind;
+  occurredAt: number;
+};
+
+export type PracticeStatRecord = PracticeEventStat | PracticeGameStat;
 
 export type PracticeStatsSummary = {
   averageGameTimeMs: number | null;
   averageLossLength: number | null;
   averageWinLength: number | null;
+  biggestLoss: number | null;
+  biggestWin: number | null;
   fastestWinMs: number | null;
+  lostMultipleTimes: number;
   losses: number;
+  lossesUndone: number;
+  resetCount: number;
+  resetsWhileLosing: number;
   ties: number;
   winRate: number | null;
   wins: number;
@@ -51,20 +69,67 @@ function normalizePracticeGameStat(value: unknown): PracticeGameStat | null {
     typeof candidate.gameDurationMs === "number" && Number.isFinite(candidate.gameDurationMs) && candidate.gameDurationMs >= 0
       ? candidate.gameDurationMs
       : null;
+  const winningDiscCount =
+    typeof candidate.winningDiscCount === "number" &&
+    Number.isFinite(candidate.winningDiscCount) &&
+    candidate.winningDiscCount >= 4
+      ? candidate.winningDiscCount
+      : null;
 
   return {
     completedAt: candidate.completedAt,
     difficulty: candidate.difficulty,
     gameDurationMs,
     id: candidate.id,
+    kind: "game",
     moveCount: candidate.moveCount,
     result: candidate.result,
     usedAssist: candidate.usedAssist === true,
     usedUndo: candidate.usedUndo === true,
+    winningDiscCount,
   };
 }
 
-export function readStoredPracticeStats(): PracticeGameStat[] {
+function normalizePracticeEventStat(value: unknown): PracticeEventStat | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<PracticeEventStat>;
+  if (
+    typeof candidate.difficulty !== "number" ||
+    typeof candidate.id !== "string" ||
+    typeof candidate.occurredAt !== "number" ||
+    (candidate.kind !== "loss-undo" &&
+      candidate.kind !== "repeat-loss" &&
+      candidate.kind !== "reset" &&
+      candidate.kind !== "reset-while-losing")
+  ) {
+    return null;
+  }
+
+  return {
+    difficulty: candidate.difficulty,
+    id: candidate.id,
+    kind: candidate.kind,
+    occurredAt: candidate.occurredAt,
+  };
+}
+
+function normalizePracticeStatRecord(value: unknown): PracticeStatRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as { kind?: unknown };
+  if (candidate.kind === "loss-undo" || candidate.kind === "repeat-loss" || candidate.kind === "reset" || candidate.kind === "reset-while-losing") {
+    return normalizePracticeEventStat(value);
+  }
+
+  return normalizePracticeGameStat(value);
+}
+
+export function readStoredPracticeStats(): PracticeStatRecord[] {
   try {
     const raw = window.localStorage.getItem(PRACTICE_STATS_STORAGE_KEY);
     if (!raw) {
@@ -77,14 +142,14 @@ export function readStoredPracticeStats(): PracticeGameStat[] {
     }
 
     return parsed
-      .map((entry) => normalizePracticeGameStat(entry))
-      .filter((entry): entry is PracticeGameStat => entry !== null);
+      .map((entry) => normalizePracticeStatRecord(entry))
+      .filter((entry): entry is PracticeStatRecord => entry !== null);
   } catch {
     return [];
   }
 }
 
-function writeStoredPracticeStats(stats: PracticeGameStat[]): void {
+function writeStoredPracticeStats(stats: PracticeStatRecord[]): void {
   try {
     window.localStorage.setItem(PRACTICE_STATS_STORAGE_KEY, JSON.stringify(stats));
   } catch {
@@ -92,16 +157,28 @@ function writeStoredPracticeStats(stats: PracticeGameStat[]): void {
   }
 }
 
-export function appendPracticeStat(stat: PracticeGameStat): PracticeGameStat[] {
+export function appendPracticeStat(stat: PracticeStatRecord): PracticeStatRecord[] {
   const nextStats = [...readStoredPracticeStats(), stat];
   writeStoredPracticeStats(nextStats);
   return nextStats;
 }
 
-export function removePracticeStatById(id: string): PracticeGameStat[] {
-  const nextStats = readStoredPracticeStats().filter((entry) => entry.id !== id);
+export function removePracticeStatById(id: string): { nextStats: PracticeStatRecord[]; removedStat: PracticeStatRecord | null } {
+  const existingStats = readStoredPracticeStats();
+  let removedStat: PracticeStatRecord | null = null;
+  const nextStats = existingStats.filter((entry) => {
+    if (entry.id !== id) {
+      return true;
+    }
+
+    removedStat = entry;
+    return false;
+  });
   writeStoredPracticeStats(nextStats);
-  return nextStats;
+  return {
+    nextStats,
+    removedStat,
+  };
 }
 
 function average(values: number[]): number | null {
@@ -112,24 +189,37 @@ function average(values: number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function summarizePracticeStats(stats: PracticeGameStat[]): PracticeStatsSummary {
-  const wins = stats.filter((entry) => entry.result === "win");
-  const losses = stats.filter((entry) => entry.result === "loss");
-  const ties = stats.filter((entry) => entry.result === "tie");
-  const timedGames = stats
+function summarizePracticeStats(stats: PracticeStatRecord[]): PracticeStatsSummary {
+  const games = stats.filter((entry): entry is PracticeGameStat => entry.kind === "game");
+  const wins = games.filter((entry) => entry.result === "win");
+  const losses = games.filter((entry) => entry.result === "loss");
+  const ties = games.filter((entry) => entry.result === "tie");
+  const winSizes = wins
+    .map((entry) => entry.winningDiscCount)
+    .filter((count): count is number => count !== null);
+  const lossSizes = losses
+    .map((entry) => entry.winningDiscCount)
+    .filter((count): count is number => count !== null);
+  const timedGames = games
     .map((entry) => entry.gameDurationMs)
     .filter((duration): duration is number => duration !== null);
   const timedWins = wins
     .map((entry) => entry.gameDurationMs)
     .filter((duration): duration is number => duration !== null);
-  const totalGames = stats.length;
+  const totalGames = games.length;
 
   return {
     averageGameTimeMs: average(timedGames),
     averageLossLength: average(losses.map((entry) => entry.moveCount)),
     averageWinLength: average(wins.map((entry) => entry.moveCount)),
+    biggestLoss: lossSizes.length === 0 ? null : Math.max(...lossSizes),
+    biggestWin: winSizes.length === 0 ? null : Math.max(...winSizes),
     fastestWinMs: timedWins.length === 0 ? null : Math.min(...timedWins),
+    lostMultipleTimes: stats.filter((entry) => entry.kind === "repeat-loss").length,
     losses: losses.length,
+    lossesUndone: stats.filter((entry) => entry.kind === "loss-undo").length,
+    resetCount: stats.filter((entry) => entry.kind === "reset").length,
+    resetsWhileLosing: stats.filter((entry) => entry.kind === "reset-while-losing").length,
     ties: ties.length,
     winRate: totalGames === 0 ? null : (wins.length + 0.5 * ties.length) / totalGames,
     wins: wins.length,
@@ -138,8 +228,12 @@ function summarizePracticeStats(stats: PracticeGameStat[]): PracticeStatsSummary
   };
 }
 
+function statRecordedAt(stat: PracticeStatRecord): number {
+  return stat.kind === "game" ? stat.completedAt : stat.occurredAt;
+}
+
 export function buildPracticeDifficultyStats(
-  stats: PracticeGameStat[],
+  stats: PracticeStatRecord[],
   difficulty: number,
   now = Date.now(),
 ): PracticeDifficultyStats {
@@ -148,7 +242,7 @@ export function buildPracticeDifficultyStats(
 
   return {
     lifetime: summarizePracticeStats(difficultyStats),
-    today: summarizePracticeStats(difficultyStats.filter((entry) => entry.completedAt >= cutoff)),
+    today: summarizePracticeStats(difficultyStats.filter((entry) => statRecordedAt(entry) >= cutoff)),
   };
 }
 

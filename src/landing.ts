@@ -46,8 +46,10 @@ import {
   createPracticeStatId,
   readStoredPracticeStats,
   removePracticeStatById,
+  type PracticeEventKind,
   type PracticeGameResult,
   type PracticeGameStat,
+  type PracticeStatRecord,
   type PracticeStatsSummary,
 } from "./stats";
 import { createAudioController, ensureThemeFont, type SoundEffectKey } from "./media";
@@ -91,7 +93,6 @@ const aboutModal = document.getElementById("about-modal");
 const aboutBackdrop = document.getElementById("about-backdrop");
 const aboutDialog = document.getElementById("about-dialog");
 const aboutTitle = document.getElementById("about-title");
-const aboutVersion = document.getElementById("about-version");
 const aboutClose = document.getElementById("about-close");
 const undoControl = document.getElementById("undo-control");
 const redoControl = document.getElementById("redo-control");
@@ -154,7 +155,6 @@ if (
   !aboutBackdrop ||
   !aboutDialog ||
   !aboutTitle ||
-  !aboutVersion ||
   !aboutClose ||
   !undoControl ||
   !redoControl ||
@@ -265,6 +265,7 @@ let currentPracticeRecordedStatId: string | null = null;
 let isImportedGame = false;
 let didUseAssistThisGame = false;
 let didUseUndoThisGame = false;
+let hasUndoneLossSinceReset = false;
 let gameTimerInterval = 0;
 let gameTimerStartedAt: number | null = null;
 let pendingBoardResetShakeTimeout = 0;
@@ -274,7 +275,7 @@ let pendingPracticeGameDurationMs: number | null = null;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
-let practiceStats: PracticeGameStat[] = readStoredPracticeStats();
+let practiceStats: PracticeStatRecord[] = readStoredPracticeStats();
 let modalReturnFocusTarget: HTMLElement | null = null;
 const featurePinned: Record<FeatureKey, boolean> = {
   bestMove: false,
@@ -635,7 +636,7 @@ function maybeHandleBoardDoubleTapReset(event: PointerEvent): boolean {
   }
 
   clearPendingBoardResetTap();
-  resetBoard();
+  resetBoard({ recordTrainingReset: true });
   return true;
 }
 
@@ -653,10 +654,22 @@ function statsMetricValue(label: string, summary: PracticeStatsSummary): string 
       return formatStatsNumber(summary.averageWinLength);
     case "Avg. loss length":
       return formatStatsNumber(summary.averageLossLength);
+    case "Biggest win":
+      return formatStatsNumber(summary.biggestWin);
+    case "Biggest loss":
+      return formatStatsNumber(summary.biggestLoss);
     case "Wins without undo":
       return String(summary.winsWithoutUndo);
     case "Wins without assist":
       return String(summary.winsWithoutAssist);
+    case "Losses undone":
+      return String(summary.lossesUndone);
+    case "Lost multiple times":
+      return String(summary.lostMultipleTimes);
+    case "Reset count":
+      return String(summary.resetCount);
+    case "Resets while losing":
+      return String(summary.resetsWhileLosing);
     case "Avg. game time":
       return formatDuration(summary.averageGameTimeMs);
     case "Fastest win":
@@ -675,8 +688,14 @@ function renderStatsTable(): void {
     "Win rate",
     "Avg. win length",
     "Avg. loss length",
+    "Biggest win",
+    "Biggest loss",
     "Wins without undo",
     "Wins without assist",
+    "Losses undone",
+    "Lost multiple times",
+    "Reset count",
+    "Resets while losing",
     "Avg. game time",
     "Fastest win",
   ];
@@ -1091,6 +1110,7 @@ function renderDevOutput(): void {
     state: moveSequence,
     timer: formatDuration(currentGameTimerMs()),
     undoUsed: didUseUndoThisGame,
+    version: buildVersion,
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
 }
@@ -1193,14 +1213,34 @@ function syncFeatureUI(): void {
   scheduleBoardFrameLayout();
 }
 
-function removeCurrentPracticeRecordedStat(): void {
-  if (currentPracticeRecordedStatId === null) {
+function trainingStatDifficulty(): number {
+  return lowestAiDifficultyThisGame ?? practiceDifficulty;
+}
+
+function recordPracticeEvent(kind: PracticeEventKind, difficulty = trainingStatDifficulty()): void {
+  if (!isTrainingMode() || isImportedGame) {
     return;
   }
 
-  practiceStats = removePracticeStatById(currentPracticeRecordedStatId);
+  practiceStats = appendPracticeStat({
+    difficulty,
+    id: createPracticeStatId(),
+    kind,
+    occurredAt: Date.now(),
+  });
+  renderStatsTable();
+}
+
+function removeCurrentPracticeRecordedStat(): PracticeGameStat | null {
+  if (currentPracticeRecordedStatId === null) {
+    return null;
+  }
+
+  const { nextStats, removedStat } = removePracticeStatById(currentPracticeRecordedStatId);
+  practiceStats = nextStats;
   currentPracticeRecordedStatId = null;
   renderStatsTable();
+  return removedStat?.kind === "game" ? removedStat : null;
 }
 
 function maybeRecordCompletedPracticeGame(): void {
@@ -1224,17 +1264,22 @@ function maybeRecordCompletedPracticeGame(): void {
     !isWinLocked || winningPlayer === null ? "tie" : winningPlayer === humanPlayer ? "win" : "loss";
   const stat: PracticeGameStat = {
     completedAt: Date.now(),
-    difficulty: lowestAiDifficultyThisGame ?? practiceDifficulty,
+    difficulty: trainingStatDifficulty(),
     gameDurationMs: pendingPracticeGameDurationMs ?? 0,
     id: createPracticeStatId(),
+    kind: "game",
     moveCount: historyIndex,
     result,
     usedAssist: didUseAssistThisGame,
     usedUndo: didUseUndoThisGame,
+    winningDiscCount: result === "tie" ? null : currentWinningDiscCount(),
   };
 
   practiceStats = appendPracticeStat(stat);
   currentPracticeRecordedStatId = stat.id;
+  if (result === "loss" && hasUndoneLossSinceReset) {
+    recordPracticeEvent("repeat-loss", stat.difficulty);
+  }
   renderStatsTable();
 }
 
@@ -1281,6 +1326,37 @@ function trainingHumanPlayer(): PlayerValue {
     red: RED,
     yellow: YELLOW,
   });
+}
+
+function isHumanCurrentlyLosing(): boolean {
+  if (!isTrainingMode()) {
+    return false;
+  }
+
+  const redShare = currentSolvedLineRedShare();
+  if (redShare === 0.5) {
+    return false;
+  }
+
+  return trainingHumanPlayer() === RED ? redShare < 0.5 : redShare > 0.5;
+}
+
+function currentWinningDiscCount(): number | null {
+  if (!isWinLocked || winningPlayer === null) {
+    return null;
+  }
+
+  const { winningMask } = detectWinningMask(board);
+  let count = 0;
+  for (const row of winningMask) {
+    for (const cell of row) {
+      if (cell) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
 }
 
 function trainingUndoTargetIndex(): number | null {
@@ -1938,8 +2014,16 @@ function animateResetPieces(): void {
   }
 }
 
-function resetBoard(options?: { advancePracticeRound?: boolean }): void {
-  const { advancePracticeRound = true } = options ?? {};
+function resetBoard(options?: { advancePracticeRound?: boolean; recordTrainingReset?: boolean }): void {
+  const { advancePracticeRound = true, recordTrainingReset = false } = options ?? {};
+  if (recordTrainingReset && isTrainingMode() && !isImportedGame) {
+    const difficulty = trainingStatDifficulty();
+    recordPracticeEvent("reset", difficulty);
+    if (isHumanCurrentlyLosing()) {
+      recordPracticeEvent("reset-while-losing", difficulty);
+    }
+  }
+
   clearPendingBoardResetTap();
   playSoundEffect("board-reset");
   animateResetPieces();
@@ -1951,6 +2035,7 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   lowestAiDifficultyThisGame = null;
   didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
+  hasUndoneLossSinceReset = false;
   resetGameTimer();
   moveHistory.length = 0;
   historyIndex = 0;
@@ -1971,6 +2056,7 @@ function importStateFromLocation(): void {
   lowestAiDifficultyThisGame = null;
   didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
+  hasUndoneLossSinceReset = false;
   resetGameTimer();
 
   if (sequence && importedHistory === null) {
@@ -2015,6 +2101,7 @@ function importStateSequence(sequence: string): boolean {
   lowestAiDifficultyThisGame = null;
   didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
+  hasUndoneLossSinceReset = false;
   resetGameTimer();
   rebuildBoardFromHistory({
     suppressCompletionEffects: true,
@@ -2142,7 +2229,11 @@ function performUndo(): void {
 
     didUseUndoThisGame = true;
     playSoundEffect("undo");
-    removeCurrentPracticeRecordedStat();
+    const removedStat = removeCurrentPracticeRecordedStat();
+    if (removedStat?.result === "loss") {
+      hasUndoneLossSinceReset = true;
+      recordPracticeEvent("loss-undo", removedStat.difficulty);
+    }
     historyIndex = targetIndex;
     rebuildBoardFromHistory();
     return;
@@ -2259,7 +2350,7 @@ resetControl.addEventListener("click", () => {
     return;
   }
 
-  resetBoard();
+  resetBoard({ recordTrainingReset: true });
 });
 
 titleControl.addEventListener("click", () => {
@@ -2267,7 +2358,7 @@ titleControl.addEventListener("click", () => {
     return;
   }
 
-  resetBoard();
+  resetBoard({ recordTrainingReset: true });
 });
 
 aboutControl.addEventListener("click", () => {
@@ -2441,7 +2532,7 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     }
 
     event.preventDefault();
-    resetBoard();
+    resetBoard({ recordTrainingReset: true });
     return;
   }
 
@@ -2517,7 +2608,6 @@ applyTheme(currentTheme);
 moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
 syncThemeAudio(false);
-aboutVersion.textContent = `Version ${buildVersion}`;
 settingsAudioToggle.checked = isAudioEnabled;
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
