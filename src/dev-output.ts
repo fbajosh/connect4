@@ -5,6 +5,7 @@ type ScoreHistory = Array<number | null>;
 type DevOutputOptions = {
   assistsEnabled: boolean;
   difficultyFloor: string;
+  lastMove: string;
   optimizerOutput: string;
   playerColor: string;
   practiceDifficulty: number | null;
@@ -109,7 +110,8 @@ export function buildDevOutput(options: DevOutputOptions): string {
     `moves: ${moves}`,
     `error: ${error}`,
     "--",
-    `scores: ${scores}`,
+    `last_move: ${options.lastMove}`,
+    `previous_scores: ${scores}`,
     `pattern_adjust: ${patternAdjust}`,
     `temperature: ${temperature}`,
     `rng: ${rng}`,

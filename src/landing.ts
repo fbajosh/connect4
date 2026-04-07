@@ -41,6 +41,18 @@ import {
 } from "./ui-persistence";
 import { registerPwaServiceWorker } from "./pwa";
 import {
+  APP_LANGUAGE_OPTIONS,
+  APP_LOCALE,
+  APP_STRINGS,
+  applyStaticTranslations,
+  formatTemplate,
+  isAppLocale,
+  resolveAppLocale,
+  setAppLocale,
+  STATS_METRIC_ORDER,
+  type StatsMetricKey,
+} from "./i18n";
+import {
   appendPracticeStat,
   buildPracticeDifficultyStats,
   createPracticeStatId,
@@ -65,8 +77,12 @@ const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
 const COMPACT_LANDSCAPE_MEDIA_QUERY = "(orientation: landscape) and (max-height: 560px) and (max-width: 980px)";
+const PORTRAIT_DEV_RESIZE_MEDIA_QUERY = "(max-width: 980px) and (orientation: portrait)";
 const BOARD_RESET_DOUBLE_TAP_WINDOW_MS = 320;
 const BOARD_COMPLETE_TAP_SHAKE_DELAY_MS = 321;
+const DEFAULT_DEV_PANEL_PORTRAIT_HEIGHT_RATIO = 0.22;
+const MIN_DEV_PANEL_TEXTBOX_HEIGHT_PX = 72;
+const MIN_DEV_PANEL_BOARD_SCALE = 0.38;
 const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
@@ -75,6 +91,7 @@ const landingRoot = document.querySelector<HTMLElement>(".landing");
 const hero = document.querySelector<HTMLElement>(".hero");
 const menuBar = document.querySelector<HTMLElement>(".menu-bar");
 const boardStage = document.querySelector<HTMLElement>(".board-stage");
+const boardArea = document.querySelector<HTMLElement>(".board-area");
 const boardActions = document.querySelector<HTMLElement>(".board-actions");
 const boardFrame = boardShell?.parentElement;
 const titleControl = document.getElementById("title-control");
@@ -116,13 +133,19 @@ const moveScoresToggle = document.getElementById("move-scores-toggle");
 const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
+const devToolbar = document.getElementById("dev-toolbar");
+const devToolbarLeft = devToolbar?.querySelector<HTMLElement>(".dev-toolbar-left");
+const compactLandscapeDevControls = document.getElementById("compact-landscape-dev-controls");
 const importStateControl = document.getElementById("import-state-control");
 const exportStateControl = document.getElementById("export-state-control");
+const devResizeControl = document.getElementById("dev-resize-control");
+const devCloseControl = document.getElementById("dev-close-control");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
+const settingsLanguageSelect = document.getElementById("settings-language-select") as HTMLSelectElement | null;
 const statsDifficultySelect = document.getElementById("stats-difficulty-select") as HTMLSelectElement | null;
 const statsTableBody = document.getElementById("stats-table-body");
 const themeBackground = document.getElementById("theme-background");
@@ -133,6 +156,7 @@ if (
   !hero ||
   !titleControl ||
   !boardStage ||
+  !boardArea ||
   !boardActions ||
   !boardFrame ||
   !boardShell ||
@@ -178,18 +202,26 @@ if (
   !gameScorePulse ||
   !gameScoreToggle ||
   !devPanel ||
+  !devToolbar ||
+  !devToolbarLeft ||
+  !compactLandscapeDevControls ||
   !importStateControl ||
   !exportStateControl ||
+  !devResizeControl ||
+  !devCloseControl ||
   !devOutputBox ||
   !settingsAudioToggle ||
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
+  !settingsLanguageSelect ||
   !statsDifficultySelect ||
   !statsTableBody
 ) {
   throw new Error("Missing required board elements.");
 }
+
+applyStaticTranslations(document);
 
 const moggedBackground = createMoggedBackground(themeBackground as HTMLCanvasElement);
 const audioController = createAudioController();
@@ -225,6 +257,8 @@ const featureToggleInputs: Record<FeatureKey, HTMLInputElement> = {
 };
 
 const buildVersion = import.meta.env.VITE_BUILD_VERSION?.trim() || "dev";
+
+document.documentElement.lang = APP_LOCALE;
 
 let activeColumn: number | null = null;
 let activePointerId: number | null = null;
@@ -272,6 +306,10 @@ let pendingBoardResetShakeTimeout = 0;
 let lastBoardResetTapAt = 0;
 let lastBoardResetTapPointerType: string | null = null;
 let pendingPracticeGameDurationMs: number | null = null;
+let portraitDevPanelHeightPx: number | null = null;
+let activeDevResizePointerId: number | null = null;
+let activeDevResizeStartY = 0;
+let activeDevResizeStartHeightPx = 0;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
@@ -325,6 +363,7 @@ function persistUiState(): void {
     selectedMode: currentMode,
     practiceColor,
     practiceDifficulty,
+    locale: APP_LOCALE,
     theme: currentTheme,
     pinned: {
       bestMove: featurePinned.bestMove,
@@ -443,11 +482,11 @@ function syncModalView(): void {
   }
 
   if (activeModalView === "stats") {
-    aboutTitle.textContent = "Statistics";
+    aboutTitle.textContent = APP_STRINGS.stats.title;
     return;
   }
 
-  aboutTitle.textContent = "About Connect 4 Trainer";
+  aboutTitle.textContent = APP_STRINGS.about.title;
 }
 
 function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutTab?: AboutTab }): void {
@@ -640,39 +679,39 @@ function maybeHandleBoardDoubleTapReset(event: PointerEvent): boolean {
   return true;
 }
 
-function statsMetricValue(label: string, summary: PracticeStatsSummary): string {
-  switch (label) {
-    case "Wins":
+function statsMetricValue(metric: StatsMetricKey, summary: PracticeStatsSummary): string {
+  switch (metric) {
+    case "wins":
       return String(summary.wins);
-    case "Losses":
+    case "losses":
       return String(summary.losses);
-    case "Ties":
+    case "ties":
       return String(summary.ties);
-    case "Win rate":
+    case "winRate":
       return formatWinRate(summary.winRate);
-    case "Avg. win length":
+    case "averageWinLength":
       return formatStatsNumber(summary.averageWinLength);
-    case "Avg. loss length":
+    case "averageLossLength":
       return formatStatsNumber(summary.averageLossLength);
-    case "Biggest win":
+    case "biggestWin":
       return formatStatsNumber(summary.biggestWin);
-    case "Biggest loss":
+    case "biggestLoss":
       return formatStatsNumber(summary.biggestLoss);
-    case "Wins without undo":
+    case "winsWithoutUndo":
       return String(summary.winsWithoutUndo);
-    case "Wins without assist":
+    case "winsWithoutAssist":
       return String(summary.winsWithoutAssist);
-    case "Losses undone":
+    case "lossesUndone":
       return String(summary.lossesUndone);
-    case "Lost multiple times":
+    case "lostMultipleTimes":
       return String(summary.lostMultipleTimes);
-    case "Reset count":
+    case "resetCount":
       return String(summary.resetCount);
-    case "Resets while losing":
+    case "resetsWhileLosing":
       return String(summary.resetsWhileLosing);
-    case "Avg. game time":
+    case "averageGameTime":
       return formatDuration(summary.averageGameTimeMs);
-    case "Fastest win":
+    case "fastestWin":
       return formatDuration(summary.fastestWinMs);
     default:
       return "-";
@@ -681,32 +720,14 @@ function statsMetricValue(label: string, summary: PracticeStatsSummary): string 
 
 function renderStatsTable(): void {
   const stats = buildPracticeDifficultyStats(practiceStats, statsDifficulty);
-  const metricLabels = [
-    "Wins",
-    "Losses",
-    "Ties",
-    "Win rate",
-    "Avg. win length",
-    "Avg. loss length",
-    "Biggest win",
-    "Biggest loss",
-    "Wins without undo",
-    "Wins without assist",
-    "Losses undone",
-    "Lost multiple times",
-    "Reset count",
-    "Resets while losing",
-    "Avg. game time",
-    "Fastest win",
-  ];
   statsTableBody.replaceChildren();
 
-  for (const label of metricLabels) {
+  for (const metric of STATS_METRIC_ORDER) {
     const tableRow = document.createElement("tr");
     tableRow.innerHTML = `
-      <th scope="row">${label}</th>
-      <td>${statsMetricValue(label, stats.today)}</td>
-      <td>${statsMetricValue(label, stats.lifetime)}</td>
+      <th scope="row">${APP_STRINGS.stats.metrics[metric]}</th>
+      <td>${statsMetricValue(metric, stats.today)}</td>
+      <td>${statsMetricValue(metric, stats.lifetime)}</td>
     `;
     statsTableBody.append(tableRow);
   }
@@ -720,6 +741,30 @@ function syncThemeControls(): void {
   settingsThemeSelect.value = currentTheme;
   settingsAudioToggle.checked = isAudioEnabled;
   settingsColorblindModeToggle.checked = isColorblindModeEnabled;
+}
+
+function syncLanguageControl(): void {
+  for (const [index, optionConfig] of APP_LANGUAGE_OPTIONS.entries()) {
+    const option = settingsLanguageSelect.options[index] ?? document.createElement("option");
+    option.value = optionConfig.locale;
+    option.textContent = optionConfig.label;
+    if (!option.parentElement) {
+      settingsLanguageSelect.append(option);
+    }
+  }
+
+  settingsLanguageSelect.value = APP_LOCALE;
+}
+
+function refreshLocalizedUi(): void {
+  applyStaticTranslations(document, APP_STRINGS);
+  syncLanguageControl();
+  syncThemeControls();
+  syncModalView();
+  renderStatsTable();
+  syncModeControls();
+  renderTurnIndicator();
+  renderDevOutput();
 }
 
 function syncDiscPatternMode(): void {
@@ -926,7 +971,7 @@ function updatePracticeControls(): void {
   freeplayControls.classList.toggle("hidden", currentMode !== "freeplay");
   featureControls.classList.toggle("hidden", !inTraining);
   featureSection.classList.toggle("hidden", !inTraining && currentMode !== "freeplay");
-  featureSectionTitle.textContent = inTraining ? "Training Tools" : "Display";
+  featureSectionTitle.textContent = inTraining ? APP_STRINGS.features.trainingTools : APP_STRINGS.features.display;
   difficultySection.classList.toggle("hidden", !inTraining);
   statisticsSection.classList.toggle("hidden", !inTraining);
 
@@ -1090,18 +1135,121 @@ function applyBoardFrameLayout(): void {
   );
 }
 
+function syncCompactLandscapeDevControls(): void {
+  const shouldDockIntoBoardActions = effectiveDevModeVisible() && window.matchMedia(COMPACT_LANDSCAPE_MEDIA_QUERY).matches;
+
+  if (shouldDockIntoBoardActions) {
+    if (devToolbarLeft.parentElement !== compactLandscapeDevControls) {
+      compactLandscapeDevControls.append(devToolbarLeft);
+    }
+
+    if (devCloseControl.parentElement !== compactLandscapeDevControls) {
+      compactLandscapeDevControls.append(devCloseControl);
+    }
+
+    compactLandscapeDevControls.classList.remove("hidden");
+    return;
+  }
+
+  if (devToolbarLeft.parentElement !== devToolbar) {
+    devToolbar.insertBefore(devToolbarLeft, devResizeControl);
+  }
+
+  if (devCloseControl.parentElement !== devToolbar) {
+    devToolbar.append(devCloseControl);
+  }
+
+  compactLandscapeDevControls.classList.add("hidden");
+}
+
+function isPortraitDevResizeEnabled(): boolean {
+  return window.matchMedia(PORTRAIT_DEV_RESIZE_MEDIA_QUERY).matches;
+}
+
+function clearPortraitDevPanelHeight(): void {
+  landingRoot.style.removeProperty("--dev-panel-portrait-height");
+}
+
+function portraitDevPanelMinHeight(): number {
+  const toolbarHeight = devToolbar.getBoundingClientRect().height || 0;
+  return Math.max(108, Math.ceil(toolbarHeight + MIN_DEV_PANEL_TEXTBOX_HEIGHT_PX));
+}
+
+function unsqueezedBoardFrameHeight(): number {
+  return boardArea.getBoundingClientRect().width * FIXED_BOARD_FRAME_ROWS / WIDTH;
+}
+
+function portraitDevPanelMaxHeight(): number {
+  const landingRect = landingRoot.getBoundingClientRect();
+  const heroRect = hero.getBoundingClientRect();
+  const actionsRect = boardActions.getBoundingClientRect();
+  const landingStyle = window.getComputedStyle(landingRoot);
+  const layoutGap = Number.parseFloat(landingStyle.rowGap || landingStyle.gap || "0") || 0;
+  const minHeight = portraitDevPanelMinHeight();
+  const minBoardHeight = Math.max(120, unsqueezedBoardFrameHeight() * MIN_DEV_PANEL_BOARD_SCALE);
+  const minBoardStageHeight = actionsRect.height + layoutGap + minBoardHeight;
+  const maxHeight = Math.floor(landingRect.height - heroRect.height - 2 * layoutGap - minBoardStageHeight);
+  return Math.max(minHeight, maxHeight);
+}
+
+function defaultPortraitDevPanelHeight(): number {
+  return Math.round(window.innerHeight * DEFAULT_DEV_PANEL_PORTRAIT_HEIGHT_RATIO);
+}
+
+function clampPortraitDevPanelHeight(height: number): number {
+  const minHeight = portraitDevPanelMinHeight();
+  const maxHeight = portraitDevPanelMaxHeight();
+  return Math.max(minHeight, Math.min(maxHeight, Math.round(height)));
+}
+
+function stopPortraitDevPanelResize(): void {
+  if (activeDevResizePointerId !== null && devResizeControl.hasPointerCapture(activeDevResizePointerId)) {
+    devResizeControl.releasePointerCapture(activeDevResizePointerId);
+  }
+
+  activeDevResizePointerId = null;
+  devResizeControl.classList.remove("is-dragging");
+}
+
+function syncPortraitDevPanelHeight(): void {
+  if (!effectiveDevModeVisible() || !isPortraitDevResizeEnabled()) {
+    stopPortraitDevPanelResize();
+    clearPortraitDevPanelHeight();
+    return;
+  }
+
+  const measuredHeight = devPanel.getBoundingClientRect().height;
+  if (portraitDevPanelHeightPx === null) {
+    portraitDevPanelHeightPx = measuredHeight > 0 ? measuredHeight : defaultPortraitDevPanelHeight();
+  }
+
+  portraitDevPanelHeightPx = clampPortraitDevPanelHeight(portraitDevPanelHeightPx);
+  landingRoot.style.setProperty("--dev-panel-portrait-height", `${portraitDevPanelHeightPx}px`);
+}
+
+function updatePortraitDevPanelHeight(height: number): void {
+  portraitDevPanelHeightPx = clampPortraitDevPanelHeight(height);
+  landingRoot.style.setProperty("--dev-panel-portrait-height", `${portraitDevPanelHeightPx}px`);
+  scheduleBoardFrameLayout();
+}
+
 function renderDevOutput(): void {
   const isVisible = effectiveDevModeVisible();
   landingRoot.classList.toggle("has-dev-panel", isVisible);
   devPanel.classList.toggle("hidden", !isVisible);
+  syncCompactLandscapeDevControls();
   if (!isVisible) {
+    syncPortraitDevPanelHeight();
     devOutputBox.value = "";
     return;
   }
 
+  syncPortraitDevPanelHeight();
+
   devOutputBox.value = buildDevOutput({
     assistsEnabled: didUseAssistThisGame,
     difficultyFloor: isTrainingMode() ? String(trainingStatDifficulty()) : "",
+    lastMove: historyIndex > 0 ? `${playerClass(moveHistory[historyIndex - 1].player)} ${moveHistory[historyIndex - 1].column + 1}` : "",
     optimizerOutput: latestOptimizerOutput,
     playerColor: currentHumanPlayerColorLabel(),
     practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
@@ -1160,12 +1308,12 @@ function renderTurnIndicator(): void {
 
   if (isWinLocked) {
     if (winningPlayer === RED) {
-      setTurnIndicator("Red wins", "red");
+      setTurnIndicator(APP_STRINGS.status.redWins, "red");
       return;
     }
 
     if (winningPlayer === YELLOW) {
-      setTurnIndicator("Yellow wins", "yellow");
+      setTurnIndicator(APP_STRINGS.status.yellowWins, "yellow");
       return;
     }
 
@@ -1174,23 +1322,23 @@ function renderTurnIndicator(): void {
   }
 
   if (!hasPlayableMove()) {
-    setTurnIndicator("Tie");
+    setTurnIndicator(APP_STRINGS.status.tie);
     return;
   }
 
   if (isTrainingMode()) {
     if (isHumanTurn()) {
-      setTurnIndicator("Your move");
+      setTurnIndicator(APP_STRINGS.status.yourMove);
       return;
     }
 
     if (isAiCalculating()) {
-      setTurnIndicator("Thinking...");
+      setTurnIndicator(APP_STRINGS.status.thinking);
       return;
     }
 
     if (aiPlannedColumn !== null) {
-      setTurnIndicator(`Playing Column ${aiPlannedColumn + 1}`);
+      setTurnIndicator(formatTemplate(APP_STRINGS.status.playingColumn, { column: aiPlannedColumn + 1 }));
       return;
     }
 
@@ -1199,11 +1347,11 @@ function renderTurnIndicator(): void {
   }
 
   if (currentPlayer === RED) {
-    setTurnIndicator("Red's turn", "red");
+    setTurnIndicator(APP_STRINGS.status.redTurn, "red");
     return;
   }
 
-  setTurnIndicator("Yellow's turn", "yellow");
+  setTurnIndicator(APP_STRINGS.status.yellowTurn, "yellow");
 }
 
 function syncFeatureUI(): void {
@@ -1337,12 +1485,13 @@ function currentHumanPlayerColorLabel(): string {
     return "";
   }
 
-  const actualColor = playerClass(trainingHumanPlayer());
-  return practiceColor === "alternate" ? `${actualColor} (alternate)` : actualColor;
+  const actualColor =
+    trainingHumanPlayer() === RED ? APP_STRINGS.colors.red.toLowerCase() : APP_STRINGS.colors.yellow.toLowerCase();
+  return practiceColor === "alternate" ? `${actualColor} (${APP_STRINGS.colors.alternate.toLowerCase()})` : actualColor;
 }
 
 function currentScoreShareLabel(): string {
-  return `red ${ (currentSolvedLineRedShare() * 100).toFixed(4) }%`;
+  return `${APP_STRINGS.status.lineColor.red} ${ (currentSolvedLineRedShare() * 100).toFixed(4) }%`;
 }
 
 function isHumanCurrentlyLosing(): boolean {
@@ -1471,19 +1620,28 @@ function currentSolvedLineRedShare(): number {
 
 function currentSolvedLineRemainingText(): string {
   if (winningPlayer === RED) {
-    return "red in 0";
+    return formatTemplate(APP_STRINGS.status.lineIn, {
+      color: APP_STRINGS.status.lineColor.red,
+      count: 0,
+    });
   }
 
   if (winningPlayer === YELLOW) {
-    return "yellow in 0";
+    return formatTemplate(APP_STRINGS.status.lineIn, {
+      color: APP_STRINGS.status.lineColor.yellow,
+      count: 0,
+    });
   }
 
   if (!hasPlayableMove()) {
-    return "Tie";
+    return APP_STRINGS.status.tie;
   }
 
   if (moveSequence === "") {
-    return "red in 21";
+    return formatTemplate(APP_STRINGS.status.lineIn, {
+      color: APP_STRINGS.status.lineColor.red,
+      count: 21,
+    });
   }
 
   if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
@@ -1492,12 +1650,15 @@ function currentSolvedLineRemainingText(): string {
 
   const { positionScore } = latestOptimizerPayload;
   if (positionScore === 0) {
-    return "Tie";
+    return APP_STRINGS.status.tie;
   }
 
   const advantagedPlayer = positionScore > 0 ? currentPlayer : nextPlayer(currentPlayer);
   const lineLength = solvedLineLength(positionScore);
-  return `${advantagedPlayer === RED ? "red" : "yellow"} in ${lineLength}`;
+  return formatTemplate(APP_STRINGS.status.lineIn, {
+    color: advantagedPlayer === RED ? APP_STRINGS.status.lineColor.red : APP_STRINGS.status.lineColor.yellow,
+    count: lineLength,
+  });
 }
 
 function activeBestColumns(): number[] | null {
@@ -1858,7 +2019,7 @@ function requestOptimizerOutput(): void {
 
   stopOptimizerWorker();
   latestOptimizerPayload = null;
-  latestOptimizerOutput = "status: Computing...";
+  latestOptimizerOutput = `status: ${APP_STRINGS.status.thinking}`;
   aiPlannedColumn = null;
   aiPlannedDebug = null;
   syncFeatureUI();
@@ -1889,7 +2050,7 @@ function requestOptimizerOutput(): void {
       return;
     }
 
-    latestOptimizerOutput = "Optimizer worker failed.";
+    latestOptimizerOutput = `status: ${APP_STRINGS.status.optimizerWorkerFailed}`;
     latestOptimizerPayload = null;
     syncFeatureUI();
     cancelAiTurn();
@@ -2520,12 +2681,70 @@ settingsThemeSelect.addEventListener("change", () => {
   setToolsMenuExpanded(false);
 });
 
+settingsLanguageSelect.addEventListener("change", () => {
+  const nextLocale = settingsLanguageSelect.value;
+  if (!isAppLocale(nextLocale)) {
+    return;
+  }
+
+  setAppLocale(nextLocale);
+  refreshLocalizedUi();
+  persistUiState();
+});
+
 importStateControl.addEventListener("click", () => {
   void importStateFromClipboard();
 });
 
 exportStateControl.addEventListener("click", () => {
   void exportStateToClipboard();
+});
+
+devCloseControl.addEventListener("click", () => {
+  setDevModeEnabled(false);
+});
+
+devResizeControl.addEventListener("pointerdown", (event: PointerEvent) => {
+  if (!effectiveDevModeVisible() || !isPortraitDevResizeEnabled()) {
+    return;
+  }
+
+  event.preventDefault();
+  syncPortraitDevPanelHeight();
+  activeDevResizePointerId = event.pointerId;
+  activeDevResizeStartY = event.clientY;
+  activeDevResizeStartHeightPx = devPanel.getBoundingClientRect().height;
+  devResizeControl.setPointerCapture(event.pointerId);
+  devResizeControl.classList.add("is-dragging");
+});
+
+devResizeControl.addEventListener("pointermove", (event: PointerEvent) => {
+  if (activeDevResizePointerId !== event.pointerId) {
+    return;
+  }
+
+  event.preventDefault();
+  updatePortraitDevPanelHeight(activeDevResizeStartHeightPx + (activeDevResizeStartY - event.clientY));
+});
+
+devResizeControl.addEventListener("pointerup", (event: PointerEvent) => {
+  if (activeDevResizePointerId !== event.pointerId) {
+    return;
+  }
+
+  stopPortraitDevPanelResize();
+});
+
+devResizeControl.addEventListener("pointercancel", (event: PointerEvent) => {
+  if (activeDevResizePointerId !== event.pointerId) {
+    return;
+  }
+
+  stopPortraitDevPanelResize();
+});
+
+devResizeControl.addEventListener("lostpointercapture", () => {
+  stopPortraitDevPanelResize();
 });
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
@@ -2581,10 +2800,14 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
 });
 
 window.addEventListener("resize", () => {
+  syncCompactLandscapeDevControls();
+  syncPortraitDevPanelHeight();
   scheduleBoardFrameLayout();
 });
 
 window.visualViewport?.addEventListener("resize", () => {
+  syncCompactLandscapeDevControls();
+  syncPortraitDevPanelHeight();
   scheduleBoardFrameLayout();
 });
 
@@ -2599,6 +2822,7 @@ window.addEventListener("popstate", () => {
 });
 
 const persistedUiState = readPersistedUiState();
+setAppLocale(resolveAppLocale(persistedUiState.locale));
 const persistedMode = persistedUiState.selectedMode === "freeplay" ? "freeplay" : "training";
 currentMode = modeForPathname(window.location.pathname) ?? persistedMode;
 const persistedPinned = persistedUiState.pinned ?? {};
@@ -2626,12 +2850,10 @@ moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
 syncThemeAudio(false);
 settingsAudioToggle.checked = isAudioEnabled;
-updateDocumentTitle();
+refreshLocalizedUi();
 syncModeUrl(currentMode, "replace");
 registerPwaServiceWorker();
-syncModeControls();
 setAboutTab(activeAboutTab);
-renderStatsTable();
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
 importStateFromLocation();

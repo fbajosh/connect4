@@ -38,15 +38,15 @@
       <div class="effects-layer" id="effects-layer" aria-hidden="true"></div>
       <header class="hero">
         <h1 class="title" id="title-control">
-          <span class="title-line">Connect 4</span>
-          <span class="title-line">Trainer</span>
+          <span class="title-line" data-i18n="app.connect4">Connect 4</span>
+          <span class="title-line" data-i18n="app.trainer">Trainer</span>
         </h1>
-        <div class="menu-bar" aria-label="Menus">
+        <div class="menu-bar" aria-label="Menus" data-i18n-aria-label="accessibility.menus">
           <div class="menu-shell">
-            <button class="menu-control mode-switch" id="training-mode-control" type="button">Training</button>
+            <button class="menu-control mode-switch" id="training-mode-control" type="button" data-i18n="mode.training">Training</button>
           </div>
           <div class="menu-shell">
-            <button class="menu-control mode-switch" id="freeplay-mode-control" type="button">Freeplay</button>
+            <button class="menu-control mode-switch" id="freeplay-mode-control" type="button" data-i18n="mode.freeplay">Freeplay</button>
           </div>
         </div>
         <div class="turn-indicator compact-turn-indicator hidden" id="compact-turn-indicator" aria-live="polite"></div>
@@ -63,12 +63,12 @@
               <div class="preview-piece piece hidden" id="preview-piece" aria-hidden="true"></div>
               <div class="trainer-grid" id="trainer-grid" aria-hidden="true"></div>
               <div class="disc-grid" id="disc-grid" aria-hidden="true"></div>
-              <div class="board-grid" id="board-grid" aria-label="Connect 4 grid"></div>
+              <div class="board-grid" id="board-grid" aria-label="Connect 4 grid" data-i18n-aria-label="accessibility.connectGrid"></div>
             </div>
           </div>
         </div>
         <div class="board-actions">
-          <button class="reset-control" id="reset-control" type="button" aria-label="Reset">
+          <button class="reset-control" id="reset-control" type="button" aria-label="Reset" data-i18n-aria-label="controls.reset">
             <svg class="action-icon is-fill" viewBox="0 0 16 16" aria-hidden="true">
               <path
                 fill-rule="evenodd"
@@ -77,8 +77,8 @@
               ></path>
             </svg>
           </button>
-          <div class="history-controls" id="history-controls" aria-label="History controls">
-            <button class="history-button" id="undo-control" type="button" aria-label="Undo">
+          <div class="history-controls" id="history-controls" aria-label="History controls" data-i18n-aria-label="accessibility.historyControls">
+            <button class="history-button" id="undo-control" type="button" aria-label="Undo" data-i18n-aria-label="controls.undo">
               <svg class="action-icon is-fill" viewBox="0 0 16 16" aria-hidden="true">
                 <path
                   fill-rule="evenodd"
@@ -87,7 +87,7 @@
                 ></path>
               </svg>
             </button>
-            <button class="history-button" id="redo-control" type="button" aria-label="Redo">
+            <button class="history-button" id="redo-control" type="button" aria-label="Redo" data-i18n-aria-label="controls.redo">
               <svg class="action-icon is-fill" viewBox="0 0 16 16" aria-hidden="true">
                 <path
                   fill-rule="evenodd"
@@ -104,6 +104,7 @@
               id="tools-menu-toggle"
               type="button"
               aria-label="Settings"
+              data-i18n-aria-label="controls.settings"
               aria-expanded="false"
               aria-controls="tools-menu"
             >
@@ -113,26 +114,26 @@
                 ></path>
               </svg>
             </button>
-            <div class="menu-panel hidden" id="tools-menu" aria-label="Settings menu">
+            <div class="menu-panel hidden" id="tools-menu" aria-label="Settings menu" data-i18n-aria-label="accessibility.settingsMenu">
               <section class="menu-section" id="feature-section">
-                <h3 class="menu-section-title" id="feature-section-title">Training Tools</h3>
-                <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls">
+                <h3 class="menu-section-title" id="feature-section-title" data-i18n="features.trainingTools">Training Tools</h3>
+                <div class="feature-controls hidden" id="feature-controls" aria-label="Training display controls" data-i18n-aria-label="accessibility.trainingDisplayControls">
                   <div class="feature-row">
-                    <button class="feature-pulse" id="best-move-pulse" type="button">Best Move</button>
+                    <button class="feature-pulse" id="best-move-pulse" type="button" data-i18n="features.bestMove">Best Move</button>
                     <label class="feature-toggle" for="best-move-toggle">
                       <input class="feature-toggle-input" id="best-move-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
                     </label>
                   </div>
                   <div class="feature-row">
-                    <button class="feature-pulse" id="move-scores-pulse" type="button">Move Scores</button>
+                    <button class="feature-pulse" id="move-scores-pulse" type="button" data-i18n="features.moveScores">Move Scores</button>
                     <label class="feature-toggle" for="move-scores-toggle">
                       <input class="feature-toggle-input" id="move-scores-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
                     </label>
                   </div>
                   <div class="feature-row">
-                    <button class="feature-pulse" id="game-score-pulse" type="button">Performance Comparison</button>
+                    <button class="feature-pulse" id="game-score-pulse" type="button" data-i18n="features.performanceComparison">Performance Comparison</button>
                     <label class="feature-toggle" for="game-score-toggle">
                       <input class="feature-toggle-input" id="game-score-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
@@ -140,7 +141,7 @@
                   </div>
                   <div class="feature-row feature-row-stack" id="difficulty-section">
                     <div class="practice-label-row">
-                      <span class="practice-label">Difficulty</span>
+                      <span class="practice-label" data-i18n="controls.difficulty">Difficulty</span>
                       <span class="practice-value" id="practice-difficulty-value">10</span>
                     </div>
                     <input
@@ -152,12 +153,13 @@
                       step="1"
                       value="10"
                       aria-label="Practice difficulty"
+                      data-i18n-aria-label="accessibility.practiceDifficulty"
                     />
                   </div>
                 </div>
-                <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls">
+                <div class="freeplay-controls hidden" id="freeplay-controls" aria-label="Freeplay controls" data-i18n-aria-label="accessibility.freeplayControls">
                   <div class="practice-row practice-toggle-row">
-                    <span class="practice-label">Performance Comparison</span>
+                    <span class="practice-label" data-i18n="features.performanceComparison">Performance Comparison</span>
                     <label class="feature-toggle" for="freeplay-game-score-toggle">
                       <input class="feature-toggle-input" id="freeplay-game-score-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
@@ -167,26 +169,29 @@
               </section>
 
               <section class="menu-section">
-                <h3 class="menu-section-title">Player Settings</h3>
+                <h3 class="menu-section-title" data-i18n="controls.playerSettings">Player Settings</h3>
                 <div class="player-settings-controls">
-                  <div class="practice-controls hidden" id="practice-controls" aria-label="Training controls">
+                  <div class="practice-controls hidden" id="practice-controls" aria-label="Training controls" data-i18n-aria-label="accessibility.practiceColor">
                     <div class="practice-row practice-color-row">
-                      <span class="practice-label">Player Color</span>
-                      <div class="practice-color-group" role="group" aria-label="Practice color">
+                      <span class="practice-label" data-i18n="controls.playerColor">Player Color</span>
+                      <div class="practice-color-group" role="group" aria-label="Practice color" data-i18n-aria-label="accessibility.practiceColor">
                         <button
                           aria-label="Red"
+                          data-i18n-aria-label="colors.red"
                           class="practice-color-button practice-color-red"
                           data-practice-color="red"
                           type="button"
                         ></button>
                         <button
                           aria-label="Yellow"
+                          data-i18n-aria-label="colors.yellow"
                           class="practice-color-button practice-color-yellow"
                           data-practice-color="yellow"
                           type="button"
                         ></button>
                         <button
                           aria-label="Alternate"
+                          data-i18n-aria-label="colors.alternate"
                           class="practice-color-button practice-color-alternate"
                           data-practice-color="alternate"
                           type="button"
@@ -195,21 +200,21 @@
                     </div>
                   </div>
                   <div class="settings-row settings-theme-row">
-                    <span class="practice-label">Theme</span>
+                    <span class="practice-label" data-i18n="controls.theme">Theme</span>
                     <label class="settings-theme-select-wrap" for="settings-theme-select">
-                      <span class="visually-hidden">Theme picker</span>
-                      <select class="settings-theme-select" id="settings-theme-select" aria-label="Theme picker">
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                        <option value="midnight">Astronomer</option>
-                        <option value="greece">Greece</option>
-                        <option value="grease">Grease</option>
-                        <option value="mogged">Mogged</option>
+                      <span class="visually-hidden" data-i18n="accessibility.themePicker">Theme picker</span>
+                      <select class="settings-theme-select" id="settings-theme-select" aria-label="Theme picker" data-i18n-aria-label="accessibility.themePicker">
+                        <option value="light" data-i18n="themes.light">Light</option>
+                        <option value="dark" data-i18n="themes.dark">Dark</option>
+                        <option value="midnight" data-i18n="themes.midnight">Astronomer</option>
+                        <option value="greece" data-i18n="themes.greece">Greece</option>
+                        <option value="grease" data-i18n="themes.grease">Grease</option>
+                        <option value="mogged" data-i18n="themes.mogged">Mogged</option>
                       </select>
                     </label>
                   </div>
                   <div class="practice-row practice-toggle-row sound-row">
-                    <span class="practice-label">Sound</span>
+                    <span class="practice-label" data-i18n="controls.sound">Sound</span>
                     <label class="sound-toggle" for="settings-audio-toggle">
                       <input class="sound-toggle-input" id="settings-audio-toggle" type="checkbox" />
                       <span class="sound-toggle-visual" aria-hidden="true">
@@ -231,30 +236,85 @@
                     </label>
                   </div>
                   <div class="settings-row">
-                    <span class="practice-label">Colorblind Mode</span>
+                    <span class="practice-label" data-i18n="controls.colorblindMode">Colorblind Mode</span>
                     <label class="feature-toggle" for="settings-colorblind-mode-toggle">
                       <input class="feature-toggle-input" id="settings-colorblind-mode-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
                     </label>
                   </div>
+                  <div class="settings-row settings-language-row">
+                    <span class="practice-label settings-language-label">
+                      <span data-i18n="controls.language">Language</span>
+                      <svg class="settings-language-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-.736L5.5 3.956h-.049l-.679 2.022z"/>
+                        <path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995q.289.451.63.846c-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.777.665 1.739 1.165 2.93 1.472.133-.254.414-.673.629-.89-1.125-.253-2.057-.694-2.82-1.284.681-.747 1.222-1.651 1.621-2.757H14V8h-3v1.047h.765c-.318.844-.74 1.546-1.272 2.13a6 6 0 0 1-.415-.492 2 2 0 0 1-.94.31"/>
+                      </svg>
+                    </span>
+                    <label class="settings-theme-select-wrap" for="settings-language-select">
+                      <span class="visually-hidden" data-i18n="accessibility.languagePicker">Language picker</span>
+                      <select class="settings-theme-select" id="settings-language-select" aria-label="Language picker" data-i18n-aria-label="accessibility.languagePicker">
+                        <option value="en-US">English</option>
+                        <option value="es-ES">español</option>
+                        <option value="pt-PT">português</option>
+                      </select>
+                    </label>
+                  </div>
                   <div class="menu-action-row hidden" id="statistics-section">
-                    <button class="menu-action chevron-action" id="stats-control" type="button">Statistics</button>
+                    <button class="menu-action chevron-action" id="stats-control" type="button" data-i18n="controls.statistics">Statistics</button>
                   </div>
                 </div>
               </section>
 
               <section class="menu-section">
-                <button class="menu-action chevron-action" id="about-control" type="button">About</button>
+                <button class="menu-action chevron-action" id="about-control" type="button" data-i18n="controls.about">About</button>
               </section>
             </div>
           </div>
+          <div class="compact-landscape-dev-controls hidden" id="compact-landscape-dev-controls" aria-label="Developer controls"></div>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
         <div class="dev-field">
-          <div class="dev-toolbar">
-            <button class="dev-link" id="import-state-control" type="button">import state</button>
-            <button class="dev-link" id="export-state-control" type="button">export state</button>
+          <div class="dev-toolbar" id="dev-toolbar">
+            <div class="dev-toolbar-left">
+              <button class="dev-icon-button" id="import-state-control" type="button" aria-label="Import state">
+                <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M5.14645 8.85355L7.64645 11.3536C7.84171 11.5488 8.15829 11.5488 8.35355 11.3536L10.8536 8.85355C11.0488 8.65829 11.0488 8.34171 10.8536 8.14645C10.6583 7.95118 10.3417 7.95118 10.1464 8.14645L8.5 9.79289V5C8.5 4.72386 8.27614 4.5 8 4.5C7.72386 4.5 7.5 4.72386 7.5 5V9.79289L5.85355 8.14645C5.65829 7.95118 5.34171 7.95118 5.14645 8.14645C4.95118 8.34171 4.95118 8.65829 5.14645 8.85355ZM8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15ZM2 8C2 11.3137 4.68629 14 8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8Z"
+                  ></path>
+                </svg>
+                <span class="visually-hidden">Import state</span>
+              </button>
+              <button class="dev-icon-button" id="export-state-control" type="button" aria-label="Export state">
+                <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M5.146 7.146 7.646 4.646a.5.5 0 0 1 .708 0l2.5 2.5a.5.5 0 0 1-.708.708L8.5 6.207V11a.5.5 0 0 1-1 0V6.207L5.854 7.854a.5.5 0 1 1-.708-.708ZM8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM2 8a6 6 0 1 1 12 0A6 6 0 0 1 2 8Z"
+                  ></path>
+                </svg>
+                <span class="visually-hidden">Export state</span>
+              </button>
+            </div>
+            <button
+              class="dev-icon-button dev-resize-control"
+              id="dev-resize-control"
+              type="button"
+              aria-label="Resize debug console"
+            >
+              <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M11.854 10.146C12.049 10.341 12.049 10.658 11.854 10.853L8.35401 14.353C8.15901 14.548 7.84201 14.548 7.64701 14.353L4.14701 10.853C3.95201 10.658 3.95201 10.341 4.14701 10.146C4.34201 9.95098 4.65901 9.95098 4.85401 10.146L8.00001 13.293L11.146 10.146C11.341 9.95098 11.658 9.95098 11.853 10.146H11.854ZM4.85401 5.85398L8.00001 2.70798L11.146 5.85398C11.341 6.04898 11.658 6.04898 11.853 5.85398C12.048 5.65898 12.048 5.34198 11.853 5.14698L8.35301 1.64698C8.15801 1.45198 7.84101 1.45198 7.64601 1.64698L4.14601 5.14698C3.95101 5.34198 3.95101 5.65898 4.14601 5.85398C4.34101 6.04898 4.65901 6.04898 4.85401 5.85398Z"
+                ></path>
+              </svg>
+              <span class="visually-hidden">Resize debug console</span>
+            </button>
+            <button class="dev-icon-button dev-close-control" id="dev-close-control" type="button" aria-label="Close debug console">
+              <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M8.70701 8.00001L12.353 4.35401C12.548 4.15901 12.548 3.84201 12.353 3.64701C12.158 3.45201 11.841 3.45201 11.646 3.64701L8.00001 7.29301L4.35401 3.64701C4.15901 3.45201 3.84201 3.45201 3.64701 3.64701C3.45201 3.84201 3.45201 4.15901 3.64701 4.35401L7.29301 8.00001L3.64701 11.646C3.45201 11.841 3.45201 12.158 3.64701 12.353C3.74501 12.451 3.87301 12.499 4.00101 12.499C4.12901 12.499 4.25701 12.45 4.35501 12.353L8.00101 8.70701L11.647 12.353C11.745 12.451 11.873 12.499 12.001 12.499C12.129 12.499 12.257 12.45 12.355 12.353C12.55 12.158 12.55 11.841 12.355 11.646L8.70901 8.00001H8.70701Z"
+                ></path>
+              </svg>
+              <span class="visually-hidden">Close debug console</span>
+            </button>
           </div>
           <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
         </div>
@@ -269,64 +329,64 @@
           aria-labelledby="about-title"
         >
           <div class="about-header">
-            <h2 class="about-title" id="about-title">About Connect 4 Trainer</h2>
-            <button class="about-close" id="about-close" type="button" aria-label="Close about dialog">
+            <h2 class="about-title" id="about-title" data-i18n="about.title">About Connect 4 Trainer</h2>
+            <button class="about-close" id="about-close" type="button" aria-label="Close about dialog" data-i18n-aria-label="accessibility.closeAboutDialog">
               &times;
             </button>
           </div>
           <div class="about-view" data-modal-view="about">
-            <div class="about-tabs" role="tablist" aria-label="Project information">
-              <button class="about-tab" data-about-tab="about" type="button">About</button>
-              <button class="about-tab" data-about-tab="howto" type="button">Instructions</button>
-              <button class="about-tab" data-about-tab="credits" type="button">Credits</button>
+            <div class="about-tabs" role="tablist" aria-label="Project information" data-i18n-aria-label="accessibility.projectInformation">
+              <button class="about-tab" data-about-tab="about" type="button" data-i18n="about.tabs.about">About</button>
+              <button class="about-tab" data-about-tab="howto" type="button" data-i18n="about.tabs.howto">Instructions</button>
+              <button class="about-tab" data-about-tab="credits" type="button" data-i18n="about.tabs.credits">Credits</button>
             </div>
             <div class="about-content">
               <section class="about-panel" data-about-panel="about">
-                <p>
+                <p data-i18n-html="about.panels.about.welcomeHtml">
                   Welcome to the Connect 4 Trainer, brought to you by <a class="appmogged-link" href="https://appmogged.com" target="_blank" rel="noreferrer">Appmogged</a>.
                 </p>
-                <p>
+                <p data-i18n="about.panels.about.overview">
                   Connect 4 Trainer is a browser-first training app for studying Connect 4 openings, evaluating moves,
                   and practicing against a solver-driven opponent.
                 </p>
-                <p>
+                <p data-i18n="about.panels.about.exactSolve">
                   Exact solve work runs on the end user's device in WebAssembly, and solved positions are cached in the
                   browser with IndexedDB for reuse.
                 </p>
               </section>
               <section class="about-panel hidden" data-about-panel="howto">
                 <div class="about-section">
-                  <h3 class="about-section-title">How to Play</h3>
+                  <h3 class="about-section-title" data-i18n="about.sections.howToPlay">How to Play</h3>
                   <ul class="about-list">
-                    <li>Two players alternate dropping discs into the seven columns of the board.</li>
-                    <li>Discs fall to the lowest open space in that column.</li>
-                    <li>The first player to connect four discs horizontally, vertically, or diagonally wins.</li>
-                    <li>If the board fills without a connect four, the game ends in a draw.</li>
+                    <li data-i18n="about.panels.howto.rules.first">Two players alternate dropping discs into the seven columns of the board.</li>
+                    <li data-i18n="about.panels.howto.rules.second">Discs fall to the lowest open space in that column.</li>
+                    <li data-i18n="about.panels.howto.rules.third">The first player to connect four discs horizontally, vertically, or diagonally wins.</li>
+                    <li data-i18n="about.panels.howto.rules.fourth">If the board fills without a connect four, the game ends in a draw.</li>
                   </ul>
                 </div>
                 <div class="about-section">
-                  <h3 class="about-section-title">Training Tools</h3>
+                  <h3 class="about-section-title" data-i18n="about.sections.trainingTools">Training Tools</h3>
                   <ul class="about-list">
-                    <li><strong>Best Move</strong>: shows green hint discs in the strongest solver-backed columns for the current position.</li>
-                    <li><strong>Move Scores</strong>: shows the shifted solver score for each playable column above the board.</li>
-                    <li><strong>Performance Comparison</strong>: compares the running average quality of red and yellow moves over the current game.</li>
+                    <li data-i18n-html="about.panels.howto.tools.bestMove"><strong>Best Move</strong>: shows green hint discs in the strongest solver-backed columns for the current position.</li>
+                    <li data-i18n-html="about.panels.howto.tools.moveScores"><strong>Move Scores</strong>: shows the shifted solver score for each playable column above the board.</li>
+                    <li data-i18n-html="about.panels.howto.tools.performanceComparison"><strong>Performance Comparison</strong>: compares the running average quality of red and yellow moves over the current game.</li>
                   </ul>
                 </div>
               </section>
               <section class="about-panel hidden" data-about-panel="credits">
                 <div class="about-section">
-                  <h3 class="about-section-title">Attribution</h3>
-                  <p>This project builds on two upstream solver efforts:</p>
+                  <h3 class="about-section-title" data-i18n="about.sections.attribution">Attribution</h3>
+                  <p data-i18n="about.panels.credits.attributionIntro">This project builds on two upstream solver efforts:</p>
                   <ul class="about-list">
-                    <li>Pascal Pons' original Connect 4 solver work</li>
-                    <li>Benjamin Rall's Rust/WASM solver implementation</li>
-                    <li>
+                    <li data-i18n="about.panels.credits.pascal">Pascal Pons' original Connect 4 solver work</li>
+                    <li data-i18n="about.panels.credits.benjamin">Benjamin Rall's Rust/WASM solver implementation</li>
+                    <li data-i18n-html="about.panels.credits.greecePhoto">
                       Greece background: Photo by
                       <a href="https://www.pexels.com/photo/clouds-over-ruins-13748597/" target="_blank" rel="noreferrer">
                         Maksim Romashkin
                       </a>
                     </li>
-                    <li>
+                    <li data-i18n-html="about.panels.credits.greasePhoto">
                       Grease background: Photo by
                       <a href="https://www.pexels.com/photo/retro-style-restaurant-2927586/" target="_blank" rel="noreferrer">
                         Darya Sannikova
@@ -335,7 +395,7 @@
                   </ul>
                 </div>
                 <div class="about-section">
-                  <h3 class="about-section-title">Links</h3>
+                  <h3 class="about-section-title" data-i18n="about.sections.links">Links</h3>
                   <ul class="about-list">
                     <li>
                       <a href="https://github.com/fbajosh/connect4" target="_blank" rel="noreferrer">
@@ -365,14 +425,14 @@
                   </ul>
                 </div>
                 <div class="about-section about-brand">
-                  <h3 class="about-section-title">Brought to you by:</h3>
+                  <h3 class="about-section-title" data-i18n="about.sections.broughtToYouBy">Brought to you by:</h3>
                   <a class="about-brand-link" href="https://appmogged.com" target="_blank" rel="noreferrer">
                     <img class="about-brand-mark" src="./assets/appmogged.svg" alt="Appmogged" />
                   </a>
                 </div>
                 <div class="about-section about-dev-setting">
                   <div class="settings-row">
-                    <span class="practice-label">Dev Mode</span>
+                    <span class="practice-label" data-i18n="controls.devMode">Dev Mode</span>
                     <label class="feature-toggle" for="settings-dev-mode-toggle">
                       <input class="feature-toggle-input" id="settings-dev-mode-toggle" type="checkbox" />
                       <span class="feature-toggle-slider"></span>
@@ -386,7 +446,7 @@
             <div class="about-content">
               <div class="about-section">
                 <div class="settings-row stats-filter-row">
-                  <label class="practice-label" for="stats-difficulty-select">Difficulty</label>
+                  <label class="practice-label" for="stats-difficulty-select" data-i18n="controls.difficulty">Difficulty</label>
                   <div class="settings-theme-select-wrap">
                     <select class="settings-theme-select stats-difficulty-select" id="stats-difficulty-select">
                       <option value="1">1</option>
@@ -406,9 +466,9 @@
                   <table class="stats-table">
                     <thead>
                       <tr>
-                        <th scope="col">Metric</th>
-                        <th scope="col">Today</th>
-                        <th scope="col">Lifetime</th>
+                        <th scope="col" data-i18n="stats.headers.metric">Metric</th>
+                        <th scope="col" data-i18n="stats.headers.today">Today</th>
+                        <th scope="col" data-i18n="stats.headers.lifetime">Lifetime</th>
                       </tr>
                     </thead>
                     <tbody id="stats-table-body"></tbody>

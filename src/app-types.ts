@@ -13,6 +13,7 @@ export type PersistedUiState = {
   selectedMode?: GameMode;
   practiceColor?: PracticeColor;
   practiceDifficulty?: number;
+  locale?: string;
   theme?: ThemeName;
   pinned?: Partial<Record<FeatureKey, boolean>>;
 };
