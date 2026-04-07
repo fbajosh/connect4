@@ -24,8 +24,8 @@
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-BxN6M4ty.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-Cy2_9DvZ.css">
+    <script type="module" crossorigin src="/connect4/assets/index-DJJnHlXK.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-DK3d5G55.css">
   </head>
   <body>
     <canvas class="theme-background" id="theme-background" aria-hidden="true"></canvas>
@@ -380,20 +380,30 @@
           <div class="about-view hidden" data-modal-view="stats">
             <div class="about-content">
               <div class="about-section">
-                <div class="settings-toggle-group stats-range-group" role="group" aria-label="Stats scope">
-                  <button class="settings-toggle-button" data-stats-range="today" type="button">Today</button>
-                  <button class="settings-toggle-button" data-stats-range="all-time" type="button">All-time</button>
+                <div class="settings-row stats-filter-row">
+                  <label class="practice-label" for="stats-difficulty-select">Difficulty</label>
+                  <div class="settings-theme-select-wrap">
+                    <select class="settings-theme-select stats-difficulty-select" id="stats-difficulty-select">
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="stats-table-wrap">
                   <table class="stats-table">
                     <thead>
                       <tr>
-                        <th scope="col">Dif.</th>
-                        <th scope="col">W</th>
-                        <th scope="col">L</th>
-                        <th scope="col">W/L</th>
-                        <th scope="col">W Len</th>
-                        <th scope="col">L Len</th>
+                        <th scope="col">Metric</th>
+                        <th scope="col">Today</th>
+                        <th scope="col">Lifetime</th>
                       </tr>
                     </thead>
                     <tbody id="stats-table-body"></tbody>

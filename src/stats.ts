@@ -1,39 +1,64 @@
-import type { StatsRange } from "./app-types";
-
-export type PracticeGameResult = "win" | "loss";
+export type PracticeGameResult = "win" | "loss" | "tie";
 
 export type PracticeGameStat = {
   completedAt: number;
   difficulty: number;
+  gameDurationMs: number | null;
   id: string;
   moveCount: number;
   result: PracticeGameResult;
+  usedUndo: boolean;
 };
 
-export type PracticeStatsRow = {
+export type PracticeStatsSummary = {
+  averageGameTimeMs: number | null;
   averageLossLength: number | null;
   averageWinLength: number | null;
-  difficulty: number;
+  fastestWinMs: number | null;
   losses: number;
+  ties: number;
   winRate: number | null;
   wins: number;
+  winsWithoutUndo: number;
+};
+
+export type PracticeDifficultyStats = {
+  lifetime: PracticeStatsSummary;
+  today: PracticeStatsSummary;
 };
 
 const PRACTICE_STATS_STORAGE_KEY = "connect4-trainer-practice-stats";
 
-function isPracticeGameStat(value: unknown): value is PracticeGameStat {
+function normalizePracticeGameStat(value: unknown): PracticeGameStat | null {
   if (!value || typeof value !== "object") {
-    return false;
+    return null;
   }
 
   const candidate = value as Partial<PracticeGameStat>;
-  return (
-    typeof candidate.completedAt === "number" &&
-    typeof candidate.difficulty === "number" &&
-    typeof candidate.id === "string" &&
-    typeof candidate.moveCount === "number" &&
-    (candidate.result === "win" || candidate.result === "loss")
-  );
+  if (
+    typeof candidate.completedAt !== "number" ||
+    typeof candidate.difficulty !== "number" ||
+    typeof candidate.id !== "string" ||
+    typeof candidate.moveCount !== "number" ||
+    (candidate.result !== "win" && candidate.result !== "loss" && candidate.result !== "tie")
+  ) {
+    return null;
+  }
+
+  const gameDurationMs =
+    typeof candidate.gameDurationMs === "number" && Number.isFinite(candidate.gameDurationMs) && candidate.gameDurationMs >= 0
+      ? candidate.gameDurationMs
+      : null;
+
+  return {
+    completedAt: candidate.completedAt,
+    difficulty: candidate.difficulty,
+    gameDurationMs,
+    id: candidate.id,
+    moveCount: candidate.moveCount,
+    result: candidate.result,
+    usedUndo: candidate.usedUndo === true,
+  };
 }
 
 export function readStoredPracticeStats(): PracticeGameStat[] {
@@ -48,7 +73,9 @@ export function readStoredPracticeStats(): PracticeGameStat[] {
       return [];
     }
 
-    return parsed.filter(isPracticeGameStat);
+    return parsed
+      .map((entry) => normalizePracticeGameStat(entry))
+      .filter((entry): entry is PracticeGameStat => entry !== null);
   } catch {
     return [];
   }
@@ -74,34 +101,51 @@ export function removePracticeStatById(id: string): PracticeGameStat[] {
   return nextStats;
 }
 
-export function buildPracticeStatsRows(
+function average(values: number[]): number | null {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function summarizePracticeStats(stats: PracticeGameStat[]): PracticeStatsSummary {
+  const wins = stats.filter((entry) => entry.result === "win");
+  const losses = stats.filter((entry) => entry.result === "loss");
+  const ties = stats.filter((entry) => entry.result === "tie");
+  const timedGames = stats
+    .map((entry) => entry.gameDurationMs)
+    .filter((duration): duration is number => duration !== null);
+  const timedWins = wins
+    .map((entry) => entry.gameDurationMs)
+    .filter((duration): duration is number => duration !== null);
+  const totalGames = stats.length;
+
+  return {
+    averageGameTimeMs: average(timedGames),
+    averageLossLength: average(losses.map((entry) => entry.moveCount)),
+    averageWinLength: average(wins.map((entry) => entry.moveCount)),
+    fastestWinMs: timedWins.length === 0 ? null : Math.min(...timedWins),
+    losses: losses.length,
+    ties: ties.length,
+    winRate: totalGames === 0 ? null : (wins.length + 0.5 * ties.length) / totalGames,
+    wins: wins.length,
+    winsWithoutUndo: wins.filter((entry) => !entry.usedUndo).length,
+  };
+}
+
+export function buildPracticeDifficultyStats(
   stats: PracticeGameStat[],
-  range: StatsRange,
+  difficulty: number,
   now = Date.now(),
-): PracticeStatsRow[] {
+): PracticeDifficultyStats {
   const cutoff = now - 24 * 60 * 60 * 1000;
-  const filteredStats = range === "today" ? stats.filter((entry) => entry.completedAt >= cutoff) : stats;
+  const difficultyStats = stats.filter((entry) => entry.difficulty === difficulty);
 
-  return Array.from({ length: 10 }, (_, index) => {
-    const difficulty = index + 1;
-    const entries = filteredStats.filter((entry) => entry.difficulty === difficulty);
-    const wins = entries.filter((entry) => entry.result === "win");
-    const losses = entries.filter((entry) => entry.result === "loss");
-    const totalGames = entries.length;
-
-    return {
-      averageLossLength:
-        losses.length === 0
-          ? null
-          : losses.reduce((sum, entry) => sum + entry.moveCount, 0) / losses.length,
-      averageWinLength:
-        wins.length === 0 ? null : wins.reduce((sum, entry) => sum + entry.moveCount, 0) / wins.length,
-      difficulty,
-      losses: losses.length,
-      winRate: totalGames === 0 ? null : wins.length / totalGames,
-      wins: wins.length,
-    };
-  });
+  return {
+    lifetime: summarizePracticeStats(difficultyStats),
+    today: summarizePracticeStats(difficultyStats.filter((entry) => entry.completedAt >= cutoff)),
+  };
 }
 
 export function createPracticeStatId(): string {

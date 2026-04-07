@@ -10,6 +10,7 @@ type DevOutputOptions = {
   previousYellowScores: ScoreHistory;
   remaining: string;
   state: string;
+  timer: string;
   winner: string | null;
 };
 
@@ -39,6 +40,7 @@ export function buildDevOutput(options: DevOutputOptions): string {
   }
 
   lines.push(`remaining: ${options.remaining}`);
+  lines.push(`timer: ${options.timer}`);
 
   if (options.practiceAiDebug !== null) {
     lines.push(`previous: ${formatDisplayScoreList(options.practiceAiDebug.previousMoves)}`);
