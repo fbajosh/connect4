@@ -62,18 +62,34 @@ export function practiceTemperature(difficulty: number): number {
   }
 
   if (difficulty === 2) {
-    return 40;
-  }
-
-  if (difficulty === 3) {
-    return 20;
-  }
-
-  if (difficulty === 4) {
     return 10;
   }
 
-  return 10 - difficulty;
+  if (difficulty === 3) {
+    return 8;
+  }
+
+  if (difficulty === 4) {
+    return 6;
+  }
+
+  if (difficulty === 5) {
+    return 4;
+  }
+
+  if (difficulty === 6) {
+    return 2.5;
+  }
+
+  if (difficulty === 7) {
+    return 1.667;
+  }
+
+  if (difficulty === 8) {
+    return 1;
+  }
+
+  return 0.5;
 }
 
 function cloneBoard(board: BoardState): BoardState {
