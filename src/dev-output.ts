@@ -90,6 +90,7 @@ export function buildDevOutput(options: DevOutputOptions): string {
   const rng = options.practiceAiDebug?.rng === null || options.practiceAiDebug === null
     ? ""
     : options.practiceAiDebug.rng.toFixed(6);
+  const tacticalFilter = options.practiceAiDebug?.tacticalFilter ?? "";
 
   const lines = [
     `version: ${options.version}`,
@@ -114,6 +115,7 @@ export function buildDevOutput(options: DevOutputOptions): string {
     `previous_scores: ${scores}`,
     `pattern_adjust: ${patternAdjust}`,
     `temperature: ${temperature}`,
+    `tactical_filter: ${tacticalFilter}`,
     `rng: ${rng}`,
     "--",
     `previous_red: ${formatScoreHistory(options.previousRedScores)}`,

@@ -1,5 +1,6 @@
 import type { PracticeColor } from "./app-types";
 import {
+  detectWinningMask,
   EMPTY,
   isInBounds,
   lowestOpenRow,
@@ -18,6 +19,7 @@ export type PracticeAiDebug = {
   rawScores: Array<number | null>;
   rng: number | null;
   selectionMode: "flat" | "softmax" | "deterministic";
+  tacticalFilter: "none" | "win" | "block" | "avoid-loss";
   temperature: number | null;
 };
 
@@ -62,15 +64,15 @@ export function practiceTemperature(difficulty: number): number {
   }
 
   if (difficulty === 2) {
-    return 10;
+    return 9;
   }
 
   if (difficulty === 3) {
-    return 8;
+    return 7;
   }
 
   if (difficulty === 4) {
-    return 6;
+    return 5.5;
   }
 
   if (difficulty === 5) {
@@ -78,22 +80,50 @@ export function practiceTemperature(difficulty: number): number {
   }
 
   if (difficulty === 6) {
-    return 2.5;
+    return 3;
   }
 
   if (difficulty === 7) {
-    return 1.667;
+    return 2.25;
   }
 
   if (difficulty === 8) {
-    return 1;
+    return 1.5;
   }
 
-  return 0.5;
+  return 0.9;
 }
 
 function cloneBoard(board: BoardState): BoardState {
   return board.map((row) => [...row]);
+}
+
+function boardAfterMove(
+  board: BoardState,
+  column: number,
+  player: PlayerValue,
+): BoardState | null {
+  const row = lowestOpenRow(board, column);
+  if (row === null) {
+    return null;
+  }
+
+  const nextBoard = cloneBoard(board);
+  nextBoard[row][column] = player;
+  return nextBoard;
+}
+
+function immediateWinningColumns(board: BoardState, player: PlayerValue): number[] {
+  const columns: number[] = [];
+
+  for (let column = 0; column < board[0].length; column += 1) {
+    const nextBoard = boardAfterMove(board, column, player);
+    if (nextBoard !== null && detectWinningMask(nextBoard).hasWinningRun) {
+      columns.push(column);
+    }
+  }
+
+  return columns;
 }
 
 function countContiguous(
@@ -279,6 +309,13 @@ function setDisplayMoves(
   return displayMoves;
 }
 
+type EvaluatedEntry = {
+  column: number;
+  isWinningMove: boolean;
+  opponentWinningReplies: number[];
+  score: number;
+};
+
 export function choosePracticeAiColumn(
   options: ChoosePracticeAiColumnOptions,
 ): { column: number | null; debug: PracticeAiDebug | null } {
@@ -312,26 +349,67 @@ export function choosePracticeAiColumn(
       }),
     ),
   );
+  const opponent = nextPlayer(options.player);
+  const evaluatedEntries = validEntries.flatMap((entry) => {
+    const nextBoard = boardAfterMove(options.board, entry.column, options.player);
+    if (nextBoard === null) {
+      return [];
+    }
+
+    return [
+      {
+        column: entry.column,
+        isWinningMove: detectWinningMask(nextBoard).hasWinningRun,
+        opponentWinningReplies: immediateWinningColumns(nextBoard, opponent),
+        score: entry.score,
+      } satisfies EvaluatedEntry,
+    ];
+  });
+
+  if (evaluatedEntries.length === 0) {
+    return {
+      column: null,
+      debug: null,
+    };
+  }
+
+  let candidateEntries = evaluatedEntries;
+  let tacticalFilter: PracticeAiDebug["tacticalFilter"] = "none";
+  const winningEntries = evaluatedEntries.filter((entry) => entry.isWinningMove);
+
+  if (winningEntries.length > 0) {
+    candidateEntries = winningEntries;
+    tacticalFilter = "win";
+  } else {
+    const safeEntries = evaluatedEntries.filter((entry) => entry.opponentWinningReplies.length === 0);
+    const isOpponentThreatening = immediateWinningColumns(options.board, opponent).length > 0;
+
+    if (safeEntries.length > 0 && safeEntries.length < evaluatedEntries.length) {
+      candidateEntries = safeEntries;
+      tacticalFilter = isOpponentThreatening ? "block" : "avoid-loss";
+    }
+  }
 
   if (options.difficulty <= 1) {
     const rng = random();
-    const chosenIndex = Math.min(validEntries.length - 1, Math.floor(rng * validEntries.length));
+    const chosenIndex = Math.min(candidateEntries.length - 1, Math.floor(rng * candidateEntries.length));
 
     return {
-      column: validEntries[chosenIndex].column,
+      column: candidateEntries[chosenIndex].column,
       debug: {
         patternAdjustments,
         rawScores,
         rng,
         selectionMode: "flat",
+        tacticalFilter,
         temperature: null,
       },
     };
   }
 
   if (options.difficulty >= 10) {
-    const maxScore = Math.max(...validEntries.map((entry) => entry.score));
-    const bestEntries = validEntries.filter((entry) => entry.score === maxScore);
+    const maxScore = Math.max(...candidateEntries.map((entry) => entry.score));
+    const bestEntries = candidateEntries.filter((entry) => entry.score === maxScore);
     const rng = bestEntries.length > 1 ? random() : null;
     const chosenIndex =
       bestEntries.length > 1 && rng !== null ? Math.min(bestEntries.length - 1, Math.floor(rng * bestEntries.length)) : 0;
@@ -343,13 +421,14 @@ export function choosePracticeAiColumn(
         rawScores,
         rng,
         selectionMode: "deterministic",
+        tacticalFilter,
         temperature: null,
       },
     };
   }
 
   const temperature = practiceTemperature(options.difficulty);
-  const logits = validEntries.map((entry, index) => {
+  const logits = candidateEntries.map((entry) => {
     const patternAdjustment = patternAdjustments[entry.column] ?? 0;
     return (entry.score + patternAdjustment) / temperature;
   });
@@ -359,16 +438,17 @@ export function choosePracticeAiColumn(
   const rng = random();
   let threshold = rng * totalWeight;
 
-  for (let index = 0; index < validEntries.length; index += 1) {
+  for (let index = 0; index < candidateEntries.length; index += 1) {
     threshold -= weights[index];
     if (threshold <= 0) {
       return {
-        column: validEntries[index].column,
+        column: candidateEntries[index].column,
         debug: {
           patternAdjustments,
           rawScores,
           rng,
           selectionMode: "softmax",
+          tacticalFilter,
           temperature,
         },
       };
@@ -376,12 +456,13 @@ export function choosePracticeAiColumn(
   }
 
   return {
-    column: validEntries[validEntries.length - 1].column,
+    column: candidateEntries[candidateEntries.length - 1].column,
     debug: {
       patternAdjustments,
       rawScores,
       rng,
       selectionMode: "softmax",
+      tacticalFilter,
       temperature,
     },
   };
