@@ -41,6 +41,14 @@ import {
 } from "./ui-persistence";
 import { registerPwaServiceWorker } from "./pwa";
 import {
+  APP_LOCALE,
+  APP_STRINGS,
+  applyStaticTranslations,
+  formatTemplate,
+  STATS_METRIC_ORDER,
+  type StatsMetricKey,
+} from "./i18n";
+import {
   appendPracticeStat,
   buildPracticeDifficultyStats,
   createPracticeStatId,
@@ -207,6 +215,8 @@ if (
   throw new Error("Missing required board elements.");
 }
 
+applyStaticTranslations(document);
+
 const moggedBackground = createMoggedBackground(themeBackground as HTMLCanvasElement);
 const audioController = createAudioController();
 
@@ -241,6 +251,8 @@ const featureToggleInputs: Record<FeatureKey, HTMLInputElement> = {
 };
 
 const buildVersion = import.meta.env.VITE_BUILD_VERSION?.trim() || "dev";
+
+document.documentElement.lang = APP_LOCALE;
 
 let activeColumn: number | null = null;
 let activePointerId: number | null = null;
@@ -463,11 +475,11 @@ function syncModalView(): void {
   }
 
   if (activeModalView === "stats") {
-    aboutTitle.textContent = "Statistics";
+    aboutTitle.textContent = APP_STRINGS.stats.title;
     return;
   }
 
-  aboutTitle.textContent = "About Connect 4 Trainer";
+  aboutTitle.textContent = APP_STRINGS.about.title;
 }
 
 function openModalView(view: ModalView, trigger: HTMLElement, options?: { aboutTab?: AboutTab }): void {
@@ -660,39 +672,39 @@ function maybeHandleBoardDoubleTapReset(event: PointerEvent): boolean {
   return true;
 }
 
-function statsMetricValue(label: string, summary: PracticeStatsSummary): string {
-  switch (label) {
-    case "Wins":
+function statsMetricValue(metric: StatsMetricKey, summary: PracticeStatsSummary): string {
+  switch (metric) {
+    case "wins":
       return String(summary.wins);
-    case "Losses":
+    case "losses":
       return String(summary.losses);
-    case "Ties":
+    case "ties":
       return String(summary.ties);
-    case "Win rate":
+    case "winRate":
       return formatWinRate(summary.winRate);
-    case "Avg. win length":
+    case "averageWinLength":
       return formatStatsNumber(summary.averageWinLength);
-    case "Avg. loss length":
+    case "averageLossLength":
       return formatStatsNumber(summary.averageLossLength);
-    case "Biggest win":
+    case "biggestWin":
       return formatStatsNumber(summary.biggestWin);
-    case "Biggest loss":
+    case "biggestLoss":
       return formatStatsNumber(summary.biggestLoss);
-    case "Wins without undo":
+    case "winsWithoutUndo":
       return String(summary.winsWithoutUndo);
-    case "Wins without assist":
+    case "winsWithoutAssist":
       return String(summary.winsWithoutAssist);
-    case "Losses undone":
+    case "lossesUndone":
       return String(summary.lossesUndone);
-    case "Lost multiple times":
+    case "lostMultipleTimes":
       return String(summary.lostMultipleTimes);
-    case "Reset count":
+    case "resetCount":
       return String(summary.resetCount);
-    case "Resets while losing":
+    case "resetsWhileLosing":
       return String(summary.resetsWhileLosing);
-    case "Avg. game time":
+    case "averageGameTime":
       return formatDuration(summary.averageGameTimeMs);
-    case "Fastest win":
+    case "fastestWin":
       return formatDuration(summary.fastestWinMs);
     default:
       return "-";
@@ -701,32 +713,14 @@ function statsMetricValue(label: string, summary: PracticeStatsSummary): string 
 
 function renderStatsTable(): void {
   const stats = buildPracticeDifficultyStats(practiceStats, statsDifficulty);
-  const metricLabels = [
-    "Wins",
-    "Losses",
-    "Ties",
-    "Win rate",
-    "Avg. win length",
-    "Avg. loss length",
-    "Biggest win",
-    "Biggest loss",
-    "Wins without undo",
-    "Wins without assist",
-    "Losses undone",
-    "Lost multiple times",
-    "Reset count",
-    "Resets while losing",
-    "Avg. game time",
-    "Fastest win",
-  ];
   statsTableBody.replaceChildren();
 
-  for (const label of metricLabels) {
+  for (const metric of STATS_METRIC_ORDER) {
     const tableRow = document.createElement("tr");
     tableRow.innerHTML = `
-      <th scope="row">${label}</th>
-      <td>${statsMetricValue(label, stats.today)}</td>
-      <td>${statsMetricValue(label, stats.lifetime)}</td>
+      <th scope="row">${APP_STRINGS.stats.metrics[metric]}</th>
+      <td>${statsMetricValue(metric, stats.today)}</td>
+      <td>${statsMetricValue(metric, stats.lifetime)}</td>
     `;
     statsTableBody.append(tableRow);
   }
@@ -946,7 +940,7 @@ function updatePracticeControls(): void {
   freeplayControls.classList.toggle("hidden", currentMode !== "freeplay");
   featureControls.classList.toggle("hidden", !inTraining);
   featureSection.classList.toggle("hidden", !inTraining && currentMode !== "freeplay");
-  featureSectionTitle.textContent = inTraining ? "Training Tools" : "Display";
+  featureSectionTitle.textContent = inTraining ? APP_STRINGS.features.trainingTools : APP_STRINGS.features.display;
   difficultySection.classList.toggle("hidden", !inTraining);
   statisticsSection.classList.toggle("hidden", !inTraining);
 
@@ -1283,12 +1277,12 @@ function renderTurnIndicator(): void {
 
   if (isWinLocked) {
     if (winningPlayer === RED) {
-      setTurnIndicator("Red wins", "red");
+      setTurnIndicator(APP_STRINGS.status.redWins, "red");
       return;
     }
 
     if (winningPlayer === YELLOW) {
-      setTurnIndicator("Yellow wins", "yellow");
+      setTurnIndicator(APP_STRINGS.status.yellowWins, "yellow");
       return;
     }
 
@@ -1297,23 +1291,23 @@ function renderTurnIndicator(): void {
   }
 
   if (!hasPlayableMove()) {
-    setTurnIndicator("Tie");
+    setTurnIndicator(APP_STRINGS.status.tie);
     return;
   }
 
   if (isTrainingMode()) {
     if (isHumanTurn()) {
-      setTurnIndicator("Your move");
+      setTurnIndicator(APP_STRINGS.status.yourMove);
       return;
     }
 
     if (isAiCalculating()) {
-      setTurnIndicator("Thinking...");
+      setTurnIndicator(APP_STRINGS.status.thinking);
       return;
     }
 
     if (aiPlannedColumn !== null) {
-      setTurnIndicator(`Playing Column ${aiPlannedColumn + 1}`);
+      setTurnIndicator(formatTemplate(APP_STRINGS.status.playingColumn, { column: aiPlannedColumn + 1 }));
       return;
     }
 
@@ -1322,11 +1316,11 @@ function renderTurnIndicator(): void {
   }
 
   if (currentPlayer === RED) {
-    setTurnIndicator("Red's turn", "red");
+    setTurnIndicator(APP_STRINGS.status.redTurn, "red");
     return;
   }
 
-  setTurnIndicator("Yellow's turn", "yellow");
+  setTurnIndicator(APP_STRINGS.status.yellowTurn, "yellow");
 }
 
 function syncFeatureUI(): void {
@@ -1461,7 +1455,7 @@ function currentHumanPlayerColorLabel(): string {
   }
 
   const actualColor = playerClass(trainingHumanPlayer());
-  return practiceColor === "alternate" ? `${actualColor} (alternate)` : actualColor;
+  return practiceColor === "alternate" ? `${actualColor} (${APP_STRINGS.colors.alternate.toLowerCase()})` : actualColor;
 }
 
 function currentScoreShareLabel(): string {
@@ -1594,19 +1588,28 @@ function currentSolvedLineRedShare(): number {
 
 function currentSolvedLineRemainingText(): string {
   if (winningPlayer === RED) {
-    return "red in 0";
+    return formatTemplate(APP_STRINGS.status.lineIn, {
+      color: APP_STRINGS.status.lineColor.red,
+      count: 0,
+    });
   }
 
   if (winningPlayer === YELLOW) {
-    return "yellow in 0";
+    return formatTemplate(APP_STRINGS.status.lineIn, {
+      color: APP_STRINGS.status.lineColor.yellow,
+      count: 0,
+    });
   }
 
   if (!hasPlayableMove()) {
-    return "Tie";
+    return APP_STRINGS.status.tie;
   }
 
   if (moveSequence === "") {
-    return "red in 21";
+    return formatTemplate(APP_STRINGS.status.lineIn, {
+      color: APP_STRINGS.status.lineColor.red,
+      count: 21,
+    });
   }
 
   if (!latestOptimizerPayload || latestOptimizerPayload.sequence !== moveSequence) {
@@ -1615,12 +1618,15 @@ function currentSolvedLineRemainingText(): string {
 
   const { positionScore } = latestOptimizerPayload;
   if (positionScore === 0) {
-    return "Tie";
+    return APP_STRINGS.status.tie;
   }
 
   const advantagedPlayer = positionScore > 0 ? currentPlayer : nextPlayer(currentPlayer);
   const lineLength = solvedLineLength(positionScore);
-  return `${advantagedPlayer === RED ? "red" : "yellow"} in ${lineLength}`;
+  return formatTemplate(APP_STRINGS.status.lineIn, {
+    color: advantagedPlayer === RED ? APP_STRINGS.status.lineColor.red : APP_STRINGS.status.lineColor.yellow,
+    count: lineLength,
+  });
 }
 
 function activeBestColumns(): number[] | null {
@@ -1981,7 +1987,7 @@ function requestOptimizerOutput(): void {
 
   stopOptimizerWorker();
   latestOptimizerPayload = null;
-  latestOptimizerOutput = "status: Computing...";
+  latestOptimizerOutput = `status: ${APP_STRINGS.status.thinking}`;
   aiPlannedColumn = null;
   aiPlannedDebug = null;
   syncFeatureUI();
@@ -2012,7 +2018,7 @@ function requestOptimizerOutput(): void {
       return;
     }
 
-    latestOptimizerOutput = "Optimizer worker failed.";
+    latestOptimizerOutput = "status: optimizer worker failed.";
     latestOptimizerPayload = null;
     syncFeatureUI();
     cancelAiTurn();

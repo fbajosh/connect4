@@ -1,4 +1,5 @@
 import type { GameMode, PersistedUiState, ThemeName } from "./app-types";
+import { modeLabel as localizedModeLabel, titleForMode as localizedTitleForMode } from "./i18n";
 
 const UI_STATE_STORAGE_KEY = "connect4-trainer-ui-state";
 const MODE_SEGMENTS: Record<GameMode, string> = {
@@ -34,15 +35,11 @@ export function writePersistedUiState(state: PersistedUiState): void {
 }
 
 export function modeLabel(mode: GameMode): string {
-  if (mode === "freeplay") {
-    return "Freeplay";
-  }
-
-  return "Training";
+  return localizedModeLabel(mode);
 }
 
 export function titleForMode(mode: GameMode): string {
-  return `Connect 4 Trainer - ${modeLabel(mode)}`;
+  return localizedTitleForMode(mode);
 }
 
 export function isThemeName(value: string): value is ThemeName {

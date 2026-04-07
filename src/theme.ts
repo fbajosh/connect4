@@ -1,4 +1,5 @@
 import type { ThemeName } from "./app-types";
+import { themeLabel as localizedThemeLabel } from "./i18n";
 
 type ThemeTokens = Record<string, string>;
 const ASSET_BASE = import.meta.env.BASE_URL ?? "/";
@@ -189,27 +190,7 @@ const THEMES: Record<ThemeName, ThemeTokens> = {
 export const THEME_ORDER: ThemeName[] = ["light", "dark", "midnight", "greece", "grease", "mogged"];
 
 export function themeLabel(theme: ThemeName): string {
-  if (theme === "dark") {
-    return "Dark";
-  }
-
-  if (theme === "midnight") {
-    return "Astronomer";
-  }
-
-  if (theme === "mogged") {
-    return "Mogged";
-  }
-
-  if (theme === "greece") {
-    return "Greece";
-  }
-
-  if (theme === "grease") {
-    return "Grease";
-  }
-
-  return "Light";
+  return localizedThemeLabel(theme);
 }
 
 export function applyTheme(theme: ThemeName): void {
