@@ -1,4 +1,12 @@
 import type { PracticeColor } from "./app-types";
+import {
+  EMPTY,
+  isInBounds,
+  lowestOpenRow,
+  nextPlayer,
+  type BoardState,
+  type PlayerValue,
+} from "./game-rules";
 
 type PlayerMap = {
   red: number;
@@ -6,18 +14,31 @@ type PlayerMap = {
 };
 
 export type PracticeAiDebug = {
-  previousMoves: Array<number | null>;
+  patternAdjustments: Array<number | null>;
+  rawScores: Array<number | null>;
   rng: number | null;
   selectionMode: "flat" | "softmax" | "deterministic";
   temperature: number | null;
 };
 
 type ChoosePracticeAiColumnOptions = {
+  board: BoardState;
   difficulty: number;
   isColumnPlayable: (column: number) => boolean;
+  player: PlayerValue;
   random?: () => number;
   scores: number[];
 };
+
+const PATTERN_CONNECT_DIVISOR = 4;
+const PATTERN_GAP_DIVISOR = 8;
+const PATTERN_WEIGHT_DIVISOR = 5;
+const RUN_DIRECTIONS: Array<[columnStep: number, rowStep: number]> = [
+  [1, 0],
+  [0, 1],
+  [1, 1],
+  [1, -1],
+];
 
 export function effectivePracticeHumanPlayer(
   practiceColor: PracticeColor,
@@ -55,14 +76,175 @@ export function practiceTemperature(difficulty: number): number {
   return 10 - difficulty;
 }
 
-function shiftValuesToZero(values: number[]): number[] {
-  if (values.length === 0) {
-    return [];
+function cloneBoard(board: BoardState): BoardState {
+  return board.map((row) => [...row]);
+}
+
+function countContiguous(
+  board: BoardState,
+  row: number,
+  column: number,
+  columnStep: number,
+  rowStep: number,
+  player: PlayerValue,
+): number {
+  let total = 0;
+  let nextRow = row + rowStep;
+  let nextColumn = column + columnStep;
+
+  while (isInBounds(nextRow, nextColumn) && board[nextRow][nextColumn] === player) {
+    total += 1;
+    nextRow += rowStep;
+    nextColumn += columnStep;
   }
 
-  const minValue = Math.min(...values);
-  const offset = Math.max(0, -minValue);
-  return values.map((value) => value + offset);
+  return total;
+}
+
+function qualifyingWindows(
+  row: number,
+  column: number,
+  columnStep: number,
+  rowStep: number,
+): Array<Array<[row: number, column: number]>> {
+  const windows: Array<Array<[row: number, column: number]>> = [];
+
+  for (let startOffset = -3; startOffset <= 0; startOffset += 1) {
+    const cells: Array<[row: number, column: number]> = [];
+    let isValid = true;
+
+    for (let index = 0; index < 4; index += 1) {
+      const nextRow = row + (startOffset + index) * rowStep;
+      const nextColumn = column + (startOffset + index) * columnStep;
+      if (!isInBounds(nextRow, nextColumn)) {
+        isValid = false;
+        break;
+      }
+
+      cells.push([nextRow, nextColumn]);
+    }
+
+    if (isValid) {
+      windows.push(cells);
+    }
+  }
+
+  return windows;
+}
+
+function countCreateThreePatterns(
+  board: BoardState,
+  row: number,
+  column: number,
+  player: PlayerValue,
+): number {
+  let total = 0;
+
+  for (const [columnStep, rowStep] of RUN_DIRECTIONS) {
+    const backward = countContiguous(board, row, column, -columnStep, -rowStep, player);
+    const forward = countContiguous(board, row, column, columnStep, rowStep, player);
+    if (backward >= 2 || forward >= 2) {
+      total += 1;
+    }
+  }
+
+  return total;
+}
+
+function countConnectivePatterns(
+  board: BoardState,
+  row: number,
+  column: number,
+  player: PlayerValue,
+): number {
+  const opponent = nextPlayer(player);
+  let total = 0;
+
+  for (const [columnStep, rowStep] of RUN_DIRECTIONS) {
+    const touchesOwnPiece =
+      (isInBounds(row - rowStep, column - columnStep) &&
+        board[row - rowStep][column - columnStep] === player) ||
+      (isInBounds(row + rowStep, column + columnStep) &&
+        board[row + rowStep][column + columnStep] === player);
+
+    if (!touchesOwnPiece) {
+      continue;
+    }
+
+    const hasFutureRun = qualifyingWindows(row, column, columnStep, rowStep).some((cells) =>
+      cells.every(([windowRow, windowColumn]) => board[windowRow][windowColumn] !== opponent),
+    );
+
+    if (hasFutureRun) {
+      total += 1;
+    }
+  }
+
+  return total;
+}
+
+function countGappedFourPatterns(
+  board: BoardState,
+  row: number,
+  column: number,
+  player: PlayerValue,
+): number {
+  let total = 0;
+
+  for (const [columnStep, rowStep] of RUN_DIRECTIONS) {
+    const hasGappedWindow = qualifyingWindows(row, column, columnStep, rowStep).some((cells) => {
+      let ownCount = 0;
+      let emptyCount = 0;
+      let emptyIndex = -1;
+
+      cells.forEach(([windowRow, windowColumn], index) => {
+        const cell = board[windowRow][windowColumn];
+        if (cell === player) {
+          ownCount += 1;
+        } else if (cell === EMPTY) {
+          emptyCount += 1;
+          emptyIndex = index;
+        } else {
+          emptyCount = 99;
+        }
+      });
+
+      return ownCount === 3 && emptyCount === 1 && emptyIndex > 0 && emptyIndex < cells.length - 1;
+    });
+
+    if (hasGappedWindow) {
+      total += 1;
+    }
+  }
+
+  return total;
+}
+
+function patternAdjustmentForColumn(options: {
+  board: BoardState;
+  column: number;
+  difficulty: number;
+  player: PlayerValue;
+}): number {
+  if (options.difficulty <= 1 || options.difficulty >= 10) {
+    return 0;
+  }
+
+  const row = lowestOpenRow(options.board, options.column);
+  if (row === null) {
+    return 0;
+  }
+
+  const boardAfterMove = cloneBoard(options.board);
+  boardAfterMove[row][options.column] = options.player;
+
+  const createThree = countCreateThreePatterns(boardAfterMove, row, options.column, options.player);
+  const connective = countConnectivePatterns(boardAfterMove, row, options.column, options.player);
+  const gappedFour = countGappedFourPatterns(boardAfterMove, row, options.column, options.player);
+  const weightedPatternScore =
+    createThree + connective / PATTERN_CONNECT_DIVISOR + gappedFour / PATTERN_GAP_DIVISOR;
+
+  return (weightedPatternScore * practiceTemperature(options.difficulty)) / PATTERN_WEIGHT_DIVISOR;
 }
 
 function emptyDisplayMoves(length: number): Array<number | null> {
@@ -97,6 +279,23 @@ export function choosePracticeAiColumn(
 
   const random = options.random ?? Math.random;
   const validColumns = validEntries.map((entry) => entry.column);
+  const rawScores = setDisplayMoves(
+    options.scores.length,
+    validColumns,
+    validEntries.map((entry) => entry.score),
+  );
+  const patternAdjustments = setDisplayMoves(
+    options.scores.length,
+    validColumns,
+    validEntries.map((entry) =>
+      patternAdjustmentForColumn({
+        board: options.board,
+        column: entry.column,
+        difficulty: options.difficulty,
+        player: options.player,
+      }),
+    ),
+  );
 
   if (options.difficulty <= 1) {
     const rng = random();
@@ -105,11 +304,8 @@ export function choosePracticeAiColumn(
     return {
       column: validEntries[chosenIndex].column,
       debug: {
-        previousMoves: setDisplayMoves(
-          options.scores.length,
-          validColumns,
-          validColumns.map(() => 0),
-        ),
+        patternAdjustments,
+        rawScores,
         rng,
         selectionMode: "flat",
         temperature: null,
@@ -127,11 +323,8 @@ export function choosePracticeAiColumn(
     return {
       column: bestEntries[chosenIndex].column,
       debug: {
-        previousMoves: setDisplayMoves(
-          options.scores.length,
-          validColumns,
-          validEntries.map((entry) => (entry.score === maxScore ? 1 : 0)),
-        ),
+        patternAdjustments,
+        rawScores,
         rng,
         selectionMode: "deterministic",
         temperature: null,
@@ -140,9 +333,10 @@ export function choosePracticeAiColumn(
   }
 
   const temperature = practiceTemperature(options.difficulty);
-  const logits = validEntries.map((entry) => entry.score / temperature);
-  const shiftedLogits = shiftValuesToZero(logits);
-  const previousMoves = setDisplayMoves(options.scores.length, validColumns, shiftedLogits);
+  const logits = validEntries.map((entry, index) => {
+    const patternAdjustment = patternAdjustments[entry.column] ?? 0;
+    return (entry.score + patternAdjustment) / temperature;
+  });
   const maxLogit = Math.max(...logits);
   const weights = logits.map((logit) => Math.exp(logit - maxLogit));
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
@@ -155,7 +349,8 @@ export function choosePracticeAiColumn(
       return {
         column: validEntries[index].column,
         debug: {
-          previousMoves,
+          patternAdjustments,
+          rawScores,
           rng,
           selectionMode: "softmax",
           temperature,
@@ -167,7 +362,8 @@ export function choosePracticeAiColumn(
   return {
     column: validEntries[validEntries.length - 1].column,
     debug: {
-      previousMoves,
+      patternAdjustments,
+      rawScores,
       rng,
       selectionMode: "softmax",
       temperature,

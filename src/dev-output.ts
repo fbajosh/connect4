@@ -32,6 +32,10 @@ function formatDisplayScoreList(scores: Array<number | null>): string {
   return scores.map((score) => (score === null ? "-" : formatDisplayNumber(score))).join(", ");
 }
 
+function formatRoundedTenthsList(scores: Array<number | null>): string {
+  return scores.map((score) => (score === null ? "-" : score.toFixed(1))).join(", ");
+}
+
 export function buildDevOutput(options: DevOutputOptions): string {
   const lines = [`state: ${options.state}`];
 
@@ -47,7 +51,8 @@ export function buildDevOutput(options: DevOutputOptions): string {
   lines.push(`Undo used: ${options.undoUsed ? "yes" : "no"}`);
 
   if (options.practiceAiDebug !== null) {
-    lines.push(`previous: ${formatDisplayScoreList(options.practiceAiDebug.previousMoves)}`);
+    lines.push(`scores: ${formatDisplayScoreList(options.practiceAiDebug.rawScores)}`);
+    lines.push(`pattern_adjust: ${formatRoundedTenthsList(options.practiceAiDebug.patternAdjustments)}`);
     if (options.practiceAiDebug.selectionMode === "flat") {
       if (options.practiceDifficulty !== null) {
         lines.push(`temperature: flat (${options.practiceDifficulty})`);

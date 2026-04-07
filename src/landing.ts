@@ -1692,8 +1692,10 @@ function maybeScheduleAiTurn(): void {
     }
 
     const aiChoice = choosePracticeAiColumn({
+      board,
       difficulty: practiceDifficulty,
       isColumnPlayable: (column) => lowestOpenRow(board, column) !== null,
+      player: currentPlayer,
       scores,
     });
     if (aiChoice.column === null) {
