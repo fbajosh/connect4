@@ -30,8 +30,8 @@
       href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/connect4/assets/index-BDWCODN1.js"></script>
-    <link rel="stylesheet" crossorigin href="/connect4/assets/index-KVRpWHua.css">
+    <script type="module" crossorigin src="/connect4/assets/index-C-SFotxX.js"></script>
+    <link rel="stylesheet" crossorigin href="/connect4/assets/index-Dt55ejdJ.css">
   </head>
   <body>
     <canvas class="theme-background" id="theme-background" aria-hidden="true"></canvas>
@@ -249,13 +249,51 @@
               </section>
             </div>
           </div>
+          <div class="compact-landscape-dev-controls hidden" id="compact-landscape-dev-controls" aria-label="Developer controls"></div>
         </div>
       </div>
       <section class="dev-panel hidden" id="dev-panel" aria-label="Developer tools">
         <div class="dev-field">
-          <div class="dev-toolbar">
-            <button class="dev-link" id="import-state-control" type="button">import state</button>
-            <button class="dev-link" id="export-state-control" type="button">export state</button>
+          <div class="dev-toolbar" id="dev-toolbar">
+            <div class="dev-toolbar-left">
+              <button class="dev-icon-button" id="import-state-control" type="button" aria-label="Import state">
+                <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M5.14645 8.85355L7.64645 11.3536C7.84171 11.5488 8.15829 11.5488 8.35355 11.3536L10.8536 8.85355C11.0488 8.65829 11.0488 8.34171 10.8536 8.14645C10.6583 7.95118 10.3417 7.95118 10.1464 8.14645L8.5 9.79289V5C8.5 4.72386 8.27614 4.5 8 4.5C7.72386 4.5 7.5 4.72386 7.5 5V9.79289L5.85355 8.14645C5.65829 7.95118 5.34171 7.95118 5.14645 8.14645C4.95118 8.34171 4.95118 8.65829 5.14645 8.85355ZM8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8C15 11.866 11.866 15 8 15ZM2 8C2 11.3137 4.68629 14 8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8Z"
+                  ></path>
+                </svg>
+                <span class="visually-hidden">Import state</span>
+              </button>
+              <button class="dev-icon-button" id="export-state-control" type="button" aria-label="Export state">
+                <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path
+                    d="M5.146 7.146 7.646 4.646a.5.5 0 0 1 .708 0l2.5 2.5a.5.5 0 0 1-.708.708L8.5 6.207V11a.5.5 0 0 1-1 0V6.207L5.854 7.854a.5.5 0 1 1-.708-.708ZM8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM2 8a6 6 0 1 1 12 0A6 6 0 0 1 2 8Z"
+                  ></path>
+                </svg>
+                <span class="visually-hidden">Export state</span>
+              </button>
+            </div>
+            <button
+              class="dev-icon-button dev-resize-control"
+              id="dev-resize-control"
+              type="button"
+              aria-label="Resize debug console"
+            >
+              <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M11.854 10.146C12.049 10.341 12.049 10.658 11.854 10.853L8.35401 14.353C8.15901 14.548 7.84201 14.548 7.64701 14.353L4.14701 10.853C3.95201 10.658 3.95201 10.341 4.14701 10.146C4.34201 9.95098 4.65901 9.95098 4.85401 10.146L8.00001 13.293L11.146 10.146C11.341 9.95098 11.658 9.95098 11.853 10.146H11.854ZM4.85401 5.85398L8.00001 2.70798L11.146 5.85398C11.341 6.04898 11.658 6.04898 11.853 5.85398C12.048 5.65898 12.048 5.34198 11.853 5.14698L8.35301 1.64698C8.15801 1.45198 7.84101 1.45198 7.64601 1.64698L4.14601 5.14698C3.95101 5.34198 3.95101 5.65898 4.14601 5.85398C4.34101 6.04898 4.65901 6.04898 4.85401 5.85398Z"
+                ></path>
+              </svg>
+              <span class="visually-hidden">Resize debug console</span>
+            </button>
+            <button class="dev-icon-button dev-close-control" id="dev-close-control" type="button" aria-label="Close debug console">
+              <svg class="dev-icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M8.70701 8.00001L12.353 4.35401C12.548 4.15901 12.548 3.84201 12.353 3.64701C12.158 3.45201 11.841 3.45201 11.646 3.64701L8.00001 7.29301L4.35401 3.64701C4.15901 3.45201 3.84201 3.45201 3.64701 3.64701C3.45201 3.84201 3.45201 4.15901 3.64701 4.35401L7.29301 8.00001L3.64701 11.646C3.45201 11.841 3.45201 12.158 3.64701 12.353C3.74501 12.451 3.87301 12.499 4.00101 12.499C4.12901 12.499 4.25701 12.45 4.35501 12.353L8.00101 8.70701L11.647 12.353C11.745 12.451 11.873 12.499 12.001 12.499C12.129 12.499 12.257 12.45 12.355 12.353C12.55 12.158 12.55 11.841 12.355 11.646L8.70901 8.00001H8.70701Z"
+                ></path>
+              </svg>
+              <span class="visually-hidden">Close debug console</span>
+            </button>
           </div>
           <textarea class="dev-textbox" id="dev-output-box" readonly></textarea>
         </div>

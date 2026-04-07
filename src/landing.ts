@@ -65,8 +65,12 @@ const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
 const COMPACT_LANDSCAPE_MEDIA_QUERY = "(orientation: landscape) and (max-height: 560px) and (max-width: 980px)";
+const PORTRAIT_DEV_RESIZE_MEDIA_QUERY = "(max-width: 980px) and (orientation: portrait)";
 const BOARD_RESET_DOUBLE_TAP_WINDOW_MS = 320;
 const BOARD_COMPLETE_TAP_SHAKE_DELAY_MS = 321;
+const DEFAULT_DEV_PANEL_PORTRAIT_HEIGHT_RATIO = 0.22;
+const MIN_DEV_PANEL_TEXTBOX_HEIGHT_PX = 72;
+const MIN_DEV_PANEL_BOARD_SCALE = 0.38;
 const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
@@ -75,6 +79,7 @@ const landingRoot = document.querySelector<HTMLElement>(".landing");
 const hero = document.querySelector<HTMLElement>(".hero");
 const menuBar = document.querySelector<HTMLElement>(".menu-bar");
 const boardStage = document.querySelector<HTMLElement>(".board-stage");
+const boardArea = document.querySelector<HTMLElement>(".board-area");
 const boardActions = document.querySelector<HTMLElement>(".board-actions");
 const boardFrame = boardShell?.parentElement;
 const titleControl = document.getElementById("title-control");
@@ -116,8 +121,13 @@ const moveScoresToggle = document.getElementById("move-scores-toggle");
 const gameScorePulse = document.getElementById("game-score-pulse");
 const gameScoreToggle = document.getElementById("game-score-toggle");
 const devPanel = document.getElementById("dev-panel");
+const devToolbar = document.getElementById("dev-toolbar");
+const devToolbarLeft = devToolbar?.querySelector<HTMLElement>(".dev-toolbar-left");
+const compactLandscapeDevControls = document.getElementById("compact-landscape-dev-controls");
 const importStateControl = document.getElementById("import-state-control");
 const exportStateControl = document.getElementById("export-state-control");
+const devResizeControl = document.getElementById("dev-resize-control");
+const devCloseControl = document.getElementById("dev-close-control");
 const devOutputBox = document.getElementById("dev-output-box");
 const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
@@ -133,6 +143,7 @@ if (
   !hero ||
   !titleControl ||
   !boardStage ||
+  !boardArea ||
   !boardActions ||
   !boardFrame ||
   !boardShell ||
@@ -178,8 +189,13 @@ if (
   !gameScorePulse ||
   !gameScoreToggle ||
   !devPanel ||
+  !devToolbar ||
+  !devToolbarLeft ||
+  !compactLandscapeDevControls ||
   !importStateControl ||
   !exportStateControl ||
+  !devResizeControl ||
+  !devCloseControl ||
   !devOutputBox ||
   !settingsAudioToggle ||
   !settingsDevModeToggle ||
@@ -272,6 +288,10 @@ let pendingBoardResetShakeTimeout = 0;
 let lastBoardResetTapAt = 0;
 let lastBoardResetTapPointerType: string | null = null;
 let pendingPracticeGameDurationMs: number | null = null;
+let portraitDevPanelHeightPx: number | null = null;
+let activeDevResizePointerId: number | null = null;
+let activeDevResizeStartY = 0;
+let activeDevResizeStartHeightPx = 0;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
 const moveHistory: MoveRecord[] = [];
@@ -1090,14 +1110,116 @@ function applyBoardFrameLayout(): void {
   );
 }
 
+function syncCompactLandscapeDevControls(): void {
+  const shouldDockIntoBoardActions = effectiveDevModeVisible() && window.matchMedia(COMPACT_LANDSCAPE_MEDIA_QUERY).matches;
+
+  if (shouldDockIntoBoardActions) {
+    if (devToolbarLeft.parentElement !== compactLandscapeDevControls) {
+      compactLandscapeDevControls.append(devToolbarLeft);
+    }
+
+    if (devCloseControl.parentElement !== compactLandscapeDevControls) {
+      compactLandscapeDevControls.append(devCloseControl);
+    }
+
+    compactLandscapeDevControls.classList.remove("hidden");
+    return;
+  }
+
+  if (devToolbarLeft.parentElement !== devToolbar) {
+    devToolbar.insertBefore(devToolbarLeft, devResizeControl);
+  }
+
+  if (devCloseControl.parentElement !== devToolbar) {
+    devToolbar.append(devCloseControl);
+  }
+
+  compactLandscapeDevControls.classList.add("hidden");
+}
+
+function isPortraitDevResizeEnabled(): boolean {
+  return window.matchMedia(PORTRAIT_DEV_RESIZE_MEDIA_QUERY).matches;
+}
+
+function clearPortraitDevPanelHeight(): void {
+  landingRoot.style.removeProperty("--dev-panel-portrait-height");
+}
+
+function portraitDevPanelMinHeight(): number {
+  const toolbarHeight = devToolbar.getBoundingClientRect().height || 0;
+  return Math.max(108, Math.ceil(toolbarHeight + MIN_DEV_PANEL_TEXTBOX_HEIGHT_PX));
+}
+
+function unsqueezedBoardFrameHeight(): number {
+  return boardArea.getBoundingClientRect().width * FIXED_BOARD_FRAME_ROWS / WIDTH;
+}
+
+function portraitDevPanelMaxHeight(): number {
+  const landingRect = landingRoot.getBoundingClientRect();
+  const heroRect = hero.getBoundingClientRect();
+  const actionsRect = boardActions.getBoundingClientRect();
+  const landingStyle = window.getComputedStyle(landingRoot);
+  const layoutGap = Number.parseFloat(landingStyle.rowGap || landingStyle.gap || "0") || 0;
+  const minHeight = portraitDevPanelMinHeight();
+  const minBoardHeight = Math.max(120, unsqueezedBoardFrameHeight() * MIN_DEV_PANEL_BOARD_SCALE);
+  const minBoardStageHeight = actionsRect.height + layoutGap + minBoardHeight;
+  const maxHeight = Math.floor(landingRect.height - heroRect.height - 2 * layoutGap - minBoardStageHeight);
+  return Math.max(minHeight, maxHeight);
+}
+
+function defaultPortraitDevPanelHeight(): number {
+  return Math.round(window.innerHeight * DEFAULT_DEV_PANEL_PORTRAIT_HEIGHT_RATIO);
+}
+
+function clampPortraitDevPanelHeight(height: number): number {
+  const minHeight = portraitDevPanelMinHeight();
+  const maxHeight = portraitDevPanelMaxHeight();
+  return Math.max(minHeight, Math.min(maxHeight, Math.round(height)));
+}
+
+function stopPortraitDevPanelResize(): void {
+  if (activeDevResizePointerId !== null && devResizeControl.hasPointerCapture(activeDevResizePointerId)) {
+    devResizeControl.releasePointerCapture(activeDevResizePointerId);
+  }
+
+  activeDevResizePointerId = null;
+  devResizeControl.classList.remove("is-dragging");
+}
+
+function syncPortraitDevPanelHeight(): void {
+  if (!effectiveDevModeVisible() || !isPortraitDevResizeEnabled()) {
+    stopPortraitDevPanelResize();
+    clearPortraitDevPanelHeight();
+    return;
+  }
+
+  const measuredHeight = devPanel.getBoundingClientRect().height;
+  if (portraitDevPanelHeightPx === null) {
+    portraitDevPanelHeightPx = measuredHeight > 0 ? measuredHeight : defaultPortraitDevPanelHeight();
+  }
+
+  portraitDevPanelHeightPx = clampPortraitDevPanelHeight(portraitDevPanelHeightPx);
+  landingRoot.style.setProperty("--dev-panel-portrait-height", `${portraitDevPanelHeightPx}px`);
+}
+
+function updatePortraitDevPanelHeight(height: number): void {
+  portraitDevPanelHeightPx = clampPortraitDevPanelHeight(height);
+  landingRoot.style.setProperty("--dev-panel-portrait-height", `${portraitDevPanelHeightPx}px`);
+  scheduleBoardFrameLayout();
+}
+
 function renderDevOutput(): void {
   const isVisible = effectiveDevModeVisible();
   landingRoot.classList.toggle("has-dev-panel", isVisible);
   devPanel.classList.toggle("hidden", !isVisible);
+  syncCompactLandscapeDevControls();
   if (!isVisible) {
+    syncPortraitDevPanelHeight();
     devOutputBox.value = "";
     return;
   }
+
+  syncPortraitDevPanelHeight();
 
   devOutputBox.value = buildDevOutput({
     assistsEnabled: didUseAssistThisGame,
@@ -2529,6 +2651,53 @@ exportStateControl.addEventListener("click", () => {
   void exportStateToClipboard();
 });
 
+devCloseControl.addEventListener("click", () => {
+  setDevModeEnabled(false);
+});
+
+devResizeControl.addEventListener("pointerdown", (event: PointerEvent) => {
+  if (!effectiveDevModeVisible() || !isPortraitDevResizeEnabled()) {
+    return;
+  }
+
+  event.preventDefault();
+  syncPortraitDevPanelHeight();
+  activeDevResizePointerId = event.pointerId;
+  activeDevResizeStartY = event.clientY;
+  activeDevResizeStartHeightPx = devPanel.getBoundingClientRect().height;
+  devResizeControl.setPointerCapture(event.pointerId);
+  devResizeControl.classList.add("is-dragging");
+});
+
+devResizeControl.addEventListener("pointermove", (event: PointerEvent) => {
+  if (activeDevResizePointerId !== event.pointerId) {
+    return;
+  }
+
+  event.preventDefault();
+  updatePortraitDevPanelHeight(activeDevResizeStartHeightPx + (activeDevResizeStartY - event.clientY));
+});
+
+devResizeControl.addEventListener("pointerup", (event: PointerEvent) => {
+  if (activeDevResizePointerId !== event.pointerId) {
+    return;
+  }
+
+  stopPortraitDevPanelResize();
+});
+
+devResizeControl.addEventListener("pointercancel", (event: PointerEvent) => {
+  if (activeDevResizePointerId !== event.pointerId) {
+    return;
+  }
+
+  stopPortraitDevPanelResize();
+});
+
+devResizeControl.addEventListener("lostpointercapture", () => {
+  stopPortraitDevPanelResize();
+});
+
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape" && isAboutModalOpen) {
     closeActiveModal();
@@ -2582,10 +2751,14 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
 });
 
 window.addEventListener("resize", () => {
+  syncCompactLandscapeDevControls();
+  syncPortraitDevPanelHeight();
   scheduleBoardFrameLayout();
 });
 
 window.visualViewport?.addEventListener("resize", () => {
+  syncCompactLandscapeDevControls();
+  syncPortraitDevPanelHeight();
   scheduleBoardFrameLayout();
 });
 
