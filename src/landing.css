@@ -890,21 +890,33 @@ body::after {
 }
 
 :root[data-disc-patterns="true"] .piece.red::before {
-  opacity: 0.3;
+  opacity: 0.6;
   background: repeating-linear-gradient(
     135deg,
     rgba(0, 0, 0, 0) 0 4.5%,
-    rgba(0, 0, 0, 0.22) 4.5% 8.5%,
+    rgba(0, 0, 0, 0.44) 4.5% 8.5%,
     rgba(0, 0, 0, 0) 8.5% 11%
   );
 }
 
 :root[data-disc-patterns="true"] .piece.yellow::before {
-  opacity: 0.5;
+  opacity: 1;
   background:
-    radial-gradient(circle, rgba(0, 0, 0, 0.18) 0 36%, rgba(0, 0, 0, 0) 48%);
+    radial-gradient(circle, rgba(0, 0, 0, 0.36) 0 36%, rgba(0, 0, 0, 0) 48%);
   background-size: 15.5% 15.5%;
   background-position: center;
+}
+
+:root[data-disc-patterns="true"] .piece.trainer::before {
+  inset: 18%;
+  opacity: 0.45;
+  background:
+    radial-gradient(
+      circle closest-side,
+      rgba(0, 0, 0, 0) 0 32%,
+      rgba(0, 0, 0, 0.52) 32% 44%,
+      rgba(0, 0, 0, 0) 44% 100%
+    );
 }
 
 :root[data-theme="mogged"] .piece.red::before {
