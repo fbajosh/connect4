@@ -3,6 +3,7 @@ import type { PracticeAiDebug } from "./practice-ai";
 type ScoreHistory = Array<number | null>;
 
 type DevOutputOptions = {
+  assistsEnabled: boolean;
   optimizerOutput: string;
   practiceDifficulty: number | null;
   practiceAiDebug: PracticeAiDebug | null;
@@ -11,6 +12,7 @@ type DevOutputOptions = {
   remaining: string;
   state: string;
   timer: string;
+  undoUsed: boolean;
   winner: string | null;
 };
 
@@ -41,6 +43,8 @@ export function buildDevOutput(options: DevOutputOptions): string {
 
   lines.push(`remaining: ${options.remaining}`);
   lines.push(`timer: ${options.timer}`);
+  lines.push(`Assists enabled: ${options.assistsEnabled ? "yes" : "no"}`);
+  lines.push(`Undo used: ${options.undoUsed ? "yes" : "no"}`);
 
   if (options.practiceAiDebug !== null) {
     lines.push(`previous: ${formatDisplayScoreList(options.practiceAiDebug.previousMoves)}`);

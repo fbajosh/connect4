@@ -7,6 +7,7 @@ export type PracticeGameStat = {
   id: string;
   moveCount: number;
   result: PracticeGameResult;
+  usedAssist: boolean;
   usedUndo: boolean;
 };
 
@@ -19,6 +20,7 @@ export type PracticeStatsSummary = {
   ties: number;
   winRate: number | null;
   wins: number;
+  winsWithoutAssist: number;
   winsWithoutUndo: number;
 };
 
@@ -57,6 +59,7 @@ function normalizePracticeGameStat(value: unknown): PracticeGameStat | null {
     id: candidate.id,
     moveCount: candidate.moveCount,
     result: candidate.result,
+    usedAssist: candidate.usedAssist === true,
     usedUndo: candidate.usedUndo === true,
   };
 }
@@ -130,6 +133,7 @@ function summarizePracticeStats(stats: PracticeGameStat[]): PracticeStatsSummary
     ties: ties.length,
     winRate: totalGames === 0 ? null : (wins.length + 0.5 * ties.length) / totalGames,
     wins: wins.length,
+    winsWithoutAssist: wins.filter((entry) => !entry.usedUndo && !entry.usedAssist).length,
     winsWithoutUndo: wins.filter((entry) => !entry.usedUndo).length,
   };
 }

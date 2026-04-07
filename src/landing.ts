@@ -255,6 +255,7 @@ let historyIndex = 0;
 let freeplayUndoAvailable = false;
 let currentPracticeRecordedStatId: string | null = null;
 let isImportedGame = false;
+let didUseAssistThisGame = false;
 let didUseUndoThisGame = false;
 let gameTimerInterval = 0;
 let gameTimerStartedAt: number | null = null;
@@ -523,6 +524,26 @@ function syncGameTimerInterval(): void {
   }
 }
 
+function hasTrainingAssistEnabled(): boolean {
+  if (!isTrainingMode()) {
+    return false;
+  }
+
+  for (const feature of Object.keys(featurePinned) as FeatureKey[]) {
+    if (featurePinned[feature] || featureHeld[feature]) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function markAssistUsedIfEnabled(): void {
+  if (hasTrainingAssistEnabled()) {
+    didUseAssistThisGame = true;
+  }
+}
+
 function startGameTimerIfNeeded(player: PlayerValue): void {
   if (gameTimerStartedAt !== null) {
     return;
@@ -568,6 +589,8 @@ function statsMetricValue(label: string, summary: PracticeStatsSummary): string 
       return formatStatsNumber(summary.averageLossLength);
     case "Wins without undo":
       return String(summary.winsWithoutUndo);
+    case "Wins without assist":
+      return String(summary.winsWithoutAssist);
     case "Avg. game time":
       return formatDuration(summary.averageGameTimeMs);
     case "Fastest win":
@@ -587,6 +610,7 @@ function renderStatsTable(): void {
     "Avg. win length",
     "Avg. loss length",
     "Wins without undo",
+    "Wins without assist",
     "Avg. game time",
     "Fastest win",
   ];
@@ -863,6 +887,7 @@ function setFeaturePinned(feature: FeatureKey, pinned: boolean): void {
     featureHeld[feature] = false;
   }
 
+  markAssistUsedIfEnabled();
   featureToggleInputs[feature].checked = pinned;
   persistUiState();
   syncFeatureControls();
@@ -875,6 +900,7 @@ function setFeatureHeld(feature: FeatureKey, held: boolean): void {
   }
 
   featureHeld[feature] = held;
+  markAssistUsedIfEnabled();
   syncFeatureControls();
   syncFeatureUI();
 }
@@ -989,6 +1015,7 @@ function renderDevOutput(): void {
   }
 
   devOutputBox.value = buildDevOutput({
+    assistsEnabled: didUseAssistThisGame,
     optimizerOutput: latestOptimizerOutput,
     practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
     practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
@@ -997,6 +1024,7 @@ function renderDevOutput(): void {
     remaining: currentSolvedLineRemainingText(),
     state: moveSequence,
     timer: formatDuration(currentGameTimerMs()),
+    undoUsed: didUseUndoThisGame,
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
 }
@@ -1135,6 +1163,7 @@ function maybeRecordCompletedPracticeGame(): void {
     id: createPracticeStatId(),
     moveCount: historyIndex,
     result,
+    usedAssist: didUseAssistThisGame,
     usedUndo: didUseUndoThisGame,
   };
 
@@ -1845,6 +1874,7 @@ function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   }
   currentPracticeRecordedStatId = null;
   isImportedGame = false;
+  didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
   resetGameTimer();
   moveHistory.length = 0;
@@ -1862,6 +1892,7 @@ function importStateFromLocation(): void {
   freeplayUndoAvailable = false;
   currentPracticeRecordedStatId = null;
   isImportedGame = Boolean(sequence);
+  didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
   resetGameTimer();
 
@@ -1903,6 +1934,7 @@ function importStateSequence(sequence: string): boolean {
   freeplayUndoAvailable = currentMode === "freeplay" && historyIndex > 0;
   currentPracticeRecordedStatId = null;
   isImportedGame = importedHistory.length > 0;
+  didUseAssistThisGame = hasTrainingAssistEnabled();
   didUseUndoThisGame = false;
   resetGameTimer();
   rebuildBoardFromHistory({
@@ -2395,6 +2427,7 @@ if (typeof persistedDifficulty === "number" && Number.isFinite(persistedDifficul
   practiceDifficulty = Math.max(1, Math.min(10, Math.round(persistedDifficulty)));
 }
 statsDifficulty = practiceDifficulty;
+didUseAssistThisGame = hasTrainingAssistEnabled();
 ensureThemeFont(currentTheme);
 applyTheme(currentTheme);
 moggedBackground.setEnabled(currentTheme === "mogged");
