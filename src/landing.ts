@@ -41,10 +41,14 @@ import {
 } from "./ui-persistence";
 import { registerPwaServiceWorker } from "./pwa";
 import {
+  APP_LANGUAGE_OPTIONS,
   APP_LOCALE,
   APP_STRINGS,
   applyStaticTranslations,
   formatTemplate,
+  isAppLocale,
+  resolveAppLocale,
+  setAppLocale,
   STATS_METRIC_ORDER,
   type StatsMetricKey,
 } from "./i18n";
@@ -141,6 +145,7 @@ const settingsAudioToggle = document.getElementById("settings-audio-toggle");
 const settingsDevModeToggle = document.getElementById("settings-dev-mode-toggle");
 const settingsColorblindModeToggle = document.getElementById("settings-colorblind-mode-toggle");
 const settingsThemeSelect = document.getElementById("settings-theme-select");
+const settingsLanguageSelect = document.getElementById("settings-language-select") as HTMLSelectElement | null;
 const statsDifficultySelect = document.getElementById("stats-difficulty-select") as HTMLSelectElement | null;
 const statsTableBody = document.getElementById("stats-table-body");
 const themeBackground = document.getElementById("theme-background");
@@ -209,6 +214,7 @@ if (
   !settingsDevModeToggle ||
   !settingsColorblindModeToggle ||
   !settingsThemeSelect ||
+  !settingsLanguageSelect ||
   !statsDifficultySelect ||
   !statsTableBody
 ) {
@@ -357,6 +363,7 @@ function persistUiState(): void {
     selectedMode: currentMode,
     practiceColor,
     practiceDifficulty,
+    locale: APP_LOCALE,
     theme: currentTheme,
     pinned: {
       bestMove: featurePinned.bestMove,
@@ -734,6 +741,30 @@ function syncThemeControls(): void {
   settingsThemeSelect.value = currentTheme;
   settingsAudioToggle.checked = isAudioEnabled;
   settingsColorblindModeToggle.checked = isColorblindModeEnabled;
+}
+
+function syncLanguageControl(): void {
+  for (const [index, optionConfig] of APP_LANGUAGE_OPTIONS.entries()) {
+    const option = settingsLanguageSelect.options[index] ?? document.createElement("option");
+    option.value = optionConfig.locale;
+    option.textContent = optionConfig.label;
+    if (!option.parentElement) {
+      settingsLanguageSelect.append(option);
+    }
+  }
+
+  settingsLanguageSelect.value = APP_LOCALE;
+}
+
+function refreshLocalizedUi(): void {
+  applyStaticTranslations(document, APP_STRINGS);
+  syncLanguageControl();
+  syncThemeControls();
+  syncModalView();
+  renderStatsTable();
+  syncModeControls();
+  renderTurnIndicator();
+  renderDevOutput();
 }
 
 function syncDiscPatternMode(): void {
@@ -1454,12 +1485,13 @@ function currentHumanPlayerColorLabel(): string {
     return "";
   }
 
-  const actualColor = playerClass(trainingHumanPlayer());
+  const actualColor =
+    trainingHumanPlayer() === RED ? APP_STRINGS.colors.red.toLowerCase() : APP_STRINGS.colors.yellow.toLowerCase();
   return practiceColor === "alternate" ? `${actualColor} (${APP_STRINGS.colors.alternate.toLowerCase()})` : actualColor;
 }
 
 function currentScoreShareLabel(): string {
-  return `red ${ (currentSolvedLineRedShare() * 100).toFixed(4) }%`;
+  return `${APP_STRINGS.status.lineColor.red} ${ (currentSolvedLineRedShare() * 100).toFixed(4) }%`;
 }
 
 function isHumanCurrentlyLosing(): boolean {
@@ -2018,7 +2050,7 @@ function requestOptimizerOutput(): void {
       return;
     }
 
-    latestOptimizerOutput = "status: optimizer worker failed.";
+    latestOptimizerOutput = `status: ${APP_STRINGS.status.optimizerWorkerFailed}`;
     latestOptimizerPayload = null;
     syncFeatureUI();
     cancelAiTurn();
@@ -2649,6 +2681,17 @@ settingsThemeSelect.addEventListener("change", () => {
   setToolsMenuExpanded(false);
 });
 
+settingsLanguageSelect.addEventListener("change", () => {
+  const nextLocale = settingsLanguageSelect.value;
+  if (!isAppLocale(nextLocale)) {
+    return;
+  }
+
+  setAppLocale(nextLocale);
+  refreshLocalizedUi();
+  persistUiState();
+});
+
 importStateControl.addEventListener("click", () => {
   void importStateFromClipboard();
 });
@@ -2779,6 +2822,7 @@ window.addEventListener("popstate", () => {
 });
 
 const persistedUiState = readPersistedUiState();
+setAppLocale(resolveAppLocale(persistedUiState.locale));
 const persistedMode = persistedUiState.selectedMode === "freeplay" ? "freeplay" : "training";
 currentMode = modeForPathname(window.location.pathname) ?? persistedMode;
 const persistedPinned = persistedUiState.pinned ?? {};
@@ -2806,12 +2850,10 @@ moggedBackground.setEnabled(currentTheme === "mogged");
 syncDiscPatternMode();
 syncThemeAudio(false);
 settingsAudioToggle.checked = isAudioEnabled;
-updateDocumentTitle();
+refreshLocalizedUi();
 syncModeUrl(currentMode, "replace");
 registerPwaServiceWorker();
-syncModeControls();
 setAboutTab(activeAboutTab);
-renderStatsTable();
 setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menuExpanded ?? false);
 syncFeatureControls();
 importStateFromLocation();

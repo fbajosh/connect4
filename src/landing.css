@@ -1296,6 +1296,19 @@ body::after {
   align-items: center;
 }
 
+.settings-language-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.settings-language-icon {
+  width: 0.92rem;
+  height: 0.92rem;
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+
 .settings-toggle-group,
 .settings-theme-select-wrap {
   display: flex;
