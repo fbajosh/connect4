@@ -39,6 +39,7 @@ import {
   titleForMode,
   writePersistedUiState,
 } from "./ui-persistence";
+import { registerPwaServiceWorker } from "./pwa";
 import {
   appendPracticeStat,
   buildPracticeDifficultyStats,
@@ -2520,6 +2521,7 @@ aboutVersion.textContent = `Version ${buildVersion}`;
 settingsAudioToggle.checked = isAudioEnabled;
 updateDocumentTitle();
 syncModeUrl(currentMode, "replace");
+registerPwaServiceWorker();
 syncModeControls();
 setAboutTab(activeAboutTab);
 renderStatsTable();
