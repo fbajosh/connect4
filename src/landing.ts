@@ -62,6 +62,8 @@ const FIXED_TURN_INDICATOR_HEIGHT_ROWS = 0.16;
 const FIXED_COLUMN_SCORE_TOP_ROWS = 0.74;
 const FIXED_COLUMN_SCORE_HEIGHT_ROWS = 0.22;
 const COMPACT_LANDSCAPE_MEDIA_QUERY = "(orientation: landscape) and (max-height: 560px) and (max-width: 980px)";
+const BOARD_RESET_DOUBLE_TAP_WINDOW_MS = 320;
+const BOARD_COMPLETE_TAP_SHAKE_DELAY_MS = 321;
 const boardShell = document.getElementById("board-shell");
 const boardGrid = document.getElementById("board-grid");
 const trainerGrid = document.getElementById("trainer-grid");
@@ -259,6 +261,9 @@ let didUseAssistThisGame = false;
 let didUseUndoThisGame = false;
 let gameTimerInterval = 0;
 let gameTimerStartedAt: number | null = null;
+let pendingBoardResetShakeTimeout = 0;
+let lastBoardResetTapAt = 0;
+let lastBoardResetTapPointerType: string | null = null;
 let pendingPracticeGameDurationMs: number | null = null;
 const previousRedScores: Array<number | null> = [];
 const previousYellowScores: Array<number | null> = [];
@@ -571,6 +576,61 @@ function resetGameTimer(): void {
   gameTimerStartedAt = null;
   syncGameTimerInterval();
   renderDevOutput();
+}
+
+function clearPendingBoardResetShake(): void {
+  if (pendingBoardResetShakeTimeout !== 0) {
+    window.clearTimeout(pendingBoardResetShakeTimeout);
+    pendingBoardResetShakeTimeout = 0;
+  }
+}
+
+function clearPendingBoardResetTap(): void {
+  clearPendingBoardResetShake();
+  lastBoardResetTapAt = 0;
+  lastBoardResetTapPointerType = null;
+}
+
+function isGameComplete(): boolean {
+  return isWinLocked || !hasPlayableMove();
+}
+
+function scheduleCompletedGameShake(): void {
+  clearPendingBoardResetShake();
+  pendingBoardResetShakeTimeout = window.setTimeout(() => {
+    pendingBoardResetShakeTimeout = 0;
+    lastBoardResetTapAt = 0;
+    lastBoardResetTapPointerType = null;
+    if (!isGameComplete()) {
+      return;
+    }
+
+    triggerWinLockShake();
+  }, BOARD_COMPLETE_TAP_SHAKE_DELAY_MS);
+}
+
+function maybeHandleBoardDoubleTapReset(event: PointerEvent): boolean {
+  if (!isGameComplete()) {
+    clearPendingBoardResetTap();
+    return false;
+  }
+
+  const isDoubleTap =
+    lastBoardResetTapAt !== 0 &&
+    event.timeStamp - lastBoardResetTapAt <= BOARD_RESET_DOUBLE_TAP_WINDOW_MS &&
+    lastBoardResetTapPointerType === event.pointerType;
+
+  lastBoardResetTapAt = event.timeStamp;
+  lastBoardResetTapPointerType = event.pointerType;
+
+  if (!isDoubleTap || !canReset()) {
+    scheduleCompletedGameShake();
+    return true;
+  }
+
+  clearPendingBoardResetTap();
+  resetBoard();
+  return true;
 }
 
 function statsMetricValue(label: string, summary: PracticeStatsSummary): string {
@@ -1867,6 +1927,7 @@ function animateResetPieces(): void {
 
 function resetBoard(options?: { advancePracticeRound?: boolean }): void {
   const { advancePracticeRound = true } = options ?? {};
+  clearPendingBoardResetTap();
   playSoundEffect("board-reset");
   animateResetPieces();
   if (advancePracticeRound && isTrainingMode() && practiceColor === "alternate") {
@@ -1887,6 +1948,7 @@ function importStateFromLocation(): void {
   const sequence = stateSequenceFromLocation();
   const importedHistory = sequence ? moveHistoryFromSequence(sequence) : [];
 
+  clearPendingBoardResetTap();
   moveHistory.length = 0;
   historyIndex = 0;
   freeplayUndoAvailable = false;
@@ -1928,6 +1990,7 @@ function importStateSequence(sequence: string): boolean {
     return false;
   }
 
+  clearPendingBoardResetTap();
   moveHistory.length = 0;
   moveHistory.push(...importedHistory);
   historyIndex = importedHistory.length;
@@ -2125,6 +2188,10 @@ boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
     return;
   }
 
+  if (maybeHandleBoardDoubleTapReset(event)) {
+    return;
+  }
+
   if (!isHumanTurn()) {
     return;
   }
@@ -2134,6 +2201,7 @@ boardGrid.addEventListener("pointerdown", (event: PointerEvent) => {
     return;
   }
 
+  clearPendingBoardResetTap();
   activePointerId = event.pointerId;
   boardGrid.setPointerCapture(event.pointerId);
   updatePreview(columnFromPointer(event.clientX));
