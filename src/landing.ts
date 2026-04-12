@@ -354,6 +354,16 @@ type RebuildHistoryOptions = {
   suppressStatsRecording?: boolean;
 };
 
+type DevOutputImport = {
+  didUseAssist: boolean | null;
+  didUseUndo: boolean | null;
+  mode: GameMode | null;
+  practiceColor: PracticeColor | null;
+  practiceDifficulty: number | null;
+  state: string;
+  timerMs: number | null;
+};
+
 declare global {
   interface Window {
     connect4State?: Connect4DebugState;
@@ -391,6 +401,10 @@ function stateSequenceFromLocation(): string | null {
 }
 
 function moveHistoryFromSequence(sequence: string): MoveRecord[] | null {
+  if (sequence === "") {
+    return [];
+  }
+
   if (!/^[1-7]+$/.test(sequence)) {
     return null;
   }
@@ -423,7 +437,11 @@ function moveHistoryFromSequence(sequence: string): MoveRecord[] | null {
   return importedHistory;
 }
 
-function isValidImportSequence(sequence: string): boolean {
+function isValidImportSequence(sequence: string, options: { allowEmpty?: boolean } = {}): boolean {
+  if (sequence === "") {
+    return options.allowEmpty === true;
+  }
+
   if (!/^[1-7]+$/.test(sequence)) {
     return false;
   }
@@ -438,6 +456,165 @@ function isValidImportSequence(sequence: string): boolean {
   }
 
   return true;
+}
+
+function isGameModeValue(value: string): value is GameMode {
+  return value === "training" || value === "freeplay";
+}
+
+function isPracticeColorValue(value: string): value is PracticeColor {
+  return value === "red" || value === "yellow" || value === "alternate";
+}
+
+function parseDevOutputFields(rawText: string): Map<string, string> | null {
+  const fields = new Map<string, string>();
+
+  for (const line of rawText.split(/\r?\n/)) {
+    const trimmedLine = line.trim();
+    if (trimmedLine === "" || trimmedLine === "--") {
+      continue;
+    }
+
+    const match = /^([a-z][a-z_]*):\s*(.*)$/i.exec(trimmedLine);
+    if (!match) {
+      continue;
+    }
+
+    fields.set(match[1].toLowerCase(), match[2].trim());
+  }
+
+  return fields.has("state") ? fields : null;
+}
+
+function parsePlayerColorFallback(value: string | undefined): PracticeColor | null {
+  const normalizedValue = value?.trim().toLowerCase() ?? "";
+  if (!normalizedValue) {
+    return null;
+  }
+
+  if (normalizedValue.includes("alternate")) {
+    return "alternate";
+  }
+
+  if (normalizedValue.startsWith("red")) {
+    return "red";
+  }
+
+  if (normalizedValue.startsWith("yellow")) {
+    return "yellow";
+  }
+
+  return null;
+}
+
+function parseOptionalYesNo(value: string | undefined): boolean | null {
+  const normalizedValue = value?.trim().toLowerCase() ?? "";
+  if (!normalizedValue) {
+    return null;
+  }
+
+  if (normalizedValue === "yes") {
+    return true;
+  }
+
+  if (normalizedValue === "no") {
+    return false;
+  }
+
+  throw new Error(`Invalid yes/no value: ${value}`);
+}
+
+function parseOptionalDifficulty(value: string | undefined): number | null {
+  const normalizedValue = value?.trim() ?? "";
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const difficulty = Number(normalizedValue);
+  if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 10) {
+    throw new Error(`Invalid practice difficulty: ${value}`);
+  }
+
+  return difficulty;
+}
+
+function parseOptionalTimerMs(value: string | undefined): number | null {
+  const normalizedValue = value?.trim() ?? "";
+  if (!normalizedValue || normalizedValue === "-") {
+    return null;
+  }
+
+  const parts = normalizedValue.split(":");
+  if (parts.length < 2 || parts.length > 3 || parts.some((part) => !/^\d+$/.test(part))) {
+    throw new Error(`Invalid timer value: ${value}`);
+  }
+
+  const values = parts.map((part) => Number(part));
+  const seconds = values[values.length - 1];
+  const minutes = values[values.length - 2];
+  const hours = values.length === 3 ? values[0] : 0;
+  if (minutes >= 60 || seconds >= 60) {
+    throw new Error(`Invalid timer value: ${value}`);
+  }
+
+  return ((hours * 3600) + (minutes * 60) + seconds) * 1000;
+}
+
+function parseDevOutputImport(rawText: string): DevOutputImport | null {
+  const fields = parseDevOutputFields(rawText);
+  if (!fields) {
+    return null;
+  }
+
+  const state = fields.get("state") ?? "";
+  if (!isValidImportSequence(state, { allowEmpty: true }) || moveHistoryFromSequence(state) === null) {
+    throw new Error("Invalid imported Connect 4 state.");
+  }
+
+  const rawMode = fields.get("mode")?.trim().toLowerCase() ?? "";
+  if (rawMode && !isGameModeValue(rawMode)) {
+    throw new Error(`Invalid mode: ${rawMode}`);
+  }
+
+  const rawPracticeColor = fields.get("practice_color")?.trim().toLowerCase() ?? "";
+  const practiceColorFromField = rawPracticeColor
+    ? isPracticeColorValue(rawPracticeColor)
+      ? rawPracticeColor
+      : null
+    : null;
+  if (rawPracticeColor && practiceColorFromField === null) {
+    throw new Error(`Invalid practice color: ${rawPracticeColor}`);
+  }
+
+  return {
+    didUseAssist: parseOptionalYesNo(fields.get("assists_enabled")),
+    didUseUndo: parseOptionalYesNo(fields.get("undo_used")),
+    mode: rawMode ? rawMode : null,
+    practiceColor: practiceColorFromField ?? parsePlayerColorFallback(fields.get("player_color")),
+    practiceDifficulty: parseOptionalDifficulty(fields.get("practice_difficulty") || fields.get("difficulty_floor")),
+    state,
+    timerMs: parseOptionalTimerMs(fields.get("timer")),
+  };
+}
+
+function stateImportCandidateFromText(rawText: string): { allowEmpty: boolean; sequence: string } | null {
+  const sequence = rawText.trim();
+  if (isValidImportSequence(sequence)) {
+    return {
+      allowEmpty: false,
+      sequence,
+    };
+  }
+
+  const fields = parseDevOutputFields(rawText);
+  if (!fields) {
+    return null;
+  }
+
+  return {
+    allowEmpty: true,
+    sequence: fields.get("state") ?? "",
+  };
 }
 
 function syncMoveSequence(): void {
@@ -555,7 +732,7 @@ function formatDuration(value: number | null): string {
 
 function currentGameTimerMs(): number {
   if (gameTimerStartedAt === null) {
-    return 0;
+    return pendingPracticeGameDurationMs ?? 0;
   }
 
   return Math.max(0, Date.now() - gameTimerStartedAt);
@@ -762,6 +939,50 @@ function syncLanguageControl(): void {
   settingsLanguageSelect.value = APP_LOCALE;
 }
 
+function labelTextForTooltip(element: HTMLElement): string {
+  const ariaLabel = element.getAttribute("aria-label")?.trim();
+  if (ariaLabel) {
+    return ariaLabel;
+  }
+
+  const labelText = element.textContent?.trim().replace(/\s+/g, " ") ?? "";
+  return labelText;
+}
+
+function setTooltip(element: HTMLElement | null | undefined, fallback = ""): void {
+  if (!element) {
+    return;
+  }
+
+  const tooltipText = labelTextForTooltip(element) || fallback;
+  if (tooltipText) {
+    element.title = tooltipText;
+  }
+}
+
+function syncIconTooltips(): void {
+  const tooltipElements = [
+    resetControl,
+    undoControl,
+    redoControl,
+    toolsMenuToggle,
+    settingsLanguageSelect.closest<HTMLElement>(".settings-language-row")?.querySelector<HTMLElement>(".settings-language-label"),
+    aboutClose,
+    ...practiceColorButtons,
+    importStateControl,
+    exportStateControl,
+    devResizeControl,
+    devRefreshControl,
+    devCloseControl,
+  ];
+
+  for (const element of tooltipElements) {
+    setTooltip(element);
+  }
+
+  setTooltip(settingsAudioToggle.closest<HTMLElement>(".sound-toggle"), APP_STRINGS.controls.sound);
+}
+
 function refreshLocalizedUi(): void {
   applyStaticTranslations(document, APP_STRINGS);
   syncLanguageControl();
@@ -771,6 +992,7 @@ function refreshLocalizedUi(): void {
   syncModeControls();
   renderTurnIndicator();
   renderDevOutput();
+  syncIconTooltips();
 }
 
 function syncDiscPatternMode(): void {
@@ -1239,25 +1461,15 @@ function updatePortraitDevPanelHeight(height: number): void {
   scheduleBoardFrameLayout();
 }
 
-function renderDevOutput(): void {
-  const isVisible = effectiveDevModeVisible();
-  landingRoot.classList.toggle("has-dev-panel", isVisible);
-  devPanel.classList.toggle("hidden", !isVisible);
-  syncCompactLandscapeDevControls();
-  if (!isVisible) {
-    syncPortraitDevPanelHeight();
-    devOutputBox.value = "";
-    return;
-  }
-
-  syncPortraitDevPanelHeight();
-
-  devOutputBox.value = buildDevOutput({
+function currentDevOutputText(): string {
+  return buildDevOutput({
     assistsEnabled: didUseAssistThisGame,
     difficultyFloor: isTrainingMode() ? String(trainingStatDifficulty()) : "",
     lastMove: historyIndex > 0 ? `${playerClass(moveHistory[historyIndex - 1].player)} ${moveHistory[historyIndex - 1].column + 1}` : "",
+    mode: currentMode,
     optimizerOutput: latestOptimizerOutput,
     playerColor: currentHumanPlayerColorLabel(),
+    practiceColor,
     practiceAiDebug: isTrainingMode() ? lastPracticeAiDebug : null,
     practiceDifficulty: isTrainingMode() ? practiceDifficulty : null,
     previousRedScores,
@@ -1271,6 +1483,22 @@ function renderDevOutput(): void {
     winDiscs: currentWinningDiscCount() === null ? "" : String(currentWinningDiscCount()),
     winner: winningPlayer !== null ? playerClass(winningPlayer) : null,
   });
+}
+
+function renderDevOutput(): void {
+  const isVisible = effectiveDevModeVisible();
+  landingRoot.classList.toggle("has-dev-panel", isVisible);
+  devPanel.classList.toggle("hidden", !isVisible);
+  syncCompactLandscapeDevControls();
+  if (!isVisible) {
+    syncPortraitDevPanelHeight();
+    devOutputBox.value = "";
+    return;
+  }
+
+  syncPortraitDevPanelHeight();
+
+  devOutputBox.value = currentDevOutputText();
 }
 
 function hasPlayableMove(): boolean {
@@ -2265,8 +2493,8 @@ function importStateFromLocation(): void {
   });
 }
 
-function importStateSequence(sequence: string): boolean {
-  if (!isValidImportSequence(sequence)) {
+function importStateSequence(sequence: string, options: { allowEmpty?: boolean } = {}): boolean {
+  if (!isValidImportSequence(sequence, options)) {
     return false;
   }
 
@@ -2294,6 +2522,77 @@ function importStateSequence(sequence: string): boolean {
   return true;
 }
 
+function applyImportedDevSettings(importedOutput: DevOutputImport): void {
+  const hasMode = importedOutput.mode !== null;
+  if (importedOutput.mode !== null) {
+    currentMode = importedOutput.mode;
+  }
+
+  if (importedOutput.practiceColor !== null) {
+    practiceColor = importedOutput.practiceColor;
+  }
+
+  if (importedOutput.practiceDifficulty !== null) {
+    practiceDifficulty = importedOutput.practiceDifficulty;
+  }
+
+  updateDocumentTitle();
+  syncModeControls();
+  updatePracticeControls();
+  persistUiState();
+
+  if (hasMode) {
+    syncModeUrl(currentMode, "replace");
+  }
+}
+
+function applyImportedDevRunState(importedOutput: DevOutputImport): void {
+  if (importedOutput.didUseAssist !== null) {
+    didUseAssistThisGame = importedOutput.didUseAssist;
+  }
+
+  if (importedOutput.didUseUndo !== null) {
+    didUseUndoThisGame = importedOutput.didUseUndo;
+  }
+
+  if (importedOutput.timerMs !== null) {
+    const timerMs = Math.max(0, importedOutput.timerMs);
+    if (isGameComplete()) {
+      pendingPracticeGameDurationMs = timerMs;
+      gameTimerStartedAt = null;
+    } else if (timerMs > 0) {
+      pendingPracticeGameDurationMs = null;
+      gameTimerStartedAt = Date.now() - timerMs;
+    } else {
+      pendingPracticeGameDurationMs = null;
+      gameTimerStartedAt = null;
+    }
+
+    syncGameTimerInterval();
+  }
+
+  renderDevOutput();
+}
+
+function importDevOutputText(rawText: string): boolean {
+  try {
+    const importedOutput = parseDevOutputImport(rawText);
+    if (importedOutput === null) {
+      return false;
+    }
+
+    applyImportedDevSettings(importedOutput);
+    if (!importStateSequence(importedOutput.state, { allowEmpty: true })) {
+      return false;
+    }
+
+    applyImportedDevRunState(importedOutput);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function importStateFromClipboard(): Promise<void> {
   if (!navigator.clipboard?.readText) {
     console.warn("Clipboard import is unavailable.");
@@ -2302,8 +2601,15 @@ async function importStateFromClipboard(): Promise<void> {
 
   try {
     const rawText = await navigator.clipboard.readText();
-    const sequence = rawText.trim();
-    if (!importStateSequence(sequence)) {
+    if (importDevOutputText(rawText)) {
+      return;
+    }
+
+    const candidate = stateImportCandidateFromText(rawText);
+    if (
+      candidate === null ||
+      !importStateSequence(candidate.sequence, { allowEmpty: candidate.allowEmpty })
+    ) {
       console.warn("Clipboard did not contain a valid Connect 4 state.");
       return;
     }
@@ -2319,7 +2625,9 @@ async function exportStateToClipboard(): Promise<void> {
   }
 
   try {
-    await navigator.clipboard.writeText(moveSequence);
+    renderDevOutput();
+    const output = effectiveDevModeVisible() ? devOutputBox.value : currentDevOutputText();
+    await navigator.clipboard.writeText(output);
   } catch {
     console.warn("Clipboard export failed.");
   }

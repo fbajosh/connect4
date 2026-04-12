@@ -8,6 +8,12 @@ type ThemeMusicState = {
   audio: HTMLAudioElement;
   source: ThemeMusicSource;
 };
+type AudioSessionType = "auto" | "playback" | "transient" | "transient-solo" | "ambient" | "play-and-record";
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: {
+    type: AudioSessionType;
+  };
+};
 
 const loadedThemeFonts = new Set<ThemeName>();
 
@@ -68,6 +74,19 @@ function soundEffectUrl(effect: SoundEffectKey): string {
   return `${import.meta.env.BASE_URL}${effect}.mp3`;
 }
 
+function requestAmbientAudioSession(): void {
+  const audioSession = (navigator as NavigatorWithAudioSession).audioSession;
+  if (!audioSession) {
+    return;
+  }
+
+  try {
+    audioSession.type = "ambient";
+  } catch {
+    // The Audio Session API is experimental and may reject unsupported types.
+  }
+}
+
 function themeMusicStartOffset(theme: ThemeMusicKey, source: ThemeMusicSource): number {
   if (theme === "grease" && source === "ogg") {
     return 11;
@@ -80,6 +99,8 @@ export function createAudioController() {
   const themeMusicAudio = new Map<ThemeMusicKey, ThemeMusicState>();
   const soundEffectAudio = new Map<SoundEffectKey, HTMLAudioElement>();
   let hasBoardInteraction = false;
+
+  requestAmbientAudioSession();
 
   function switchThemeMusicSource(
     state: ThemeMusicState,
@@ -157,6 +178,7 @@ export function createAudioController() {
       return;
     }
 
+    requestAmbientAudioSession();
     const state = ensureThemeMusicAudio(theme);
     primeThemeMusicPosition(state, theme);
 
@@ -206,6 +228,7 @@ export function createAudioController() {
         return;
       }
 
+      requestAmbientAudioSession();
       const audio = ensureSoundEffectAudio(effect);
       audio.pause();
       audio.currentTime = 0;
