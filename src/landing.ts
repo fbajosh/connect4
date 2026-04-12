@@ -53,13 +53,19 @@ import {
   type StatsMetricKey,
 } from "./i18n";
 import {
+  appendPracticeGameResult,
   appendPracticeStat,
   buildPracticeDifficultyStats,
   createPracticeStatId,
+  readStoredPracticeGameResults,
   readStoredPracticeStats,
+  removePracticeGameResultByStatId,
   removePracticeStatById,
   type PracticeEventKind,
   type PracticeGameResult,
+  type PracticeGameResultBlock,
+  type PracticeGameResultMove,
+  type PracticeGameResultRecord,
   type PracticeGameStat,
   type PracticeStatRecord,
   type PracticeStatsSummary,
@@ -308,6 +314,7 @@ let didUseUndoThisGame = false;
 let hasUndoneLossSinceReset = false;
 let gameTimerInterval = 0;
 let gameTimerStartedAt: number | null = null;
+let currentGameStartedAt: number | null = null;
 let pendingBoardResetShakeTimeout = 0;
 let lastBoardResetTapAt = 0;
 let lastBoardResetTapPointerType: string | null = null;
@@ -336,6 +343,7 @@ type AboutTab = "about" | "howto" | "credits";
 type ModalView = "about" | "stats";
 
 type Connect4DebugState = {
+  getCompletedGameResults: () => PracticeGameResultRecord[];
   getSequence: () => string;
   getOptimizerOutput: () => string;
   getPreviousRedScores: () => Array<number | null>;
@@ -803,6 +811,7 @@ function completeGameTimer(): void {
 function resetGameTimer(): void {
   pendingPracticeGameDurationMs = null;
   gameTimerStartedAt = null;
+  currentGameStartedAt = null;
   syncGameTimerInterval();
   renderDevOutput();
 }
@@ -1622,11 +1631,85 @@ function removeCurrentPracticeRecordedStat(): PracticeGameStat | null {
     return null;
   }
 
+  const removedStatId = currentPracticeRecordedStatId;
   const { nextStats, removedStat } = removePracticeStatById(currentPracticeRecordedStatId);
+  removePracticeGameResultByStatId(removedStatId);
   practiceStats = nextStats;
   currentPracticeRecordedStatId = null;
   renderStatsTable();
   return removedStat?.kind === "game" ? removedStat : null;
+}
+
+function boardCellLabel(cell: number): "empty" | "red" | "yellow" {
+  if (cell === RED) {
+    return "red";
+  }
+
+  if (cell === YELLOW) {
+    return "yellow";
+  }
+
+  return "empty";
+}
+
+function clonePracticeAiDebug(debug: PracticeAiDebug | null): PracticeGameResultMove["aiDebug"] {
+  if (debug === null) {
+    return null;
+  }
+
+  return {
+    patternAdjustments: [...debug.patternAdjustments],
+    rawScores: [...debug.rawScores],
+    rng: debug.rng,
+    selectionMode: debug.selectionMode,
+    tacticalFilter: debug.tacticalFilter,
+    temperature: debug.temperature,
+  };
+}
+
+function gameResultMoves(): PracticeGameResultMove[] {
+  return moveHistory.slice(0, historyIndex).map((record, index) => ({
+    aiDebug: clonePracticeAiDebug(record.aiDebug),
+    column: record.column + 1,
+    moveNumber: index + 1,
+    player: playerClass(record.player),
+    previousScore: record.previousScore,
+  }));
+}
+
+function completedPracticeGameResultBlock(
+  stat: PracticeGameStat,
+  humanPlayer: PlayerValue,
+  startedAt: number,
+): PracticeGameResultBlock {
+  return {
+    appVersion: buildVersion,
+    completedAt: stat.completedAt,
+    completedAtIso: new Date(stat.completedAt).toISOString(),
+    difficulty: stat.difficulty,
+    finalBoard: board.map((row) => row.map(boardCellLabel)),
+    finalRemaining: currentSolvedLineRemainingText(),
+    finalScoreShare: currentScoreShareLabel(),
+    gameDurationMs: stat.gameDurationMs,
+    humanPlayer: playerClass(humanPlayer),
+    lowestAiDifficulty: lowestAiDifficultyThisGame,
+    mode: "training",
+    moveCount: stat.moveCount,
+    moves: gameResultMoves(),
+    practiceColor,
+    previousRedScores: [...previousRedScores],
+    previousYellowScores: [...previousYellowScores],
+    result: stat.result,
+    schemaVersion: 1,
+    selectedDifficulty: practiceDifficulty,
+    startedAt,
+    startedAtIso: new Date(startedAt).toISOString(),
+    state: moveSequence,
+    usedAssist: stat.usedAssist,
+    usedUndo: stat.usedUndo,
+    winDiscs: stat.winningDiscCount,
+    winner: winningPlayer === null ? null : playerClass(winningPlayer),
+  };
 }
 
 function maybeRecordCompletedPracticeGame(): void {
@@ -1660,8 +1743,16 @@ function maybeRecordCompletedPracticeGame(): void {
     usedUndo: didUseUndoThisGame,
     winningDiscCount: result === "tie" ? null : currentWinningDiscCount(),
   };
+  const startedAt = currentGameStartedAt ?? Math.max(0, stat.completedAt - (stat.gameDurationMs ?? 0));
 
   practiceStats = appendPracticeStat(stat);
+  appendPracticeGameResult({
+    completedAt: stat.completedAt,
+    id: createPracticeStatId(),
+    practiceStatId: stat.id,
+    result: completedPracticeGameResultBlock(stat, humanPlayer, startedAt),
+    startedAt,
+  });
   currentPracticeRecordedStatId = stat.id;
   if (result === "loss" && hasUndoneLossSinceReset) {
     recordPracticeEvent("repeat-loss", stat.difficulty);
@@ -2645,6 +2736,7 @@ function dropPreview(column: number): void {
   }
 
   const player = currentPlayer;
+  currentGameStartedAt ??= Date.now();
   startGameTimerIfNeeded(player);
   const currentDropToken = ++dropToken;
   let didFinish = false;
@@ -3176,6 +3268,7 @@ setToolsMenuExpanded(persistedUiState.toolsMenuExpanded ?? persistedUiState.menu
 syncFeatureControls();
 importStateFromLocation();
 window.connect4State = {
+  getCompletedGameResults: () => readStoredPracticeGameResults(),
   getSequence: () => moveSequence,
   getOptimizerOutput: () => latestOptimizerOutput,
   getPreviousRedScores: () => [...previousRedScores],

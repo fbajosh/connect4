@@ -21,6 +21,7 @@ Please keep both projects credited when reusing or modifying this codebase.
 - A built-in `Statistics` modal tracks training results per difficulty with both `Today` and `Lifetime` summaries.
 - Tracked metrics include wins, losses, ties, win rate, average win length, average loss length, wins without undo, wins without assist, average game time, and fastest win.
 - Training stats are recorded against the lowest AI difficulty that actually played during the game, not just the slider value at the end.
+- Completed training games are also stored in a local JSON results ledger keyed by game start time, with the full move sequence, outcome, difficulty, timer, board, score history, and move-level result data available for future charts and trend views.
 - A per-game timer starts on the first human move, ignores undo, pauses on finish, and resets on board reset.
 - Winning discs get an animated sheen so the completed line is easier to spot.
 - Finished games can be reset by double-tapping the board, and the interface includes compact mobile-landscape layout handling for both the board and modal views.
@@ -59,7 +60,7 @@ Production builds emit a static PWA app shell, route entry pages, a service work
 - [`src/game-rules.ts`](./src/game-rules.ts): shared board constants, turn helpers, win detection
 - [`src/practice-ai.ts`](./src/practice-ai.ts): training AI move selection, difficulty temperature, tactical filtering, and pattern-bias logic
 - [`src/dev-output.ts`](./src/dev-output.ts): developer panel formatting
-- [`src/stats.ts`](./src/stats.ts): persisted training stats and per-difficulty aggregation
+- [`src/stats.ts`](./src/stats.ts): persisted training stats, full game-result ledger, and per-difficulty aggregation
 - [`src/pwa.ts`](./src/pwa.ts): production service worker registration and cache refresh
 - [`src/media.ts`](./src/media.ts): sound effects, theme music control, and browser audio-session hints
 - [`src/ui-persistence.ts`](./src/ui-persistence.ts): persisted UI/tool/menu state
