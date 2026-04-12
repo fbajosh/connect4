@@ -47,7 +47,53 @@ export type PracticeDifficultyStats = {
   today: PracticeStatsSummary;
 };
 
+export type PracticeGameResultMove = {
+  aiDebug: unknown | null;
+  column: number;
+  moveNumber: number;
+  player: "red" | "yellow";
+  previousScore: number | null;
+};
+
+export type PracticeGameResultBlock = {
+  appVersion: string;
+  completedAt: number;
+  completedAtIso: string;
+  difficulty: number;
+  finalBoard: string[][];
+  finalRemaining: string;
+  finalScoreShare: string;
+  gameDurationMs: number | null;
+  humanPlayer: "red" | "yellow";
+  lowestAiDifficulty: number | null;
+  mode: "training";
+  moveCount: number;
+  moves: PracticeGameResultMove[];
+  practiceColor: string;
+  previousRedScores: Array<number | null>;
+  previousYellowScores: Array<number | null>;
+  result: PracticeGameResult;
+  schemaVersion: 1;
+  selectedDifficulty: number;
+  startedAt: number;
+  startedAtIso: string;
+  state: string;
+  usedAssist: boolean;
+  usedUndo: boolean;
+  winDiscs: number | null;
+  winner: "red" | "yellow" | null;
+};
+
+export type PracticeGameResultRecord = {
+  completedAt: number;
+  id: string;
+  practiceStatId: string;
+  result: PracticeGameResultBlock;
+  startedAt: number;
+};
+
 const PRACTICE_STATS_STORAGE_KEY = "connect4-trainer-practice-stats";
+const PRACTICE_GAME_RESULTS_STORAGE_KEY = "connect4-trainer-practice-game-results";
 
 function normalizePracticeGameStat(value: unknown): PracticeGameStat | null {
   if (!value || typeof value !== "object") {
@@ -179,6 +225,72 @@ export function removePracticeStatById(id: string): { nextStats: PracticeStatRec
     nextStats,
     removedStat,
   };
+}
+
+function normalizePracticeGameResultRecord(value: unknown): PracticeGameResultRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<PracticeGameResultRecord>;
+  if (
+    typeof candidate.completedAt !== "number" ||
+    typeof candidate.id !== "string" ||
+    typeof candidate.practiceStatId !== "string" ||
+    typeof candidate.startedAt !== "number" ||
+    !candidate.result ||
+    typeof candidate.result !== "object"
+  ) {
+    return null;
+  }
+
+  return {
+    completedAt: candidate.completedAt,
+    id: candidate.id,
+    practiceStatId: candidate.practiceStatId,
+    result: candidate.result as PracticeGameResultBlock,
+    startedAt: candidate.startedAt,
+  };
+}
+
+export function readStoredPracticeGameResults(): PracticeGameResultRecord[] {
+  try {
+    const raw = window.localStorage.getItem(PRACTICE_GAME_RESULTS_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((entry) => normalizePracticeGameResultRecord(entry))
+      .filter((entry): entry is PracticeGameResultRecord => entry !== null);
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredPracticeGameResults(results: PracticeGameResultRecord[]): void {
+  try {
+    window.localStorage.setItem(PRACTICE_GAME_RESULTS_STORAGE_KEY, JSON.stringify(results));
+  } catch {
+    // Ignore storage failures; result history is optional.
+  }
+}
+
+export function appendPracticeGameResult(result: PracticeGameResultRecord): PracticeGameResultRecord[] {
+  const nextResults = [...readStoredPracticeGameResults(), result];
+  writeStoredPracticeGameResults(nextResults);
+  return nextResults;
+}
+
+export function removePracticeGameResultByStatId(practiceStatId: string): PracticeGameResultRecord[] {
+  const nextResults = readStoredPracticeGameResults().filter((entry) => entry.practiceStatId !== practiceStatId);
+  writeStoredPracticeGameResults(nextResults);
+  return nextResults;
 }
 
 function average(values: number[]): number | null {
