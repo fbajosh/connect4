@@ -929,6 +929,48 @@ body::after {
 
 .piece.is-winning {
   --piece-ring: var(--win-ring);
+  overflow: hidden;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 0 35%,
+      rgba(255, 255, 255, 0.82) 45%,
+      rgba(255, 255, 255, 0.34) 50%,
+      rgba(255, 255, 255, 0) 61% 100%
+    ),
+    radial-gradient(
+      circle at 0 0,
+      var(--surface-highlight-strong) 0,
+      var(--surface-highlight-soft) 18%,
+      rgba(255, 255, 255, 0) 44%
+    ),
+    radial-gradient(
+      circle closest-side,
+      var(--piece-fill) 0 88.571429%,
+      var(--piece-ring) 88.571429% 100%
+    );
+  background-size: 240% 100%, auto, auto;
+  background-position: -170% 0, 0 0, 0 0;
+  animation: winning-disc-sheen 1.7s ease-in-out 0.16s infinite;
+}
+
+@keyframes winning-disc-sheen {
+  0%,
+  28% {
+    background-position: -170% 0, 0 0, 0 0;
+  }
+
+  72%,
+  100% {
+    background-position: 170% 0, 0 0, 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piece.is-winning {
+    animation: none;
+    background-position: 0 0, 0 0, 0 0;
+  }
 }
 
 .piece.trainer {

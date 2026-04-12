@@ -64,34 +64,34 @@ export function practiceTemperature(difficulty: number): number {
   }
 
   if (difficulty === 2) {
-    return 9;
+    return 8;
   }
 
   if (difficulty === 3) {
-    return 7;
+    return 6;
   }
 
   if (difficulty === 4) {
-    return 5.5;
+    return 4.5;
   }
 
   if (difficulty === 5) {
-    return 4;
+    return 3.2;
   }
 
   if (difficulty === 6) {
-    return 3;
+    return 2.35;
   }
 
   if (difficulty === 7) {
-    return 2.25;
+    return 1.7;
   }
 
   if (difficulty === 8) {
-    return 1.5;
+    return 1.1;
   }
 
-  return 0.9;
+  return 0.625;
 }
 
 function cloneBoard(board: BoardState): BoardState {
@@ -376,17 +376,25 @@ export function choosePracticeAiColumn(
   let candidateEntries = evaluatedEntries;
   let tacticalFilter: PracticeAiDebug["tacticalFilter"] = "none";
   const winningEntries = evaluatedEntries.filter((entry) => entry.isWinningMove);
+  const opponentWinningColumns = immediateWinningColumns(options.board, opponent);
 
   if (winningEntries.length > 0) {
     candidateEntries = winningEntries;
     tacticalFilter = "win";
   } else {
     const safeEntries = evaluatedEntries.filter((entry) => entry.opponentWinningReplies.length === 0);
-    const isOpponentThreatening = immediateWinningColumns(options.board, opponent).length > 0;
+    const isOpponentThreatening = opponentWinningColumns.length > 0;
 
     if (safeEntries.length > 0 && safeEntries.length < evaluatedEntries.length) {
       candidateEntries = safeEntries;
       tacticalFilter = isOpponentThreatening ? "block" : "avoid-loss";
+    } else if (isOpponentThreatening) {
+      const opponentWinningColumnSet = new Set(opponentWinningColumns);
+      const blockingEntries = evaluatedEntries.filter((entry) => opponentWinningColumnSet.has(entry.column));
+      if (blockingEntries.length > 0 && blockingEntries.length < evaluatedEntries.length) {
+        candidateEntries = blockingEntries;
+        tacticalFilter = "block";
+      }
     }
   }
 

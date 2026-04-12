@@ -6,8 +6,10 @@ type DevOutputOptions = {
   assistsEnabled: boolean;
   difficultyFloor: string;
   lastMove: string;
+  mode: string;
   optimizerOutput: string;
   playerColor: string;
+  practiceColor: string;
   practiceDifficulty: number | null;
   practiceAiDebug: PracticeAiDebug | null;
   previousRedScores: ScoreHistory;
@@ -94,8 +96,11 @@ export function buildDevOutput(options: DevOutputOptions): string {
 
   const lines = [
     `version: ${options.version}`,
+    `mode: ${options.mode}`,
     `state: ${options.state}`,
+    `practice_color: ${options.practiceColor}`,
     `player_color: ${options.playerColor}`,
+    `practice_difficulty: ${options.practiceDifficulty ?? ""}`,
     `difficulty_floor: ${options.difficultyFloor}`,
     `remaining: ${options.remaining.toLowerCase()}`,
     `score_share: ${options.scoreShare}`,
